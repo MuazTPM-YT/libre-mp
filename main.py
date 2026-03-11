@@ -1,5 +1,6 @@
 from epson_projector.client import EpsonEasyMPClient
 from epson_projector.wifi import interactive_wifi_setup, revert_wifi
+from epson_projector.video_streamer import VideoStreamer
 
 def main():
     print("--- Wi-Fi Setup ---")
@@ -15,15 +16,9 @@ def main():
         success = client.connect_and_negotiate()
         
         if success:
-            print("Ready to stream video frames payload over client.s_video!")
-            # Example of where you would drop your payload:
-            # client.send_video_frame(my_encrypted_video_data)
+            streamer = VideoStreamer(client, fps=24)
+            streamer.start_streaming()
             
-            # For demonstration, keep it alive so we don't instantly drop
-            import time
-            while True:
-                time.sleep(1)
-                
         client.disconnect()
     except KeyboardInterrupt:
         print("\n[*] Exiting script...")
@@ -37,3 +32,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
