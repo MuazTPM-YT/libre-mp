@@ -1,8 +1,9 @@
 import socket
+import subprocess
 
 # --- Configuration ---
-# Update this to your Projector's actual IP address on the network
-PROJECTOR_IP = '169.254.160.040'
+# Epson Projectors default to 192.168.88.1 when hosting their own Wi-Fi or Ad-Hoc networks.
+PROJECTOR_IP = '192.168.88.1'
 
 def get_local_ip():
     # Attempt to establish a dummy connection to get the routable local IP address
@@ -14,11 +15,12 @@ def get_local_ip():
         s.close()
         return ip
     except Exception:
-        return '127.0.0.1'
+        return '192.168.88.2' # Standard second IP in the Ad-Hoc block
 
 # Automatically grab the local IP of this machine, or hardcode it
-MY_IP = get_local_ip()  # Previously '192.168.88.3'
+MY_IP = get_local_ip()
 
 PORT_CONTROL = 3620
 PORT_VIDEO = 3621
 PORT_WAKE = 3629
+
