@@ -15,14 +15,23 @@ class VideoStreamer:
         self.target_fps = fps
         self.frame_duration = 1.0 / fps
         self.prev_frame = None
+        self.use_grim = False
         
+        # Check if grim is installed (for Wayland fallback)
+        import subprocess
+        try:
+            if subprocess.run(['which', 'grim'], stdout=subprocess.DEVNULL).returncode == 0:
+                self.use_grim = True
+                print("[+] Wayland 'grim' screenshot utility detected. Capture is supported!")
+        except Exception:
+            pass
+
         if DEPENDENCIES_LOADED:
             self.sct = mss.mss()
             self.monitor = None
             
-            # Try to find a working monitor (XGetImage() often fails on specific Wayland/X11 edge cases)
+            # Try to find a working monitor
             print("[*] Probing monitors for screen capture compatibility...")
-            # Start with monitor 1 (primary), then fallback through others
             for idx, m in enumerate(self.sct.monitors[1:], 1):
                 try:
                     self.sct.grab(m)
@@ -30,32 +39,33 @@ class VideoStreamer:
                     print(f"[+] Successfully bound to Monitor {idx}: {m}")
                     break
                 except Exception as e:
-                    print(f"[-] Monitor {idx} grab failed: {e}")
+                    pass
                     
             if self.monitor is None:
-                print("[*] Falling back to unified 'All Monitors' capture (Monitor 0)...")
                 try:
                     self.monitor = self.sct.monitors[0]
                     self.sct.grab(self.monitor)
                     print("[+] Unified capture successful.")
                 except Exception as e:
-                    print(f"[-] Fatal: Could not capture any screen. Are you on strictly Wayland without XWayland? Error: {e}")
-                    # Keep it as index 1 but we expect it to fail in the loop
-                    self.monitor = self.sct.monitors[1] if len(self.sct.monitors) > 1 else self.sct.monitors[0]
+                    print(f"[-] mss grab failed (Wayland expected), using grim fallback if available.")
+                    self.monitor = None
         else:
             print("[-] Missing dependencies for video streaming. Please run: pip install mss Pillow numpy")
     
     def start_streaming(self):
-        print(f"[*] Starting video stream using mss at ~{self.target_fps} fps...")
+        print(f"[*] Starting video stream using mss/grim at ~{self.target_fps} fps...")
         
         # Test card state
-        use_test_card = not DEPENDENCIES_LOADED or self.monitor is None
-        if use_test_card:
-            print("[!] WARNING: Valid screen capture monitor not found (Wayland mode?).")
+        use_test_card = False
+        if (not DEPENDENCIES_LOADED) or (self.monitor is None and not self.use_grim):
+            use_test_card = True
+            print("[!] WARNING: Valid screen capture method not found.")
             print("[!] Falling back to synthetic 'Test Card' video stream to verify connection.")
             width, height = 800, 600
         else:
-            width, height = self.monitor["width"], self.monitor["height"]
+            width, height = 1920, 1080 # default override for grim
+            if self.monitor is not None:
+                width, height = self.monitor["width"], self.monitor["height"]
             
         frame_idx = 0
             
@@ -69,8 +79,23 @@ class VideoStreamer:
                 
                 if not use_test_card:
                     try:
-                        sct_img = self.sct.grab(self.monitor)
-                        curr_frame = np.array(sct_img)
+                        if self.monitor is not None:
+                            sct_img = self.sct.grab(self.monitor)
+                            curr_frame = np.array(sct_img)
+                        elif self.use_grim:
+                            import subprocess
+                            import io
+                            from PIL import Image
+                            # Grab full screen using grim, resize slightly to limit bandwidth
+                            proc = subprocess.run(['grim', '-c', '-t', 'jpeg', '-q', '50', '-'], capture_output=True, check=True)
+                            img = Image.open(io.BytesIO(proc.stdout)).convert("RGB")
+                            # Convert to BGR format for consistency with OpenCV/mss processing expected below
+                            curr_frame = np.array(img)[:, :, ::-1].copy()
+                            # Expand to BGRA structure so diff mask logic works (it expects 4 channels typically from mss)
+                            # Actually mss captures BGRA, so we add alpha channel
+                            alpha = np.full((curr_frame.shape[0], curr_frame.shape[1], 1), 255, dtype=np.uint8)
+                            curr_frame = np.concatenate([curr_frame, alpha], axis=2)
+                            width, height = curr_frame.shape[1], curr_frame.shape[0]
                         
                         if self.prev_frame is not None:
                             diff_mask = np.any(curr_frame != self.prev_frame, axis=2)

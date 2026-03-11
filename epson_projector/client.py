@@ -41,17 +41,48 @@ class EpsonEasyMPClient:
         self.s_auth.settimeout(5)
         self.s_auth.connect((self.projector_ip, config.PORT_CONTROL))
 
+        # --- REGISTRATION PHASE ---
+        print("[*]    Sending 68-byte Registration Packet...")
+        # The first packet MUST be the IP registration `0x02`
+        reg_payload = payloads.get_registration_payload(self.my_ip)
+        self.s_auth.sendall(reg_payload)
+        
+        try:
+            resp1 = self.s_auth.recv(1024)
+            print(f"[+]    Registration Resp 1: {len(resp1)} bytes -> {resp1.hex()[:32]}...")
+            # We also might receive a second packet immediately (the 226-byte one)
+            # but we can safely just read whatever is in the buffer or try one more read
+            try:
+                self.s_auth.settimeout(1)
+                resp2 = self.s_auth.recv(1024)
+                print(f"[+]    Registration Resp 2: {len(resp2)} bytes -> {resp2.hex()[:32]}...")
+            except socket.timeout:
+                pass
+        except Exception as e:
+            print(f"[-]    Registration failed: {e}")
+            raise
+
+        self.s_auth.settimeout(5)
+
         # --- AUTHENTICATION SEQUENCE ---
-        print("[*]    Sending dynamic Rhino Exploit Auth Request (Backdoor PIN 2270)...")
-        auth_payload = payloads.get_auth_payload(self.my_ip, self.projector_ip, pin="2270")
+        print("[*]    Sending 264-Byte Full Auth Request (PCAP Replay)...")
+        # We use the full PCAP 264-byte payload since the short 94-byte one is ignored
+        auth_payload = payloads.get_auth_payload_full(self.my_ip, self.projector_ip)
         
         print(f"[*]    Payload length: {len(auth_payload)} bytes")
         self.s_auth.sendall(auth_payload)
         
         print("[*]    Waiting for authentication response...")
         try:
-            resp1 = self.s_auth.recv(1024)
-            print(f"[+]    Resp 1: {len(resp1)} bytes -> {resp1.hex()[:32]}")
+            auth_resp = self.s_auth.recv(1024)
+            print(f"[+]    Auth Resp: {len(auth_resp)} bytes -> {auth_resp.hex()[:32]}...")
+            
+            # The PCAP shows 296 bytes on correct auth. We check byte 50 (index 50) for success flag.
+            if len(auth_resp) >= 50:
+                status_byte = auth_resp[50]
+                print(f"[+]    Auth Status Byte: 0x{status_byte:02x}")
+                if len(auth_resp) == 296:
+                    print("[+]    Perfect 296-byte Auth Response received! We are IN.")
         except socket.timeout:
             print("[-]    Wait/Resp 1 error: timed out")
         except Exception as e:
@@ -67,6 +98,12 @@ class EpsonEasyMPClient:
         self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_video.settimeout(5)
         self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
+        
+        print("[*]    Sending Video Channel Initialization (EPRD0600)...")
+        video_init_payload = payloads.get_video_init_payload(self.my_ip)
+        self.s_video.sendall(video_init_payload)
+        
+        # We don't necessarily wait for a response here; the protocol just streams
         print("[+]    Video Channel OPEN. Ready to stream PCON-wrapped MJPEG.")
 
     def send_video_frame(self, x_offset, y_offset, width, height, mjpeg_bytes):
