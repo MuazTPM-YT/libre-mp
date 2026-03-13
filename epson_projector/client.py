@@ -46,6 +46,7 @@ class EpsonEasyMPClient:
     def _authenticate_session(self):
         print(f"[*] 1. Opening Authentication Channel (Port 3620)...")
         self.s_auth = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_auth.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.s_auth.settimeout(5)
         self.s_auth.connect((self.projector_ip, config.PORT_CONTROL))
 
@@ -96,49 +97,73 @@ class EpsonEasyMPClient:
     def _complete_auth_handshake(self):
         """
         After the 296-byte auth response, the projector sends additional 
-        handshake packets. The client MUST respond to the 0x010E command
-        with a 0x0108 response (348 bytes), then wait for the 0x0110 
-        "ready to stream" signal.
+        handshake packets. The client MUST respond to ONLY the FIRST 0x010E 
+        command with a 0x0108 response (348 bytes), then wait for 0x0110.
         
-        PCAP sequence:
-          Frame 123: Projector -> 360 bytes (cmd 0x010E, actually 2x180)
-          Frame 124: Client    -> 348 bytes (cmd 0x0108) — WE MUST SEND THIS
+        PCAP Windows sequence:
+          Frame 123: Projector -> 360 bytes (cmd 0x010E)  <-- respond
+          Frame 124: Client    -> 348 bytes (cmd 0x0108)
           Frame 125: Projector -> 348 bytes (cmd 0x0109)
-          Frame 129: Projector -> 360 bytes (cmd 0x010E)
-          Frame 134: Projector -> 20 bytes  (cmd 0x0110, "ready" signal)
+          Frame 129: Projector -> 360 bytes (cmd 0x010E)  <-- DO NOT respond!
+          Frame 134: Projector -> 20 bytes  (cmd 0x0110, "ready")
         """
         print("[*]    Completing post-auth handshake on Port 3620...")
         self.s_auth.settimeout(3)
         
         ready_received = False
+        already_responded = False  # Only respond to FIRST 0x010E
         
         try:
-            for attempt in range(8):
+            for attempt in range(10):
                 try:
                     data = self.s_auth.recv(4096)
                     if not data:
                         break
                     
-                    print(f"[+]    Post-auth recv: {len(data)} bytes -> cmd=0x{struct.unpack('<I', data[12:16])[0]:04x}")
+                    # The projector may send two 180-byte 0x010E packets concatenated 
+                    # as one 360-byte recv, or as separate 180-byte packets.
+                    # Parse all EEMP messages in the received data.
+                    offset = 0
+                    while offset + 20 <= len(data):
+                        if data[offset:offset+8] != b'EEMP0100':
+                            break
+                        
+                        cmd = struct.unpack('<I', data[offset+12:offset+16])[0]
+                        payload_len = struct.unpack('<I', data[offset+16:offset+20])[0]
+                        msg_len = 20 + payload_len
+                        
+                        print(f"[+]    Post-auth recv: cmd=0x{cmd:04x}, {msg_len} bytes")
+                        
+                        if cmd == 0x010E and not already_responded:
+                            response = self._build_0x0108_response()
+                            self.s_auth.sendall(response)
+                            already_responded = True
+                            print(f"[+]    Sent 0x0108 response: {len(response)} bytes")
+                        
+                        elif cmd == 0x010E and already_responded:
+                            print(f"[*]    Ignoring subsequent 0x010E (no response needed)")
+                        
+                        elif cmd == 0x0110:
+                            print("[+]    Received 0x0110 'Ready to Stream' signal!")
+                            ready_received = True
+                            # Don't break - continue to wait for 0x0016 status
+                        
+                        elif cmd == 0x0016:
+                            print("[+]    Received 0x0016 'Display Pipeline Ready' status!")
+                            status_received = True
+                            break
+                        
+                        offset += msg_len
                     
-                    # Parse the EEMP command type
-                    cmd = struct.unpack('<I', data[12:16])[0]
-                    
-                    if cmd == 0x010E:
-                        # Projector sends 0x010E -> Client must respond with 0x0108
-                        response = self._build_0x0108_response()
-                        self.s_auth.sendall(response)
-                        print(f"[+]    Sent 0x0108 response: {len(response)} bytes")
-                    
-                    elif cmd == 0x0110:
-                        # "Ready to stream" signal
-                        print("[+]    Received 0x0110 'Ready to Stream' signal!")
-                        ready_received = True
+                    if status_received:
                         break
                     
-                    # For other commands (0x0109, etc.), just ACK and continue
-                    
                 except socket.timeout:
+                    if ready_received:
+                        # We got 0x0110 but 0x0016 didn't arrive yet
+                        # Keep waiting (projector can take ~1.5s)
+                        print("[*]    Waiting for projector display pipeline...")
+                        continue
                     break
                 except Exception as e:
                     print(f"[*]    Post-auth error: {e}")
@@ -148,10 +173,13 @@ class EpsonEasyMPClient:
         
         self.s_auth.settimeout(5)
         
-        if ready_received:
-            print("[+]    Post-auth handshake complete. Projector is ready!")
+        if status_received:
+            print("[+]    Post-auth handshake complete. Display pipeline confirmed ready!")
+        elif ready_received:
+            print("[+]    Post-auth handshake complete. Projector ready (no 0x0016 status, continuing).")
         else:
             print("[*]    Post-auth handshake complete (no explicit ready signal, continuing).")
+
 
     def _build_0x0108_response(self):
         """
@@ -204,6 +232,7 @@ class EpsonEasyMPClient:
         
         # --- Connection 1: VIDEO DATA (byte 28 = 0x00) ---
         self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_video.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.s_video.settimeout(5)
         self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
         
@@ -215,6 +244,7 @@ class EpsonEasyMPClient:
         
         # --- Connection 2: ZERO BUFFER AUX (byte 28 = 0x01) ---
         self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.s_video_aux.settimeout(5)
         self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
         
@@ -253,8 +283,6 @@ class EpsonEasyMPClient:
             return False
             
         try:
-            parts = []
-            
             # First frame: send display configuration meta
             if self.first_frame:
                 meta = payloads.get_display_config_meta(
@@ -262,25 +290,30 @@ class EpsonEasyMPClient:
                     config.PROJECTOR_DISPLAY_HEIGHT
                 )
                 meta_header = payloads.get_eprd_meta_header(self.my_ip, len(meta))
-                parts.append(meta_header)
-                parts.append(meta)
+                # Send as separate packets (matching Windows pcap frames 182+183)
+                self.s_video.sendall(meta_header)
+                self.s_video.sendall(meta)
             
-            # EPRD header with JPEG payload size
-            jpeg_header = payloads.get_eprd_jpeg_header(self.my_ip, len(jpeg_bytes))
-            parts.append(jpeg_header)
+            # EPRD header with payload size (pcap frame 184)
+            # Size field = frame_type(4) + region(16) + JPEG data
+            # This is the total size of ALL sub-frame data in this EPRD block
+            payload_size = 4 + 16 + len(jpeg_bytes)
+            jpeg_header = payloads.get_eprd_jpeg_header(self.my_ip, payload_size)
+            self.s_video.sendall(jpeg_header)
             
-            # Frame type + region descriptor
-            frame_type = 4 if self.first_frame else 3
+            # Frame type - always keyframe (4) since we send full-screen JPEG
+            # Windows only uses type 3 for partial region deltas, not full screen
+            frame_type = 4
             frame_hdr = payloads.get_frame_header(
                 frame_type, x_offset, y_offset, width, height
             )
-            parts.append(frame_hdr)
+            # Send frame_type (4 bytes) and region (16 bytes) separately 
+            # matching pcap frames 185 + 186
+            self.s_video.sendall(frame_hdr[:4])   # frame type
+            self.s_video.sendall(frame_hdr[4:])   # region descriptor
             
-            # JPEG data
-            parts.append(jpeg_bytes)
-            
-            # Send everything as one write on the VIDEO connection
-            self.s_video.sendall(b''.join(parts))
+            # JPEG data (pcap frame 187+)
+            self.s_video.sendall(jpeg_bytes)
             
             if self.first_frame:
                 self.first_frame = False
