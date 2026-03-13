@@ -91,9 +91,13 @@ class VideoStreamer:
         return False
 
     def _capture_grim(self):
-        """Capture screen using grim (Wayland native), return PIL Image."""
+        """Capture screen using grim (Wayland native), return PIL Image.
+        
+        Captures as PNG (lossless) then resizes to exact stream dimensions.
+        JPEG encoding with correct subsampling is done later in start_streaming.
+        """
         proc = subprocess.run(
-            ['grim', '-t', 'jpeg', '-q', str(self.jpeg_quality), '-'],
+            ['grim', '-t', 'png', '-'],
             capture_output=True
         )
         if proc.returncode != 0:
@@ -148,7 +152,6 @@ class VideoStreamer:
         if use_test_card:
             print("[!] No screen capture available. Using test card.")
         
-        keepalive_counter = 0
         
         try:
             while True:
@@ -168,9 +171,11 @@ class VideoStreamer:
                     use_test_card = True
                     continue
                 
-                # Encode as JPEG
+                # Encode as JPEG with 4:2:0 chroma subsampling
+                # (matching Windows Epson iProjection encoding)
                 buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=self.jpeg_quality)
+                img.save(buf, format="JPEG", quality=self.jpeg_quality,
+                         subsampling='4:2:0')
                 jpeg_bytes = buf.getvalue()
                 
                 # Send via EPRD protocol
@@ -185,11 +190,9 @@ class VideoStreamer:
                 
                 self.frame_idx += 1
                 
-                # Periodic keepalive on aux channel
-                keepalive_counter += 1
-                if keepalive_counter >= 10:
-                    self.client.send_keepalive()
-                    keepalive_counter = 0
+                # Send keepalive on aux channel every frame
+                # Windows PCAP shows ~1:1 aux-to-video ratio
+                self.client.send_keepalive()
                 
                 elapsed = time.time() - start_time
                 if elapsed < self.frame_duration:

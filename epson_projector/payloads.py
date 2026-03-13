@@ -141,3 +141,44 @@ def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
     # Flags field (constant 0x00000007 from pcap) + rolling timestamp
     tail = struct.pack('>II', 0x00000007, ts)
     return type_bytes + region + tail
+
+
+# ========================================================================
+#  Single-buffer frame assembly (matching Windows PCAP behavior)
+#
+#  The Epson projector firmware expects the EPRD header and its payload
+#  to arrive together in the TCP stream. Sending them as separate
+#  sendall() calls with TCP_NODELAY may cause the projector to reject
+#  or ignore the frame.
+# ========================================================================
+
+def build_first_frame_payload(my_ip: str, disp_w: int, disp_h: int,
+                              x: int, y: int, w: int, h: int,
+                              jpeg_bytes: bytes) -> bytes:
+    """
+    Assemble the COMPLETE first-frame payload as a single contiguous buffer:
+      [EPRD meta header (20)] [Display config (46)]
+      [EPRD jpeg header (20)] [Frame header (20)] [JPEG data]
+    """
+    meta = get_display_config_meta(disp_w, disp_h)
+    meta_hdr = get_eprd_meta_header(my_ip, len(meta))
+
+    frame_hdr = get_frame_header(4, x, y, w, h)  # type=4 keyframe
+    jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+    jpeg_hdr = get_eprd_jpeg_header(my_ip, jpeg_payload_size)
+
+    return meta_hdr + meta + jpeg_hdr + frame_hdr + jpeg_bytes
+
+
+def build_video_frame_payload(my_ip: str, frame_type: int,
+                              x: int, y: int, w: int, h: int,
+                              jpeg_bytes: bytes) -> bytes:
+    """
+    Assemble a subsequent video frame as a single contiguous buffer:
+      [EPRD jpeg header (20)] [Frame header (20)] [JPEG data]
+    """
+    frame_hdr = get_frame_header(frame_type, x, y, w, h)
+    jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+    jpeg_hdr = get_eprd_jpeg_header(my_ip, jpeg_payload_size)
+
+    return jpeg_hdr + frame_hdr + jpeg_bytes
