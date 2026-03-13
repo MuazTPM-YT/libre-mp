@@ -19,6 +19,7 @@ class EpsonEasyMPClient:
 
         # State
         self.first_frame = True
+        self.keepalive_toggle = False  # Alternates zero-buf sizes: False=2646, True=1764
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
@@ -221,8 +222,9 @@ class EpsonEasyMPClient:
         # --- Connection 1: VIDEO DATA (byte 28 = 0x00) ---
         self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_video.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.s_video.settimeout(5)
+        self.s_video.settimeout(10)
         self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
+        self.s_video.settimeout(None)  # No timeout for streaming
         
         ctrl_init = payloads.get_video_init_payload_ctrl(self.my_ip)
         self.s_video.sendall(ctrl_init)
@@ -233,8 +235,9 @@ class EpsonEasyMPClient:
         # --- Connection 2: ZERO BUFFER AUX (byte 28 = 0x01) ---
         self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.s_video_aux.settimeout(5)
+        self.s_video_aux.settimeout(10)
         self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
+        self.s_video_aux.settimeout(None)  # No timeout for streaming
         
         data_init = payloads.get_video_init_payload_data(self.my_ip)
         self.s_video_aux.sendall(data_init)
@@ -259,48 +262,31 @@ class EpsonEasyMPClient:
         Wraps JPEG data in the Epson EPRD protocol and sends on the 
         FIRST video connection (s_video, byte28=0x00).
         
-        Protocol per frame:
-          1. EPRD meta header (20 bytes) + Display config (46 bytes) [first frame only]
-          2. EPRD jpeg header (20 bytes) with JPEG size
-          3. Frame type (4 bytes): 0x04=keyframe, 0x03=delta
-          4. Region descriptor (16 bytes): x, y, w, h + flags + timestamp
-          5. JPEG data
+        Each EPRD message (header + payload) is sent as a single sendall() call.
+        The display config and JPEG frame are separate EPRD messages.
         """
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
             
         try:
-            # First frame: send display configuration meta
             if self.first_frame:
+                # EPRD message 1: meta header + display config (one sendall)
                 meta = payloads.get_display_config_meta(
-                    config.PROJECTOR_DISPLAY_WIDTH, 
+                    config.PROJECTOR_DISPLAY_WIDTH,
                     config.PROJECTOR_DISPLAY_HEIGHT
                 )
-                meta_header = payloads.get_eprd_meta_header(self.my_ip, len(meta))
-                # Send as separate packets (matching Windows pcap frames 182+183)
-                self.s_video.sendall(meta_header)
-                self.s_video.sendall(meta)
+                meta_buf = payloads.get_eprd_meta_header(self.my_ip, len(meta)) + meta
+                self.s_video.sendall(meta_buf)
             
-            # EPRD header with payload size (pcap frame 184)
-            # Size field = frame_type(4) + region(16) + JPEG data
-            # This is the total size of ALL sub-frame data in this EPRD block
-            payload_size = 4 + 16 + len(jpeg_bytes)
-            jpeg_header = payloads.get_eprd_jpeg_header(self.my_ip, payload_size)
-            self.s_video.sendall(jpeg_header)
-            
-            # Frame type (pcap frame 185)
+            # EPRD message 2: jpeg header + frame header + JPEG data (one sendall)
             frame_type = 4 if self.first_frame else 3
-            frame_hdr = payloads.get_frame_header(
-                frame_type, x_offset, y_offset, width, height
+            buf = payloads.build_video_frame_payload(
+                self.my_ip, frame_type,
+                x_offset, y_offset, width, height,
+                jpeg_bytes
             )
-            # Send frame_type (4 bytes) and region (16 bytes) separately 
-            # matching pcap frames 185 + 186
-            self.s_video.sendall(frame_hdr[:4])   # frame type
-            self.s_video.sendall(frame_hdr[4:])   # region descriptor
-            
-            # JPEG data (pcap frame 187+)
-            self.s_video.sendall(jpeg_bytes)
+            self.s_video.sendall(buf)
             
             if self.first_frame:
                 self.first_frame = False
@@ -311,13 +297,38 @@ class EpsonEasyMPClient:
             return False
 
     def send_keepalive(self):
-        """Send a zero-buffer keepalive on the AUX channel between frames."""
+        """
+        Send a zero-buffer keepalive on the AUX channel.
+        Alternates between 2646 and 1764 byte buffers, matching the
+        pattern observed in the Windows Epson iProjection PCAP.
+        """
         if self.s_video_aux:
             try:
-                buf = payloads.get_zero_buffer(1764)
+                size = 1764 if self.keepalive_toggle else 2646
+                self.keepalive_toggle = not self.keepalive_toggle
+                buf = payloads.get_zero_buffer(size)
                 self.s_video_aux.sendall(buf)
             except Exception:
                 pass
+
+    def _send_streaming_started(self):
+        """
+        Send the 0x0401 'streaming started' notification on port 3620.
+        
+        Windows PCAP shows this 20-byte EEMP message is sent AFTER the
+        post-auth handshake completes and video channels are open,
+        but BEFORE any video data is sent.
+        
+        Exact bytes from pcap: 45454d5030313030 + IP + 0401000000000000
+        """
+        if self.s_auth:
+            try:
+                ip_bytes = socket.inet_aton(self.my_ip)
+                msg = b'EEMP0100' + ip_bytes + struct.pack('<II', 0x00000104, 0x00000000)
+                self.s_auth.sendall(msg)
+                print(f"[+]    Sent 0x0401 'streaming started' notification ({len(msg)} bytes)")
+            except Exception as e:
+                print(f"[*]    Note: Could not send streaming notification: {e}")
 
     def disconnect(self):
         """Tears down all connections safely."""
