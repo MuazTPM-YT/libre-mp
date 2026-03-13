@@ -19,7 +19,6 @@ class EpsonEasyMPClient:
 
         # State
         self.first_frame = True
-        self.keepalive_toggle = False
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
@@ -308,14 +307,12 @@ class EpsonEasyMPClient:
     def send_keepalive(self):
         """
         Send a zero-buffer keepalive on the AUX channel.
-        Alternates between 2646 and 1764 byte buffers, matching the
-        pattern observed in the Windows Epson iProjection PCAP.
+        During streaming, the Windows client sends 0-size keepalives (5 bytes total)
+        frequently.
         """
         if self.s_video_aux:
             try:
-                size = 1764 if self.keepalive_toggle else 2646
-                self.keepalive_toggle = not self.keepalive_toggle
-                buf = payloads.get_zero_buffer(size)
+                buf = payloads.get_zero_buffer(0)
                 self.s_video_aux.sendall(buf)
             except Exception:
                 pass
