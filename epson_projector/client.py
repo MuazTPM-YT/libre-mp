@@ -146,24 +146,14 @@ class EpsonEasyMPClient:
                         elif cmd == 0x0110:
                             print("[+]    Received 0x0110 'Ready to Stream' signal!")
                             ready_received = True
-                            # Don't break - continue to wait for 0x0016 status
-                        
-                        elif cmd == 0x0016:
-                            print("[+]    Received 0x0016 'Display Pipeline Ready' status!")
-                            status_received = True
                             break
                         
                         offset += msg_len
                     
-                    if status_received:
+                    if ready_received:
                         break
                     
                 except socket.timeout:
-                    if ready_received:
-                        # We got 0x0110 but 0x0016 didn't arrive yet
-                        # Keep waiting (projector can take ~1.5s)
-                        print("[*]    Waiting for projector display pipeline...")
-                        continue
                     break
                 except Exception as e:
                     print(f"[*]    Post-auth error: {e}")
@@ -173,10 +163,8 @@ class EpsonEasyMPClient:
         
         self.s_auth.settimeout(5)
         
-        if status_received:
-            print("[+]    Post-auth handshake complete. Display pipeline confirmed ready!")
-        elif ready_received:
-            print("[+]    Post-auth handshake complete. Projector ready (no 0x0016 status, continuing).")
+        if ready_received:
+            print("[+]    Post-auth handshake complete. Projector is ready!")
         else:
             print("[*]    Post-auth handshake complete (no explicit ready signal, continuing).")
 
@@ -301,9 +289,8 @@ class EpsonEasyMPClient:
             jpeg_header = payloads.get_eprd_jpeg_header(self.my_ip, payload_size)
             self.s_video.sendall(jpeg_header)
             
-            # Frame type - always keyframe (4) since we send full-screen JPEG
-            # Windows only uses type 3 for partial region deltas, not full screen
-            frame_type = 4
+            # Frame type (pcap frame 185)
+            frame_type = 4 if self.first_frame else 3
             frame_hdr = payloads.get_frame_header(
                 frame_type, x_offset, y_offset, width, height
             )
