@@ -20,7 +20,6 @@ class EpsonEasyMPClient:
         # State
         self.first_frame = True
         self.keepalive_toggle = False
-        self.streaming_started = False  # Alternates zero-buf sizes: False=2646, True=1764
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
@@ -298,11 +297,6 @@ class EpsonEasyMPClient:
             )
             self.s_video.sendall(buf)
             
-            # Windows client sends 0x0401 on auth channel AFTER video has started buffering
-            if not self.streaming_started:
-                self._send_streaming_started()
-                self.streaming_started = True
-            
             if self.first_frame:
                 self.first_frame = False
             
@@ -326,7 +320,7 @@ class EpsonEasyMPClient:
             except Exception:
                 pass
 
-    def _send_streaming_started(self):
+    def _send_streaming_stopped(self):
         """
         Send the 0x0401 'streaming started' notification on port 3620.
         
@@ -339,25 +333,9 @@ class EpsonEasyMPClient:
         if self.s_auth:
             try:
                 ip_bytes = socket.inet_aton(self.my_ip)
-                msg = b'EEMP0100' + ip_bytes + struct.pack('<II', 0x00000104, 0x00000000)
-                self.s_auth.sendall(msg)
-                print(f"[+]    Sent 0x0401 'streaming started' notification ({len(msg)} bytes)")
-            except Exception as e:
-                print(f"[*]    Note: Could not send streaming notification: {e}")
-
-    def _send_streaming_started(self):
-        """
-        Send the 0x0401 'streaming started' notification on port 3620.
-        
-        Windows PCAP shows this 20-byte EEMP message is sent AFTER the
-        post-auth handshake completes and video channels are open,
-        but BEFORE any video data is sent.
-        
-        Exact bytes from pcap: 45454d5030313030 + IP + 0401000000000000
-        """
-        if self.s_auth:
-            try:
-                ip_bytes = socket.inet_aton(self.my_ip)
+                # Note: The command 0x0401 is "streaming started".
+                # If this method is truly for "stopped", the command byte needs to be changed.
+                # For now, keeping the original command as per the instruction's diff.
                 msg = b'EEMP0100' + ip_bytes + struct.pack('<II', 0x00000104, 0x00000000)
                 self.s_auth.sendall(msg)
                 print(f"[+]    Sent 0x0401 'streaming started' notification ({len(msg)} bytes)")
@@ -366,8 +344,15 @@ class EpsonEasyMPClient:
 
     def disconnect(self):
         """Tears down all connections safely."""
-        print("[*] Disconnecting client...")
-        for sock in [self.s_auth, self.s_video, self.s_video_aux]:
+        print("\n[*] Disconnecting client...")
+        try:
+            if self.s_auth:
+                self._send_streaming_stopped()
+                self.s_auth.close()
+        except Exception as e:
+            print(f"[*] Error closing auth socket: {e}")
+
+        for sock in [self.s_video, self.s_video_aux]:
             if sock:
                 try: sock.close()
                 except: pass
