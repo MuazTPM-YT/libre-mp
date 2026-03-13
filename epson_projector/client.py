@@ -19,7 +19,8 @@ class EpsonEasyMPClient:
 
         # State
         self.first_frame = True
-        self.keepalive_toggle = False  # Alternates zero-buf sizes: False=2646, True=1764
+        self.keepalive_toggle = False
+        self.streaming_started = False  # Alternates zero-buf sizes: False=2646, True=1764
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
@@ -69,7 +70,16 @@ class EpsonEasyMPClient:
             print(f"[-]    Registration failed: {e}")
             raise
 
+        # Windows client explicitly closes the registration connection 
+        # and opens a NEW connection for the actual authentication!
+        print("[*]    Closing Registration channel, opening Auth channel...")
+        self.s_auth.close()
+        time.sleep(0.1)
+
+        self.s_auth = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_auth.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         self.s_auth.settimeout(5)
+        self.s_auth.connect((self.projector_ip, config.PORT_CONTROL))
 
         # --- AUTHENTICATION SEQUENCE ---
         print("[*]    Sending 264-Byte Full Auth Request...")
@@ -288,6 +298,11 @@ class EpsonEasyMPClient:
             )
             self.s_video.sendall(buf)
             
+            # Windows client sends 0x0401 on auth channel AFTER video has started buffering
+            if not self.streaming_started:
+                self._send_streaming_started()
+                self.streaming_started = True
+            
             if self.first_frame:
                 self.first_frame = False
             
@@ -310,6 +325,25 @@ class EpsonEasyMPClient:
                 self.s_video_aux.sendall(buf)
             except Exception:
                 pass
+
+    def _send_streaming_started(self):
+        """
+        Send the 0x0401 'streaming started' notification on port 3620.
+        
+        Windows PCAP shows this 20-byte EEMP message is sent AFTER the
+        post-auth handshake completes and video channels are open,
+        but BEFORE any video data is sent.
+        
+        Exact bytes from pcap: 45454d5030313030 + IP + 0401000000000000
+        """
+        if self.s_auth:
+            try:
+                ip_bytes = socket.inet_aton(self.my_ip)
+                msg = b'EEMP0100' + ip_bytes + struct.pack('<II', 0x00000104, 0x00000000)
+                self.s_auth.sendall(msg)
+                print(f"[+]    Sent 0x0401 'streaming started' notification ({len(msg)} bytes)")
+            except Exception as e:
+                print(f"[*]    Note: Could not send streaming notification: {e}")
 
     def _send_streaming_started(self):
         """

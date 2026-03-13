@@ -59,7 +59,8 @@ def get_video_init_payload_ctrl(my_ip: str) -> bytes:
     Derived from PCAP Frame 138.
     """
     hex_ip = get_hex_ip(my_ip)
-    p = f"4550524430363030{hex_ip}0000000010000000d00000000258a8c00000000000000000"
+    hex_ip_rev = get_hex_ip_reversed(my_ip)
+    p = f"4550524430363030{hex_ip}0000000010000000d0000000{hex_ip_rev}0000000000000000"
     return binascii.unhexlify(p)
 
 def get_video_init_payload_data(my_ip: str) -> bytes:
@@ -69,7 +70,8 @@ def get_video_init_payload_data(my_ip: str) -> bytes:
     Derived from PCAP Frame 143.
     """
     hex_ip = get_hex_ip(my_ip)
-    p = f"4550524430363030{hex_ip}0000000010000000d00000000258a8c00100000000000000"
+    hex_ip_rev = get_hex_ip_reversed(my_ip)
+    p = f"4550524430363030{hex_ip}0000000010000000d0000000{hex_ip_rev}0100000000000000"
     return binascii.unhexlify(p)
 
 def get_zero_buffer(size: int) -> bytes:
