@@ -1,12 +1,21 @@
 import socket
 import struct
 import binascii
+import time
+
+# ========================================================================
+#  Helpers
+# ========================================================================
 
 def get_hex_ip(ip: str) -> str:
     return socket.inet_aton(ip).hex()
 
 def get_hex_ip_reversed(ip: str) -> str:
     return socket.inet_aton(ip)[::-1].hex()
+
+# ========================================================================
+#  Port 3620 – Authentication
+# ========================================================================
 
 def get_registration_payload(my_ip: str) -> bytes:
     """
@@ -24,19 +33,9 @@ def get_auth_payload_full(my_ip: str, proj_ip: str, my_mac: str = "a4d73ccdaf45"
     """
     Constructs the exact 264-byte auth packet from the PCAP (Frame 118).
     Injects the dynamic Client IP, Projector IP, and MAC address.
-    Because the short Rhino Exploit payload forces a socket drop when following 
-    the strict registration sequence, this mirrors the exact payload shape.
     """
     hex_ip = get_hex_ip(my_ip)
     hex_proj = get_hex_ip(proj_ip)
-    # The PCAP shows `a4d73ccdaf45` (my_mac) in multiple places.
-    # We'll just hardcode it or dynamically replace it if passed in.
-    p = (
-        f"45454d5030313030{hex_ip}01010000f40000000101000000380f000000000000"
-        f"ffffff0000000000020f0b0004000320200001ff00ff00ff00000810000000010e0000"
-        f"{my_mac}00000000000000000000000000000000192168088001" # Note: we use hardcoded original PCAP internal IP here `c0a85801` but we'll dynamic it:
-    )
-    # Rebuilding correctly using string formatting
     p = (
         f"45454d5030313030{hex_ip}01010000f40000000101000000380f000000000000"
         f"ffffff0000000000020f0b0004000320200001ff00ff00ff00000810000000010e0000"
@@ -49,21 +48,96 @@ def get_auth_payload_full(my_ip: str, proj_ip: str, my_mac: str = "a4d73ccdaf45"
     )
     return binascii.unhexlify(p)
 
-def get_video_init_payload(my_ip: str) -> bytes:
+# ========================================================================
+#  Port 3621 – Video Channel (EPRD Protocol)
+# ========================================================================
+
+def get_video_init_payload_ctrl(my_ip: str) -> bytes:
     """
-    Constructs the 36-byte EPRD initialization packet for the Video Socket (Port 3621).
-    This tells the projector the client is about to send video frames.
+    36-byte EPRD init for the CONTROL video connection (first TCP to 3621).
+    Byte 28 = 0x00 — marks this as the control channel.
+    Derived from PCAP Frame 138.
     """
     hex_ip = get_hex_ip(my_ip)
-    # Magic: EPRD0600 + IP + padding/version (derived from pcap)
-    packet_hex = f"4550524430363030{hex_ip}0000000010000000d00000000258a8c00000000000000000"
-    return binascii.unhexlify(packet_hex)
+    p = f"4550524430363030{hex_ip}0000000010000000d00000000258a8c00000000000000000"
+    return binascii.unhexlify(p)
 
-def get_pcon_video_header(x_offset: int, y_offset: int, width: int, height: int, payload_length: int) -> bytes:
+def get_video_init_payload_data(my_ip: str) -> bytes:
     """
-    Constructs the PCON Video Header to wrap MJPEG stream payloads.
-    Total length: 16 bytes.
+    36-byte EPRD init for the DATA video connection (second TCP to 3621).
+    Byte 28 = 0x01 — marks this as the data/streaming channel.
+    Derived from PCAP Frame 143.
     """
-    magic = b"PCON"
-    # Network byte order (Big-Endian) required for PCON
-    return struct.pack('>4sHHHHI', magic, x_offset, y_offset, width, height, payload_length)
+    hex_ip = get_hex_ip(my_ip)
+    p = f"4550524430363030{hex_ip}0000000010000000d00000000258a8c00100000000000000"
+    return binascii.unhexlify(p)
+
+def get_zero_buffer(size: int) -> bytes:
+    """
+    Build a zero-padded warmup buffer with the 5-byte 0xC9 length prefix.
+    PCAP shows three of these sent before any video data:
+      - 7276 bytes, 2646 bytes, 1764 bytes (all zeros)
+    Format: 0xC9 + LE_uint32(size) + size bytes of 0x00
+    """
+    header = struct.pack('<BI', 0xC9, size)
+    return header + (b'\x00' * size)
+
+def get_eprd_meta_header(my_ip: str, meta_size: int) -> bytes:
+    """
+    Build a 20-byte EPRD0600 header for display config metadata.
+    Size field is Little-Endian (pcap: 0x2e000000 = LE 46).
+    """
+    ip_bytes = socket.inet_aton(my_ip)
+    return b'EPRD0600' + ip_bytes + struct.pack('<II', 0, meta_size)
+
+def get_eprd_jpeg_header(my_ip: str, jpeg_size: int) -> bytes:
+    """
+    Build a 20-byte EPRD0600 header for JPEG frame data.
+    Size field is Big-Endian (pcap: 0x00012af5 = BE 76533).
+    """
+    ip_bytes = socket.inet_aton(my_ip)
+    return b'EPRD0600' + ip_bytes + struct.pack('>II', 0, jpeg_size)
+
+def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900) -> bytes:
+    """
+    Build the 46-byte display configuration block sent on the first frame.
+    Starts with 0xCC. Contains display resolution and color info.
+    Derived from PCAP Frame 183.
+    """
+    # The PCAP shows this exact 46-byte block; we parameterize the resolution.
+    meta = bytearray(46)
+    meta[0] = 0xCC                          # Command byte
+    # Bytes 4-7: subpixel / color-depth hints
+    meta[4] = 0x04; meta[5] = 0x00
+    meta[6] = 0x03; meta[7] = 0x00
+    # Bytes 8-9: version/format
+    meta[8] = 0x20; meta[9] = 0x20
+    # Bytes 10-11
+    meta[10] = 0x00; meta[11] = 0x01
+    # Bytes 12-17: RGB color masks (0xFF each)
+    meta[12] = 0xFF; meta[13] = 0x00
+    meta[14] = 0xFF; meta[15] = 0x00
+    meta[16] = 0xFF; meta[17] = 0x00
+    # Bytes 18-19: pixel format
+    meta[18] = 0x10; meta[19] = 0x08
+    # Bytes 24-27: display resolution (Big-Endian)
+    struct.pack_into('>HH', meta, 24, disp_w, disp_h)
+    # Bytes 30-31: DPI hint
+    meta[30] = 0x00; meta[31] = 0x60
+    # Bytes 32-35: scaled dimensions (pcap: 0x0400=1024, 0x0240=576)
+    struct.pack_into('>HH', meta, 32, 0x0400, 0x0240)
+    return bytes(meta)
+
+def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
+    """
+    Build the 20-byte frame header: 4-byte type + 16-byte region descriptor.
+    - frame_type: 4 = keyframe (first frame), 3 = delta (subsequent)
+    - x, y, w, h: region coordinates in the scaled image (Big-Endian)
+    The last 8 bytes contain flags and a timestamp-like field.
+    """
+    ts = int(time.time() * 1000) & 0xFFFFFFFF
+    type_bytes = struct.pack('>I', frame_type)
+    region = struct.pack('>HHHH', x, y, w, h)
+    # Flags field (constant 0x00000007 from pcap) + rolling timestamp
+    tail = struct.pack('>II', 0x00000007, ts)
+    return type_bytes + region + tail

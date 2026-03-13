@@ -13,45 +13,50 @@ class EpsonEasyMPClient:
         self.my_ip = my_ip or config.get_local_ip()
         
         # Sockets
-        self.s_hardware = None # Port 3629
-        self.s_auth = None     # Port 3620
-        self.s_video = None    # Port 3621
+        self.s_auth = None        # Port 3620
+        self.s_video = None       # Port 3621 - FIRST connection (carries video data)
+        self.s_video_aux = None   # Port 3621 - SECOND connection (carries zero buffers)
+
+        # State
+        self.first_frame = True
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
         
         try:
-            # 2. Authentication Connect (TCP 3620)
+            # 1. Authentication (TCP 3620)
             self._authenticate_session()
             
-            # 3. Transport Stream Connect (TCP 3621)
-            self._open_video_channel()
+            # 2. Complete post-auth handshake on 3620
+            self._complete_auth_handshake()
+            
+            # 3. Open dual video channels (TCP 3621)
+            self._open_video_channels()
             
             print("\n[+] BINGO! Connection Fully Established and Ready for Video Stream!")
             return True
                 
         except Exception as e:
             print(f"[-] Negotiation failed: {e}")
+            import traceback
+            traceback.print_exc()
             self.disconnect()
             return False
 
     def _authenticate_session(self):
-        print(f"[*] 2. Opening Authentication Channel (Port 3620)...")
+        print(f"[*] 1. Opening Authentication Channel (Port 3620)...")
         self.s_auth = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_auth.settimeout(5)
         self.s_auth.connect((self.projector_ip, config.PORT_CONTROL))
 
         # --- REGISTRATION PHASE ---
         print("[*]    Sending 68-byte Registration Packet...")
-        # The first packet MUST be the IP registration `0x02`
         reg_payload = payloads.get_registration_payload(self.my_ip)
         self.s_auth.sendall(reg_payload)
         
         try:
             resp1 = self.s_auth.recv(1024)
             print(f"[+]    Registration Resp 1: {len(resp1)} bytes -> {resp1.hex()[:32]}...")
-            # We also might receive a second packet immediately (the 226-byte one)
-            # but we can safely just read whatever is in the buffer or try one more read
             try:
                 self.s_auth.settimeout(1)
                 resp2 = self.s_auth.recv(1024)
@@ -65,8 +70,7 @@ class EpsonEasyMPClient:
         self.s_auth.settimeout(5)
 
         # --- AUTHENTICATION SEQUENCE ---
-        print("[*]    Sending 264-Byte Full Auth Request (PCAP Replay)...")
-        # We use the full PCAP 264-byte payload since the short 94-byte one is ignored
+        print("[*]    Sending 264-Byte Full Auth Request...")
         auth_payload = payloads.get_auth_payload_full(self.my_ip, self.projector_ip)
         
         print(f"[*]    Payload length: {len(auth_payload)} bytes")
@@ -77,61 +81,228 @@ class EpsonEasyMPClient:
             auth_resp = self.s_auth.recv(1024)
             print(f"[+]    Auth Resp: {len(auth_resp)} bytes -> {auth_resp.hex()[:32]}...")
             
-            # The PCAP shows 296 bytes on correct auth. We check byte 50 (index 50) for success flag.
             if len(auth_resp) >= 50:
                 status_byte = auth_resp[50]
                 print(f"[+]    Auth Status Byte: 0x{status_byte:02x}")
                 if len(auth_resp) == 296:
                     print("[+]    Perfect 296-byte Auth Response received! We are IN.")
         except socket.timeout:
-            print("[-]    Wait/Resp 1 error: timed out")
+            print("[-]    Auth response timed out")
         except Exception as e:
-            print(f"[-]    Wait/Resp 1 error: {e}")
+            print(f"[-]    Auth error: {e}")
 
-        # Assume SUCCESS if we made it here without getting outright rejected or connection dropped
-        print("[+]    Finished playing exploit flow. Assuming authentication state is ready!")
+        print("[+]    Authentication phase complete.")
 
+    def _complete_auth_handshake(self):
+        """
+        After the 296-byte auth response, the projector sends additional 
+        handshake packets. The client MUST respond to the 0x010E command
+        with a 0x0108 response (348 bytes), then wait for the 0x0110 
+        "ready to stream" signal.
+        
+        PCAP sequence:
+          Frame 123: Projector -> 360 bytes (cmd 0x010E, actually 2x180)
+          Frame 124: Client    -> 348 bytes (cmd 0x0108) — WE MUST SEND THIS
+          Frame 125: Projector -> 348 bytes (cmd 0x0109)
+          Frame 129: Projector -> 360 bytes (cmd 0x010E)
+          Frame 134: Projector -> 20 bytes  (cmd 0x0110, "ready" signal)
+        """
+        print("[*]    Completing post-auth handshake on Port 3620...")
+        self.s_auth.settimeout(3)
+        
+        ready_received = False
+        
+        try:
+            for attempt in range(8):
+                try:
+                    data = self.s_auth.recv(4096)
+                    if not data:
+                        break
+                    
+                    print(f"[+]    Post-auth recv: {len(data)} bytes -> cmd=0x{struct.unpack('<I', data[12:16])[0]:04x}")
+                    
+                    # Parse the EEMP command type
+                    cmd = struct.unpack('<I', data[12:16])[0]
+                    
+                    if cmd == 0x010E:
+                        # Projector sends 0x010E -> Client must respond with 0x0108
+                        response = self._build_0x0108_response()
+                        self.s_auth.sendall(response)
+                        print(f"[+]    Sent 0x0108 response: {len(response)} bytes")
+                    
+                    elif cmd == 0x0110:
+                        # "Ready to stream" signal
+                        print("[+]    Received 0x0110 'Ready to Stream' signal!")
+                        ready_received = True
+                        break
+                    
+                    # For other commands (0x0109, etc.), just ACK and continue
+                    
+                except socket.timeout:
+                    break
+                except Exception as e:
+                    print(f"[*]    Post-auth error: {e}")
+                    break
+        except Exception as e:
+            print(f"[*]    Post-auth handshake note: {e}")
+        
+        self.s_auth.settimeout(5)
+        
+        if ready_received:
+            print("[+]    Post-auth handshake complete. Projector is ready!")
+        else:
+            print("[*]    Post-auth handshake complete (no explicit ready signal, continuing).")
 
-    def _open_video_channel(self):
-        print(f"[*] 3. Opening Video Channel (Port 3621)...")
-        time.sleep(0.5) # Slight delay purely to let Projector OS transition state
+    def _build_0x0108_response(self):
+        """
+        Build the exact 348-byte post-auth client response (pcap Frame 124).
+        Uses the exact bytes from the pcap, only replacing client IP at known offsets.
+        """
+        # Exact 348-byte payload from PCAP Frame 124, with 192.168.88.2 (c0a85802) as IP
+        pcap_hex = (
+            "45454d5030313030c0a858020801000048010000"
+            "0001000000000000000000000000000000000000"
+            "00000000000000000000000000000000000000000000000000000000"
+            "1401000005000000380000000200000004000000"
+            "c0a858020c00000004000000010000000100000004000000"
+            "500043000b00000004000000000000001c00000000000000"
+            "07000000440000000100000005000000380000000200000004000000"
+            "c0a858020c00000004000000010000000100000004000000"
+            "500043000b00000004000000000000001c00000000000000"
+            "08000000800000000400000005000000380000000200000004000000"
+            "c0a858020c00000004000000010000000100000004000000"
+            "500043000b00000004000000010100001c00000000000000"
+            "000000000c000000020000000400000002000000"
+            "000000000c000000020000000400000003000000"
+            "000000000c000000020000000400000004000000"
+        )
+        raw = bytearray.fromhex(pcap_hex)
+        
+        # Replace all occurrences of the pcap's client IP with our actual IP
+        ip_bytes = socket.inet_aton(self.my_ip)
+        pcap_ip = socket.inet_aton('192.168.88.2')
+        
+        # Known IP offsets from pcap: 8, 56, 112, 168, 224
+        for i in range(len(raw) - 3):
+            if raw[i:i+4] == pcap_ip:
+                raw[i:i+4] = ip_bytes
+        
+        return bytes(raw)
+
+    def _open_video_channels(self):
+        """
+        Open TWO TCP connections to port 3621:
+        
+        CORRECTED from pcap re-analysis:
+        - Connection 1 (s_video): byte28=0x00 — carries ACTUAL VIDEO DATA
+        - Connection 2 (s_video_aux): byte28=0x01 — carries ZERO BUFFER padding
+        
+        Then send three zero-buffer warmup packets on Connection 2.
+        """
+        print(f"[*] 2. Opening Video Channels (Port 3621)...")
+        time.sleep(0.3)
+        
+        # --- Connection 1: VIDEO DATA (byte 28 = 0x00) ---
         self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_video.settimeout(5)
         self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
         
-        print("[*]    Sending Video Channel Initialization (EPRD0600)...")
-        video_init_payload = payloads.get_video_init_payload(self.my_ip)
-        self.s_video.sendall(video_init_payload)
+        ctrl_init = payloads.get_video_init_payload_ctrl(self.my_ip)
+        self.s_video.sendall(ctrl_init)
+        print(f"[+]    Video channel OPEN (EPRD init byte28=0x00, carries video)")
         
-        # We don't necessarily wait for a response here; the protocol just streams
-        print("[+]    Video Channel OPEN. Ready to stream PCON-wrapped MJPEG.")
+        time.sleep(0.3)
+        
+        # --- Connection 2: ZERO BUFFER AUX (byte 28 = 0x01) ---
+        self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_video_aux.settimeout(5)
+        self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
+        
+        data_init = payloads.get_video_init_payload_data(self.my_ip)
+        self.s_video_aux.sendall(data_init)
+        print(f"[+]    Aux channel OPEN (EPRD init byte28=0x01, carries zero buffers)")
+        
+        time.sleep(0.3)
+        
+        # --- Zero-buffer warmup on AUX connection ---
+        # PCAP: three zero buffers before video starts
+        warmup_sizes = [7276, 2646, 1764]
+        for i, size in enumerate(warmup_sizes):
+            buf = payloads.get_zero_buffer(size)
+            self.s_video_aux.sendall(buf)
+            print(f"[+]    Warmup buffer {i+1}: {size} zeros on aux channel")
+            time.sleep(0.15)
 
-    def send_video_frame(self, x_offset, y_offset, width, height, mjpeg_bytes):
-        """Wraps MJPEG stream data in PCON header and sends to Port 3621."""
+        print("[+]    Video channels initialized. Ready to stream!")
+        self.first_frame = True
+
+    def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
+        """
+        Wraps JPEG data in the Epson EPRD protocol and sends on the 
+        FIRST video connection (s_video, byte28=0x00).
+        
+        Protocol per frame:
+          1. EPRD meta header (20 bytes) + Display config (46 bytes) [first frame only]
+          2. EPRD jpeg header (20 bytes) with JPEG size
+          3. Frame type (4 bytes): 0x04=keyframe, 0x03=delta
+          4. Region descriptor (16 bytes): x, y, w, h + flags + timestamp
+          5. JPEG data
+        """
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
             
         try:
-            # Construct PCON header
-            pcon_header = payloads.get_pcon_video_header(x_offset, y_offset, width, height, len(mjpeg_bytes))
+            parts = []
             
-            # Send synchronously
-            self.s_video.sendall(pcon_header + mjpeg_bytes)
+            # First frame: send display configuration meta
+            if self.first_frame:
+                meta = payloads.get_display_config_meta(
+                    config.PROJECTOR_DISPLAY_WIDTH, 
+                    config.PROJECTOR_DISPLAY_HEIGHT
+                )
+                meta_header = payloads.get_eprd_meta_header(self.my_ip, len(meta))
+                parts.append(meta_header)
+                parts.append(meta)
+            
+            # EPRD header with JPEG payload size
+            jpeg_header = payloads.get_eprd_jpeg_header(self.my_ip, len(jpeg_bytes))
+            parts.append(jpeg_header)
+            
+            # Frame type + region descriptor
+            frame_type = 4 if self.first_frame else 3
+            frame_hdr = payloads.get_frame_header(
+                frame_type, x_offset, y_offset, width, height
+            )
+            parts.append(frame_hdr)
+            
+            # JPEG data
+            parts.append(jpeg_bytes)
+            
+            # Send everything as one write on the VIDEO connection
+            self.s_video.sendall(b''.join(parts))
+            
+            if self.first_frame:
+                self.first_frame = False
+            
             return True
         except Exception as e:
             print(f"[-] Stream interrupted: {e}")
             return False
 
+    def send_keepalive(self):
+        """Send a zero-buffer keepalive on the AUX channel between frames."""
+        if self.s_video_aux:
+            try:
+                buf = payloads.get_zero_buffer(1764)
+                self.s_video_aux.sendall(buf)
+            except Exception:
+                pass
+
     def disconnect(self):
         """Tears down all connections safely."""
         print("[*] Disconnecting client...")
-        if self.s_hardware:
-            try: self.s_hardware.close()
-            except: pass
-        if self.s_auth:
-            try: self.s_auth.close()
-            except: pass
-        if self.s_video:
-            try: self.s_video.close()
-            except: pass
+        for sock in [self.s_auth, self.s_video, self.s_video_aux]:
+            if sock:
+                try: sock.close()
+                except: pass
