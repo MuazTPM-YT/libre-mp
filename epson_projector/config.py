@@ -15,7 +15,7 @@ def get_local_ip():
         s.close()
         return ip
     except Exception:
-        return '192.168.88.2' # Standard second IP in the Ad-Hoc block
+        return '192.168.88.2'  # Standard second IP in the Ad-Hoc block
 
 # Automatically grab the local IP of this machine, or hardcode it
 MY_IP = get_local_ip()
@@ -24,3 +24,16 @@ PORT_CONTROL = 3620
 PORT_VIDEO = 3621
 PORT_WAKE = 3629
 
+# --- Display / Streaming ---
+# The projector's native display resolution (from pcap display config meta)
+PROJECTOR_DISPLAY_WIDTH = 1600
+PROJECTOR_DISPLAY_HEIGHT = 900
+
+# The resolution we stream JPEG frames at.
+# PCAP shows the official app sends ~624x416 images, NOT native resolution.
+# This keeps bandwidth low enough for the projector to handle in real-time.
+STREAM_WIDTH = 624
+STREAM_HEIGHT = 416
+
+# JPEG compression quality for streamed frames (pcap shows ~50 quality)
+JPEG_QUALITY = 50

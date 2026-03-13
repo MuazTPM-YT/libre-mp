@@ -10,12 +10,29 @@ except ImportError:
     DEPENDENCIES_LOADED = False
 
 class VideoStreamer:
+    """
+    Captures the screen and sends JPEG frames to the projector via the
+    Epson EPRD protocol.
+    
+    Key protocol details from pcap analysis:
+    - The projector expects JPEG images at a SCALED-DOWN resolution (~624x416)
+    - First frame = keyframe (type 4), subsequent frames = delta (type 3)
+    - Zero-buffer keepalives are sent periodically between frames
+    """
+    
     def __init__(self, client, fps=15):
         self.client = client
         self.target_fps = fps
         self.frame_duration = 1.0 / fps
         self.prev_frame = None
         self.use_grim = False
+        self.frame_idx = 0
+        
+        # Import config for resolution settings
+        from . import config
+        self.stream_width = config.STREAM_WIDTH
+        self.stream_height = config.STREAM_HEIGHT
+        self.jpeg_quality = config.JPEG_QUALITY
         
         # Check if grim is installed (for Wayland fallback)
         import subprocess
@@ -38,7 +55,7 @@ class VideoStreamer:
                     self.monitor = m
                     print(f"[+] Successfully bound to Monitor {idx}: {m}")
                     break
-                except Exception as e:
+                except Exception:
                     pass
                     
             if self.monitor is None:
@@ -46,120 +63,114 @@ class VideoStreamer:
                     self.monitor = self.sct.monitors[0]
                     self.sct.grab(self.monitor)
                     print("[+] Unified capture successful.")
-                except Exception as e:
+                except Exception:
                     print(f"[-] mss grab failed (Wayland expected), using grim fallback if available.")
                     self.monitor = None
         else:
             print("[-] Missing dependencies for video streaming. Please run: pip install mss Pillow numpy")
     
-    def start_streaming(self):
-        print(f"[*] Starting video stream using mss/grim at ~{self.target_fps} fps...")
+    def _capture_screen(self):
+        """Capture the screen and return a PIL Image resized to stream resolution."""
+        img = None
         
-        # Test card state
+        if self.monitor is not None:
+            sct_img = self.sct.grab(self.monitor)
+            # mss returns BGRA, convert to RGB PIL Image
+            raw = np.array(sct_img)
+            img = Image.fromarray(raw[:, :, [2, 1, 0]], "RGB")
+        elif self.use_grim:
+            import subprocess
+            proc = subprocess.run(
+                ['grim', '-t', 'ppm', '-'],
+                capture_output=True, check=True
+            )
+            img = Image.open(io.BytesIO(proc.stdout)).convert("RGB")
+        
+        if img is not None:
+            # Scale to the projector's expected stream resolution
+            img = img.resize((self.stream_width, self.stream_height), Image.LANCZOS)
+        
+        return img
+
+    def _make_test_card(self, width, height):
+        """Generate a synthetic test card frame."""
+        import math
+        from PIL import ImageDraw
+        
+        img = Image.new("RGB", (width, height), color=(40, 40, 100))
+        draw = ImageDraw.Draw(img)
+        
+        t = self.frame_idx * 0.1
+        bx = int(width / 2 + math.sin(t) * (width / 3))
+        by = int(height / 2 + math.cos(t * 1.5) * (height / 3))
+        
+        draw.rectangle([bx - 50, by - 50, bx + 50, by + 50], fill=(255, 50, 50))
+        
+        for i in range(5):
+            draw.line((0, i * 100, width, i * 100), fill=(200, 200, 200), width=2)
+        
+        # Add frame counter text
+        try:
+            draw.text((10, 10), f"Frame: {self.frame_idx}", fill=(255, 255, 255))
+        except Exception:
+            pass
+            
+        return img
+
+    def start_streaming(self):
+        print(f"[*] Starting video stream at ~{self.target_fps} fps...")
+        print(f"[*] Stream resolution: {self.stream_width}x{self.stream_height}, JPEG quality: {self.jpeg_quality}")
+        
         use_test_card = False
         if (not DEPENDENCIES_LOADED) or (self.monitor is None and not self.use_grim):
             use_test_card = True
             print("[!] WARNING: Valid screen capture method not found.")
             print("[!] Falling back to synthetic 'Test Card' video stream to verify connection.")
-            width, height = 800, 600
-        else:
-            width, height = 1920, 1080 # default override for grim
-            if self.monitor is not None:
-                width, height = self.monitor["width"], self.monitor["height"]
-            
-        frame_idx = 0
-            
+        
+        keepalive_counter = 0
+        
         try:
             while True:
                 start_time = time.time()
                 
-                curr_frame = None
-                delta_img = None
-                x_offset, y_offset, w, h = 0, 0, width, height
+                try:
+                    if use_test_card:
+                        img = self._make_test_card(self.stream_width, self.stream_height)
+                    else:
+                        img = self._capture_screen()
+                        if img is None:
+                            print("[!] Capture returned None, switching to test card")
+                            use_test_card = True
+                            continue
+                except Exception as e:
+                    print(f"[-] Screen capture failed: {e}")
+                    print("[!] Switching to test card generator...")
+                    use_test_card = True
+                    continue
                 
-                if not use_test_card:
-                    try:
-                        if self.monitor is not None:
-                            sct_img = self.sct.grab(self.monitor)
-                            curr_frame = np.array(sct_img)
-                        elif self.use_grim:
-                            import subprocess
-                            import io
-                            from PIL import Image
-                            # Grab full screen using grim, resize slightly to limit bandwidth
-                            proc = subprocess.run(['grim', '-c', '-t', 'jpeg', '-q', '50', '-'], capture_output=True, check=True)
-                            img = Image.open(io.BytesIO(proc.stdout)).convert("RGB")
-                            # Convert to BGR format for consistency with OpenCV/mss processing expected below
-                            curr_frame = np.array(img)[:, :, ::-1].copy()
-                            # Expand to BGRA structure so diff mask logic works (it expects 4 channels typically from mss)
-                            # Actually mss captures BGRA, so we add alpha channel
-                            alpha = np.full((curr_frame.shape[0], curr_frame.shape[1], 1), 255, dtype=np.uint8)
-                            curr_frame = np.concatenate([curr_frame, alpha], axis=2)
-                            width, height = curr_frame.shape[1], curr_frame.shape[0]
-                        
-                        if self.prev_frame is not None:
-                            diff_mask = np.any(curr_frame != self.prev_frame, axis=2)
-                            rows, cols = np.where(diff_mask)
-                            
-                            if len(rows) == 0:
-                                time.sleep(self.frame_duration)
-                                continue
-                                
-                            y_min, y_max = np.min(rows), np.max(rows)
-                            x_min, x_max = np.min(cols), np.max(cols)
-                            
-                            y_offset, x_offset = int(y_min), int(x_min)
-                            h, w = int(y_max - y_min + 1), int(x_max - x_min + 1)
-                            
-                            region_bgra = curr_frame[y_min:y_max+1, x_min:x_max+1]
-                            region_rgba = region_bgra[:, :, [2, 1, 0, 3]]
-                            delta_img = Image.fromarray(region_rgba, "RGBA").convert("RGB")
-                            
-                        else:
-                            curr_rgba = curr_frame[:, :, [2, 1, 0, 3]]
-                            delta_img = Image.fromarray(curr_rgba, "RGBA").convert("RGB")
-                            
-                        self.prev_frame = curr_frame
-                        
-                    except Exception as e:
-                        print(f"[-] Screen capture failed during stream (Wayland?): {e}")
-                        print("[!] Switching to synthetic Test Card generator...")
-                        use_test_card = True
-                        
-                if use_test_card:
-                    import math
-                    from PIL import ImageDraw
-                    
-                    # Create a test frame: moving bouncing block on a blue background
-                    img = Image.new("RGB", (width, height), color=(40, 40, 100))
-                    draw = ImageDraw.Draw(img)
-                    
-                    # Bounce logic
-                    t = frame_idx * 0.1
-                    bx = int(width/2 + math.sin(t) * (width/3))
-                    by = int(height/2 + math.cos(t * 1.5) * (height/3))
-                    
-                    # Draw a bright red rectangle
-                    draw.rectangle([bx-50, by-50, bx+50, by+50], fill=(255, 50, 50))
-                    
-                    # Draw some text/status indicators
-                    for i in range(5):
-                        draw.line((0, i*100, width, i*100), fill=(200, 200, 200), width=2)
-                        
-                    delta_img = img
-                    x_offset, y_offset, w, h = 0, 0, width, height
-                    frame_idx += 1
-                
-                # Encode MJPEG
+                # Encode as JPEG
                 buf = io.BytesIO()
-                delta_img.save(buf, format="JPEG", quality=75)
-                mjpeg_bytes = buf.getvalue()
+                img.save(buf, format="JPEG", quality=self.jpeg_quality)
+                jpeg_bytes = buf.getvalue()
                 
-                success = self.client.send_video_frame(x_offset, y_offset, w, h, mjpeg_bytes)
+                # Send the frame using the real EPRD protocol
+                success = self.client.send_video_frame(
+                    0, 0,  # x_offset, y_offset (full frame)
+                    self.stream_width, self.stream_height,
+                    jpeg_bytes
+                )
                 if not success:
                     print("[-] Failed to send video frame. Aborting stream.")
                     break
-                    
+                
+                self.frame_idx += 1
+                
+                # Send periodic keepalive (every ~10 frames, matching pcap pattern)
+                keepalive_counter += 1
+                if keepalive_counter >= 10:
+                    self.client.send_keepalive()
+                    keepalive_counter = 0
+                
                 elapsed = time.time() - start_time
                 if elapsed < self.frame_duration:
                     time.sleep(self.frame_duration - elapsed)
@@ -168,3 +179,5 @@ class VideoStreamer:
             print("\n[*] Stopping video stream...")
         except Exception as e:
             print(f"[-] Video streaming error: {e}")
+            import traceback
+            traceback.print_exc()
