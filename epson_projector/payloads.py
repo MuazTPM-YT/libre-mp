@@ -48,6 +48,25 @@ def get_auth_payload_full(my_ip: str, proj_ip: str, my_mac: str = "a4d73ccdaf45"
     )
     return binascii.unhexlify(p)
 
+def get_streaming_notification_payload(my_ip: str) -> bytes:
+    """
+    Build the 68-byte EEMP 'streaming started' notification (cmd=0x0016)
+    sent on Port 3620 AFTER video channels are open and warmup buffers sent.
+    
+    PCAP (epson_trends.txt line 37): cmd=0x0016, payload_len=48.
+    The old code incorrectly sent cmd=0x0104 with 0-byte payload.
+    """
+    hex_ip = get_hex_ip(my_ip)
+    # EEMP header: magic + client_ip + cmd(0x0016 LE) + payload_len(48 = 0x30 LE)
+    # Payload: 48 bytes from the PCAP capture
+    p = (
+        f"45454d5030313030{hex_ip}1600000030000000"
+        "00000000030000000100000000000000"
+        "00000000000000000000000000000000"
+        "00000000000000000000000000000000"
+    )
+    return binascii.unhexlify(p)
+
 # ========================================================================
 #  Port 3621 – Video Channel (EPRD Protocol)
 # ========================================================================
@@ -99,8 +118,8 @@ def get_eprd_jpeg_header(my_ip: str, jpeg_size: int) -> bytes:
     """
     ip_bytes = socket.inet_aton(my_ip)
     return b'EPRD0600' + ip_bytes + struct.pack('>II', 0, jpeg_size)
-
-def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900) -> bytes:
+    
+def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900, stream_w: int = 624, stream_h: int = 416) -> bytes:
     """
     Build the 46-byte display configuration block sent on the first frame.
     Starts with 0xCC. Contains display resolution and color info.
@@ -126,7 +145,8 @@ def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900) -> bytes:
     struct.pack_into('>HH', meta, 24, disp_w, disp_h)
     # Bytes 30-31: DPI hint
     meta[30] = 0x00; meta[31] = 0x60
-    # Bytes 32-35: scaled dimensions (pcap: 0x0400=1024, 0x0240=576)
+    
+    # REVERT: Use the hardcoded 1024x576 base plane scale!
     struct.pack_into('>HH', meta, 32, 0x0400, 0x0240)
     return bytes(meta)
 
@@ -157,20 +177,14 @@ def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
 def build_first_frame_payload(my_ip: str, disp_w: int, disp_h: int,
                               x: int, y: int, w: int, h: int,
                               jpeg_bytes: bytes) -> bytes:
-    """
-    Assemble the COMPLETE first-frame payload as a single contiguous buffer:
-      [EPRD meta header (20)] [Display config (46)]
-      [EPRD jpeg header (20)] [Frame header (20)] [JPEG data]
-    """
     meta = get_display_config_meta(disp_w, disp_h)
     meta_hdr = get_eprd_meta_header(my_ip, len(meta))
 
-    frame_hdr = get_frame_header(4, x, y, w, h)  # type=4 keyframe
+    frame_hdr = get_frame_header(4, x, y, w, h)
     jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
     jpeg_hdr = get_eprd_jpeg_header(my_ip, jpeg_payload_size)
 
     return meta_hdr + meta + jpeg_hdr + frame_hdr + jpeg_bytes
-
 
 def build_video_frame_payload(my_ip: str, frame_type: int,
                               x: int, y: int, w: int, h: int,
