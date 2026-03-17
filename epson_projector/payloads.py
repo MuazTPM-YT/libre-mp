@@ -48,25 +48,6 @@ def get_auth_payload_full(my_ip: str, proj_ip: str, my_mac: str = "a4d73ccdaf45"
     )
     return binascii.unhexlify(p)
 
-def get_streaming_notification_payload(my_ip: str) -> bytes:
-    """
-    Build the 68-byte EEMP 'streaming started' notification (cmd=0x0016)
-    sent on Port 3620 AFTER video channels are open and warmup buffers sent.
-    
-    PCAP (epson_trends.txt line 37): cmd=0x0016, payload_len=48.
-    The old code incorrectly sent cmd=0x0104 with 0-byte payload.
-    """
-    hex_ip = get_hex_ip(my_ip)
-    # EEMP header: magic + client_ip + cmd(0x0016 LE) + payload_len(48 = 0x30 LE)
-    # Payload: 48 bytes from the PCAP capture
-    p = (
-        f"45454d5030313030{hex_ip}1600000030000000"
-        "00000000030000000100000000000000"
-        "00000000000000000000000000000000"
-        "00000000000000000000000000000000"
-    )
-    return binascii.unhexlify(p)
-
 # ========================================================================
 #  Port 3621 – Video Channel (EPRD Protocol)
 # ========================================================================
@@ -93,6 +74,13 @@ def get_video_init_payload_data(my_ip: str) -> bytes:
     p = f"4550524430363030{hex_ip}0000000010000000d0000000{hex_ip_rev}0100000000000000"
     return binascii.unhexlify(p)
 
+def get_aux_header(size: int) -> bytes:
+    """
+    Returns only the 5-byte header for auxiliary packets (0xC9 + LE_uint32 length).
+    Used to force specific TCP segmentation matching the Windows client.
+    """
+    return struct.pack('<BI', 0xC9, size)
+
 def get_zero_buffer(size: int) -> bytes:
     """
     Build a zero-padded warmup buffer with the 5-byte 0xC9 length prefix.
@@ -100,8 +88,7 @@ def get_zero_buffer(size: int) -> bytes:
       - 7276 bytes, 2646 bytes, 1764 bytes (all zeros)
     Format: 0xC9 + LE_uint32(size) + size bytes of 0x00
     """
-    header = struct.pack('<BI', 0xC9, size)
-    return header + (b'\x00' * size)
+    return get_aux_header(size) + (b'\x00' * size)
 
 def get_eprd_meta_header(my_ip: str, meta_size: int) -> bytes:
     """

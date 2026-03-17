@@ -19,19 +19,33 @@ class EpsonEasyMPClient:
 
         # State
         self.first_frame = True
+        self.warmup_sent = False
     
     def connect_and_negotiate(self):
+        """
+        Full connection sequence matching the Windows PCAP exactly:
+        
+        1. Register + Authenticate on port 3620
+        2. Post-auth handshake (0x010E/0x0108/0x0109/0x0110)
+        3. Open two video channels on port 3621
+        4. WAIT for projector's 0x0016 on port 3620 (~1.5s delay)
+        5. Send warmup zero buffers on aux channel
+        6. Start streaming
+        """
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
         try:
             # 1. Authentication (TCP 3620)
             self._authenticate_session()
             # 2. Complete post-auth handshake on 3620
             self._complete_auth_handshake()
-            # 3. Open dual video channels (TCP 3621) + warmup buffers
+            # 3. Open dual video channels (TCP 3621)
             self._open_video_channels()
-            # 4. Send 0x0016 streaming notification on 3620 (AFTER warmup)
-            self._send_streaming_started()
- 
+            # 4. Wait for projector's 0x0016 streaming confirmation on 3620
+            self._wait_for_streaming_signal()
+            
+            # NOTE: Warmup buffers are now sent AFTER the first video frame 
+            # in send_video_frame() to match Windows PCAP timing.
+
             print("\n[+] BINGO! Connection Fully Established and Ready for Video Stream!")
             return True
 
@@ -215,105 +229,191 @@ class EpsonEasyMPClient:
 
     def _open_video_channels(self):
         """
-        Open TWO TCP connections to port 3621:
-        
-        CORRECTED from pcap re-analysis:
-        - Connection 1 (s_video): byte28=0x00 — carries ACTUAL VIDEO DATA
-        - Connection 2 (s_video_aux): byte28=0x01 — carries ZERO BUFFER padding
-        
-        Then send three zero-buffer warmup packets on Connection 2.
+        Open the primary TCP connection to port 3621.
+        The AUX channel is opened later (after first frame headers) to match Windows.
         """
-        print(f"[*] 2. Opening Video Channels (Port 3621)...")
+        print(f"[*] 2. Opening Video Channel (Port 3621)...")
         time.sleep(0.3)
         
         # --- Connection 1: VIDEO DATA (byte 28 = 0x00) ---
         self.s_video = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.s_video.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.s_video.settimeout(10)
         self.s_video.connect((self.projector_ip, config.PORT_VIDEO))
-        self.s_video.settimeout(None)  # No timeout for streaming
+        self.s_video.settimeout(None)
         
         ctrl_init = payloads.get_video_init_payload_ctrl(self.my_ip)
         self.s_video.sendall(ctrl_init)
-        print(f"[+]    Video channel OPEN (EPRD init byte28=0x00, carries video)")
+        print(f"[+]    Video channel OPEN (EPRD init byte28=0x00)")
         
-        time.sleep(0.3)
+        self.first_frame = True
+        self.warmup_sent = False
+
+    def _wait_for_streaming_signal(self):
+        """
+        Wait for the projector to send 0x0016 on port 3620.
         
-        # --- Connection 2: ZERO BUFFER AUX (byte 28 = 0x01) ---
-        self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        self.s_video_aux.settimeout(10)
-        self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
-        self.s_video_aux.settimeout(None)  # No timeout for streaming
+        PCAP evidence (both tls.pcapng and archtest7.pcapng):
+          - Source: 192.168.88.1 (PROJECTOR) -> 192.168.88.2 (CLIENT)
+          - cmd=0x0016, 68 bytes total (20 header + 48 payload)
+          - Arrives ~1.5s after video channels are opened
         
-        data_init = payloads.get_video_init_payload_data(self.my_ip)
-        self.s_video_aux.sendall(data_init)
-        print(f"[+]    Aux channel OPEN (EPRD init byte28=0x01, carries zero buffers)")
+        The Windows client only TCP-ACKs this — it does NOT send any response.
+        """
+        print("[*] 3. Waiting for projector 0x0016 streaming signal...")
+        self.s_auth.settimeout(10)  # Give projector time to process channels
         
-        time.sleep(0.3)
+        try:
+            data = self.s_auth.recv(4096)
+            if data and len(data) >= 20 and data[:8] == b'EEMP0100':
+                cmd = struct.unpack('<I', data[12:16])[0]
+                print(f"[+]    Received cmd=0x{cmd:04x} ({len(data)} bytes) from projector")
+                if cmd == 0x0016:
+                    print("[+]    Projector confirmed streaming ready (0x0016)!")
+                else:
+                    print(f"[*]    Expected 0x0016, got 0x{cmd:04x}. Continuing anyway...")
+            elif data:
+                print(f"[*]    Received {len(data)} bytes (not EEMP). Continuing...")
+            else:
+                print("[*]    No data received. Continuing anyway...")
+        except socket.timeout:
+            print("[*]    No 0x0016 received within timeout. Continuing anyway...")
+        except Exception as e:
+            print(f"[*]    Error waiting for streaming signal: {e}")
         
-        # --- Zero-buffer warmup on AUX connection ---
-        # PCAP: three zero buffers before video starts
+        self.s_auth.settimeout(5)
+
+    def _send_aux_bundle(self, size: int):
+        """
+        Send an auxiliary packet (zeros or keepalive) matching Windows TCP segmentation:
+        1. Send the 5-byte header (0xC9 + length) as a distinct packet.
+        2. Send the actual payload data.
+        """
+        if not self.s_video_aux:
+            return
+            
+        hdr = payloads.get_aux_header(size)
+        self.s_video_aux.sendall(hdr)
+        
+        # Windows often sends the data immediately after, but the 5-byte header 
+        # is definitely its own TCP segment in the PCAP.
+        data = b'\x00' * size
+        self.s_video_aux.sendall(data)
+
+    def _send_warmup_buffers(self):
+        """
+        Send three zero-buffer warmup packets on the AUX channel.
+        PCAP shows these are sent AFTER the first video frame starts.
+        Sizes: 7276, 2646, 1764 bytes (all zeros).
+        """
+        if self.warmup_sent:
+            return
+            
+        print("[*] 4. Sending warmup buffers on aux channel...")
         warmup_sizes = [7276, 2646, 1764]
         for i, size in enumerate(warmup_sizes):
-            buf = payloads.get_zero_buffer(size)
-            self.s_video_aux.sendall(buf)
+            self._send_aux_bundle(size)
             print(f"[+]    Warmup buffer {i+1}: {size} zeros on aux channel")
-            time.sleep(0.15)
-
-        print("[+]    Video channels initialized. Ready to stream!")
-        self.first_frame = True
+            time.sleep(0.05)
+        
+        self.warmup_sent = True
+        print("[+]    Warmup complete.")
 
     def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
+            
+        def _send_chunked(sock, data, chunk_size=1460):
+            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
+            total_sent = 0
+            while total_sent < len(data):
+                chunk = data[total_sent:total_sent+chunk_size]
+                sock.sendall(chunk)
+                total_sent += len(chunk)
+                
         try:
             if self.first_frame:
-                buf = payloads.build_first_frame_payload(
-                    self.my_ip, config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT,
-                    x_offset, y_offset, width, height, jpeg_bytes
-                )
-                self.s_video.sendall(buf)
+                meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
+                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
+                
+                frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
+                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+
+                print(f"[*]    Sending first frame: (meta_hdr=20 + meta=46 + jpeg_hdr=20 + frame_hdr=20 + jpeg={len(jpeg_bytes)})")
+                
+                # 1. Meta header
+                self.s_video.sendall(meta_hdr)
+                
+                # 2. Meta data
+                self.s_video.sendall(meta)
+                
+                # 3. JPEG header
+                self.s_video.sendall(jpeg_hdr)
+                
+                # 4. Frame Type (4 bytes)
+                self.s_video.sendall(frame_hdr[:4])
+                
+                # 5. Region info (16 bytes)
+                self.s_video.sendall(frame_hdr[4:])
+                
+                # LAZY OPEN AUX CHANNEL (Matches Windows timing)
+                if not self.s_video_aux:
+                    print("[*]    Opening Aux channel now...")
+                    self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                    self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
+                    self.s_video_aux.settimeout(None)
+                    
+                    data_init = payloads.get_video_init_payload_data(self.my_ip)
+                    self.s_video_aux.sendall(data_init)
+                    print(f"[+]    Aux channel OPEN (byte28=0x01)")
+
+                # 6. JPEG Data
+                _send_chunked(self.s_video, jpeg_bytes, chunk_size=1460)
+                
+                print(f"[+]    First frame data in flight. Triggering late warmup...")
+                self._send_warmup_buffers()
+                
                 self.first_frame = False
             else:
-                buf = payloads.build_video_frame_payload(
-                    self.my_ip, 3, x_offset, y_offset, width, height, jpeg_bytes
-                )
-                self.s_video.sendall(buf)
+                frame_hdr = payloads.get_frame_header(3, x_offset, y_offset, width, height)
+                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+
+                self.s_video.sendall(jpeg_hdr)
+                self.s_video.sendall(frame_hdr[:4])
+                self.s_video.sendall(frame_hdr[4:])
+                _send_chunked(self.s_video, jpeg_bytes, chunk_size=1460)
+                
             return True
         except Exception as e:
+            import errno
             print(f"[-] Stream interrupted: {e}")
+            print(f"[-]    Error type: {type(e).__name__}")
+            if hasattr(e, 'errno'):
+                print(f"[-]    Errno: {e.errno} ({errno.errorcode.get(e.errno, 'unknown')})")
+            if self.first_frame:
+                print(f"[-]    Failed on FIRST frame (buffer size would be {len(jpeg_bytes) + 106} bytes)")
             return False
 
     def send_keepalive(self):
         """
         Send a zero-buffer keepalive on the AUX channel.
-        During streaming, the Windows client sends 0-size keepalives (5 bytes total)
-        frequently.
+        
+        PCAP comparison (tshark analysis):
+          Windows (tls.pcapng): sends 2646-byte zero buffers after each video frame
+          Linux old (archtest7.pcapng): sent c900000000 (0-byte) — WRONG
+        
+        Must match Windows: 2646-byte zero buffers (same as warmup #2 size).
         """
         if self.s_video_aux:
             try:
-                buf = payloads.get_zero_buffer(0)
-                self.s_video_aux.sendall(buf)
+                # Windows sends a 2646-byte zero buffer after each video frame
+                # to keep the AUX channel alive and happy.
+                self._send_aux_bundle(2646)
             except Exception:
                 pass
-
-    def _send_streaming_started(self):
-        """
-        Send the 0x0016 'streaming started' notification on Port 3620.
-        MUST be called AFTER video channels are open and warmup buffers sent.
-        
-        PCAP shows this as cmd=0x0016 with a 48-byte payload (68 bytes total).
-        The previous implementation incorrectly sent cmd=0x0104 with empty payload.
-        """
-        if self.s_auth:
-            try:
-                msg = payloads.get_streaming_notification_payload(self.my_ip)
-                self.s_auth.sendall(msg)
-                print(f"[+]    Sent 0x0016 'streaming started' notification ({len(msg)} bytes)")
-            except Exception as e:
-                print(f"[*]    Note: Could not send streaming notification: {e}")
 
     def disconnect(self):
         print("\n[*] Disconnecting client...")
