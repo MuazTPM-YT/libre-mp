@@ -22,20 +22,19 @@ class EpsonEasyMPClient:
     
     def connect_and_negotiate(self):
         print(f"[*] Starting deterministic negotiation sequence with {self.projector_ip}...")
-        
         try:
             # 1. Authentication (TCP 3620)
             self._authenticate_session()
-            
             # 2. Complete post-auth handshake on 3620
             self._complete_auth_handshake()
-            
-            # 3. Open dual video channels (TCP 3621)
+            # 3. Open dual video channels (TCP 3621) + warmup buffers
             self._open_video_channels()
-            
+            # 4. Send 0x0016 streaming notification on 3620 (AFTER warmup)
+            self._send_streaming_started()
+ 
             print("\n[+] BINGO! Connection Fully Established and Ready for Video Stream!")
             return True
-                
+
         except Exception as e:
             print(f"[-] Negotiation failed: {e}")
             import traceback
@@ -266,39 +265,22 @@ class EpsonEasyMPClient:
         self.first_frame = True
 
     def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
-        """
-        Wraps JPEG data in the Epson EPRD protocol and sends on the 
-        FIRST video connection (s_video, byte28=0x00).
-        
-        Each EPRD message (header + payload) is sent as a single sendall() call.
-        The display config and JPEG frame are separate EPRD messages.
-        """
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
-            
         try:
             if self.first_frame:
-                # EPRD message 1: meta header + display config (one sendall)
-                meta = payloads.get_display_config_meta(
-                    config.PROJECTOR_DISPLAY_WIDTH,
-                    config.PROJECTOR_DISPLAY_HEIGHT
+                buf = payloads.build_first_frame_payload(
+                    self.my_ip, config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT,
+                    x_offset, y_offset, width, height, jpeg_bytes
                 )
-                meta_buf = payloads.get_eprd_meta_header(self.my_ip, len(meta)) + meta
-                self.s_video.sendall(meta_buf)
-            
-            # EPRD message 2: jpeg header + frame header + JPEG data (one sendall)
-            frame_type = 4 if self.first_frame else 3
-            buf = payloads.build_video_frame_payload(
-                self.my_ip, frame_type,
-                x_offset, y_offset, width, height,
-                jpeg_bytes
-            )
-            self.s_video.sendall(buf)
-            
-            if self.first_frame:
+                self.s_video.sendall(buf)
                 self.first_frame = False
-            
+            else:
+                buf = payloads.build_video_frame_payload(
+                    self.my_ip, 3, x_offset, y_offset, width, height, jpeg_bytes
+                )
+                self.s_video.sendall(buf)
             return True
         except Exception as e:
             print(f"[-] Stream interrupted: {e}")
@@ -317,34 +299,26 @@ class EpsonEasyMPClient:
             except Exception:
                 pass
 
-    def _send_streaming_stopped(self):
+    def _send_streaming_started(self):
         """
-        Send the 0x0401 'streaming started' notification on port 3620.
+        Send the 0x0016 'streaming started' notification on Port 3620.
+        MUST be called AFTER video channels are open and warmup buffers sent.
         
-        Windows PCAP shows this 20-byte EEMP message is sent AFTER the
-        post-auth handshake completes and video channels are open,
-        but BEFORE any video data is sent.
-        
-        Exact bytes from pcap: 45454d5030313030 + IP + 0401000000000000
+        PCAP shows this as cmd=0x0016 with a 48-byte payload (68 bytes total).
+        The previous implementation incorrectly sent cmd=0x0104 with empty payload.
         """
         if self.s_auth:
             try:
-                ip_bytes = socket.inet_aton(self.my_ip)
-                # Note: The command 0x0401 is "streaming started".
-                # If this method is truly for "stopped", the command byte needs to be changed.
-                # For now, keeping the original command as per the instruction's diff.
-                msg = b'EEMP0100' + ip_bytes + struct.pack('<II', 0x00000104, 0x00000000)
+                msg = payloads.get_streaming_notification_payload(self.my_ip)
                 self.s_auth.sendall(msg)
-                print(f"[+]    Sent 0x0401 'streaming started' notification ({len(msg)} bytes)")
+                print(f"[+]    Sent 0x0016 'streaming started' notification ({len(msg)} bytes)")
             except Exception as e:
                 print(f"[*]    Note: Could not send streaming notification: {e}")
 
     def disconnect(self):
-        """Tears down all connections safely."""
         print("\n[*] Disconnecting client...")
         try:
             if self.s_auth:
-                self._send_streaming_stopped()
                 self.s_auth.close()
         except Exception as e:
             print(f"[*] Error closing auth socket: {e}")
