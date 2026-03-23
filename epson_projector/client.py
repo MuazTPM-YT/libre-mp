@@ -3,6 +3,7 @@ import time
 import struct
 from . import config
 from . import payloads
+from .payloads import build_first_frame_payload, build_video_frame_payload
 
 class ProtocolError(Exception):
     pass
@@ -27,7 +28,7 @@ class EpsonEasyMPClient:
         
         1. Register + Authenticate on port 3620
         2. Post-auth handshake (0x010E/0x0108/0x0109/0x0110)
-        3. Open two video channels on port 3621
+        3. Open BOTH video channels on port 3621 (VIDEO + AUX)
         4. WAIT for projector's 0x0016 on port 3620 (~1.5s delay)
         5. Send warmup zero buffers on aux channel
         6. Start streaming
@@ -38,13 +39,12 @@ class EpsonEasyMPClient:
             self._authenticate_session()
             # 2. Complete post-auth handshake on 3620
             self._complete_auth_handshake()
-            # 3. Open dual video channels (TCP 3621)
+            # 3. Open BOTH video channels (TCP 3621) — projector needs both before 0x0016
             self._open_video_channels()
             # 4. Wait for projector's 0x0016 streaming confirmation on 3620
             self._wait_for_streaming_signal()
-            
-            # NOTE: Warmup buffers are now sent AFTER the first video frame 
-            # in send_video_frame() to match Windows PCAP timing.
+            # 5. Send warmup zero buffers on AUX channel BEFORE first frame
+            self._send_warmup_buffers()
 
             print("\n[+] BINGO! Connection Fully Established and Ready for Video Stream!")
             return True
@@ -229,10 +229,11 @@ class EpsonEasyMPClient:
 
     def _open_video_channels(self):
         """
-        Open the primary TCP connection to port 3621.
-        The AUX channel is opened later (after first frame headers) to match Windows.
+        Open BOTH TCP connections to port 3621.
+        Windows PCAP shows both open ~1ms apart, before 0x0016 arrives.
+        The projector will NOT send 0x0016 until both are open.
         """
-        print(f"[*] 2. Opening Video Channel (Port 3621)...")
+        print(f"[*] 2. Opening Video Channels (Port 3621)...")
         time.sleep(0.3)
         
         # --- Connection 1: VIDEO DATA (byte 28 = 0x00) ---
@@ -244,6 +245,16 @@ class EpsonEasyMPClient:
         ctrl_init = payloads.get_video_init_payload_ctrl(self.my_ip)
         self.s_video.sendall(ctrl_init)
         print(f"[+]    Video channel OPEN (EPRD init byte28=0x00)")
+        
+        # --- Connection 2: AUX / WARMUP / KEEPALIVE (byte 28 = 0x01) ---
+        self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
+        self.s_video_aux.settimeout(None)
+        
+        data_init = payloads.get_video_init_payload_data(self.my_ip)
+        self.s_video_aux.sendall(data_init)
+        print(f"[+]    Aux channel OPEN (EPRD init byte28=0x01)")
         
         self.first_frame = True
         self.warmup_sent = False
@@ -302,7 +313,7 @@ class EpsonEasyMPClient:
     def _send_warmup_buffers(self):
         """
         Send three zero-buffer warmup packets on the AUX channel.
-        PCAP shows these are sent AFTER the first video frame starts.
+        PCAP shows these MUST be sent BEFORE the first video frame.
         Sizes: 7276, 2646, 1764 bytes (all zeros).
         """
         if self.warmup_sent:
@@ -322,69 +333,29 @@ class EpsonEasyMPClient:
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
-            
-        def _send_chunked(sock, data, chunk_size=1460):
-            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
-            total_sent = 0
-            while total_sent < len(data):
-                chunk = data[total_sent:total_sent+chunk_size]
-                sock.sendall(chunk)
-                total_sent += len(chunk)
                 
         try:
             if self.first_frame:
-                meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
-                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
-                
-                frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
-                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
-
-                print(f"[*]    Sending first frame: (meta_hdr=20 + meta=46 + jpeg_hdr=20 + frame_hdr=20 + jpeg={len(jpeg_bytes)})")
-                
-                # 1. Meta header
-                self.s_video.sendall(meta_hdr)
-                
-                # 2. Meta data
-                self.s_video.sendall(meta)
-                
-                # 3. JPEG header
-                self.s_video.sendall(jpeg_hdr)
-                
-                # 4. Frame Type (4 bytes)
-                self.s_video.sendall(frame_hdr[:4])
-                
-                # 5. Region info (16 bytes)
-                self.s_video.sendall(frame_hdr[4:])
-                
-                # LAZY OPEN AUX CHANNEL (Matches Windows timing)
-                if not self.s_video_aux:
-                    print("[*]    Opening Aux channel now...")
-                    self.s_video_aux = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    self.s_video_aux.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                    self.s_video_aux.connect((self.projector_ip, config.PORT_VIDEO))
-                    self.s_video_aux.settimeout(None)
-                    
-                    data_init = payloads.get_video_init_payload_data(self.my_ip)
-                    self.s_video_aux.sendall(data_init)
-                    print(f"[+]    Aux channel OPEN (byte28=0x01)")
-
-                # 6. JPEG Data
-                _send_chunked(self.s_video, jpeg_bytes, chunk_size=1460)
-                
-                print(f"[+]    First frame data in flight. Triggering late warmup...")
-                self._send_warmup_buffers()
-                
+                # Build the entire first frame as a single contiguous buffer:
+                # [EPRD meta header (20)] [display config (46)] [EPRD jpeg header (20)] [frame header (20)] [JPEG data]
+                payload = build_first_frame_payload(
+                    self.my_ip,
+                    config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT,
+                    x_offset, y_offset, width, height,
+                    jpeg_bytes
+                )
+                print(f"[*]    Sending first frame as single buffer: {len(payload)} bytes")
+                self.s_video.sendall(payload)
                 self.first_frame = False
             else:
-                frame_hdr = payloads.get_frame_header(3, x_offset, y_offset, width, height)
-                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
-
-                self.s_video.sendall(jpeg_hdr)
-                self.s_video.sendall(frame_hdr[:4])
-                self.s_video.sendall(frame_hdr[4:])
-                _send_chunked(self.s_video, jpeg_bytes, chunk_size=1460)
+                # Build subsequent frame as a single contiguous buffer:
+                # [EPRD jpeg header (20)] [frame header (20)] [JPEG data]
+                payload = build_video_frame_payload(
+                    self.my_ip, 3,
+                    x_offset, y_offset, width, height,
+                    jpeg_bytes
+                )
+                self.s_video.sendall(payload)
                 
             return True
         except Exception as e:
