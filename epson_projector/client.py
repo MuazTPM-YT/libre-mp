@@ -346,54 +346,45 @@ class EpsonEasyMPClient:
             # with Windows PCAP. Open in append mode.
             with open('video_stream_debug.bin', 'ab') as dump_file:
                 if self.first_frame:
-                    # === FIRST FRAME: EPRD init + meta + EPRD jpeg header + 20-byte frame header + JPEG ===
-                    init_block = payloads.get_eprd_init_block(self.my_ip)
+                    # === FIRST FRAME: EPRD meta header + meta + EPRD jpeg header + 20-byte frame header + JPEG ===
+                    # Windows PCAP sequence (stream 2):
+                    #   Frame 182: EPRD meta header (20 bytes, LE size=46)
+                    #   Frame 183: Meta block (46 bytes)
+                    #   Frame 184: EPRD JPEG header (20 bytes, BE size)
+                    #   Frame 185-186: Frame header (20 bytes: type + region)
+                    #   Frame 187+: JPEG data (chunked at 1460)
                     meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
+                    meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
                     
                     frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
-                    # PCAP shows Windows sends a hardcoded buffer size of 76533 for the first frame's EPRD
-                    # regardless of the actual JPEG size. It's a stream window allocation hint.
-                    jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, 76533)
+                    jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                    jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
 
-                    print(f"[*]    Sending first frame: init_block=36, meta_block={len(meta)}, eprd_size=76533, actual_jpeg={len(frame_hdr)+len(jpeg_bytes)}")
+                    print(f"[*]    Sending first frame: meta_hdr={len(meta_hdr)}, meta={len(meta)}, jpeg_hdr={len(jpeg_hdr)}, frame_hdr={len(frame_hdr)}, jpeg={len(jpeg_bytes)}")
                     
-                    # 0. Init Block (36 bytes, MUST BE FIRST)
-                    dump_file.write(init_block)
-                    self.s_video.sendall(init_block)
-                    time.sleep(0.005)
-
-                    # 1. Meta Block (46 bytes, exactly as PCAP)
-                    # PCAP shows NO EPRD header before the META block!
-                    dump_file.write(meta)
-                    self.s_video.sendall(meta)
+                    # 1. Meta Block (EPRD header + meta data)
+                    meta_block = meta_hdr + meta
+                    dump_file.write(meta_block)
+                    self.s_video.sendall(meta_block)
                     time.sleep(0.005)
                     
                     # 2. JPEG Block (EPRD header + 20-byte frame header + JPEG data)
-                    expected_payload_size = 76533
-                    actual_payload_size = len(frame_hdr) + len(jpeg_bytes)
-                    
-                    if actual_payload_size < expected_payload_size:
-                        padding_needed = expected_payload_size - actual_payload_size
-                        jpeg_bytes += b'\x00' * padding_needed
-                        
                     full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
                     dump_file.write(full_jpeg_payload)
                     _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
                     
                     self.first_frame = False
                 else:
-                    # === SUBSEQUENT FRAMES: 16-byte header + raw JPEG (NO EPRD header) ===
-                    # PCAP (tls.pcapng) shows subsequent frames have NO EPRD0600 prefix.
-                    # Just a 16-byte region descriptor then raw JPEG data.
+                    # === SUBSEQUENT FRAMES: EPRD jpeg header + 16-byte region + raw JPEG ===
                     frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
+                    jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                    jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
                     
-                    full_payload = frame_hdr + jpeg_bytes
+                    full_payload = jpeg_hdr + frame_hdr + jpeg_bytes
                     dump_file.write(full_payload)
                     _send_chunked(self.s_video, full_payload, chunk_size=1460)
                     
-            # Send AUX keepalive after each frame (matching Windows pcap)
-            self._send_frame_keepalive()
-                
+
             return True
         except Exception as e:
             import errno
@@ -410,15 +401,10 @@ class EpsonEasyMPClient:
         """
         Send a 2646 + 1764 zero buffer pair on the AUX channel after each video frame.
         
-        PCAP (tls.pcapng) shows Windows sends alternating 2646+1764 pairs
-        on the AUX channel, synchronized with video frames:
-          AUX segment 1: C9(7276)  \  warmup
-          AUX segment 2: C9(2646)   > warmup  
-          AUX segment 3: C9(1764)  /  warmup
-          AUX segment 4: C9(2646)  \  per-frame
-          AUX segment 5: C9(1764)  /  per-frame
-          ... repeating ...
-        """
+        PCAP evidence shows Windows sends these at ~1s intervals,
+        NOT per-frame. Sending per-frame at 24fps overwhelms the
+        projector's embedded buffer. Call this periodically from
+        the streaming loop instead."""
         if not self.s_video_aux:
             return
         try:

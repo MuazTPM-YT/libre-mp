@@ -171,9 +171,10 @@ class VideoStreamer:
                 
                 self.frame_idx += 1
                 
-                # Do NOT send an AUX keepalive every frame! The Windows client
-                # only sends them every ~50 seconds, not per-frame. Sending them
-                # here overflows the projector's tiny embedded buffers.
+                # Send AUX keepalive every ~1 second (every target_fps frames)
+                # Windows PCAP shows keepalives at ~1s intervals, not per-frame
+                if self.frame_idx % self.target_fps == 0:
+                    self.client._send_frame_keepalive()
                 
                 elapsed = time.time() - start_time
                 if elapsed < self.frame_duration:
