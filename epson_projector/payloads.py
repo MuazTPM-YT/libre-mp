@@ -102,42 +102,13 @@ def get_eprd_jpeg_header(my_ip: str, jpeg_size: int) -> bytes:
     """
     Build a 20-byte EPRD0600 header for JPEG frame data.
     Size field is Big-Endian (pcap: 0x00012af5 = BE 76533).
-    For the very first frame, Windows sends exactly `4550524430363030c0a858020000000000012af5`.
-    We hardcode this down to the IP address shift as well to avoid any mismatched parsing.
-    """
-    # Simply hardcode the exact 20 bytes for the first frame's JPEG EPRD header
-    # with the 76533 size baked in. For subsequent blocks, we construct it normally,
-    # but the 104 reset happens instantly on frame 1, so this is what matters.
-    # Note: the IP address `c0a85802` is baked in here to match PCAP exactly.
-    return bytes.fromhex("4550524430363030c0a858020000000000012af5")
-
-def get_eprd_init_block(my_ip: str) -> bytes:
-    """
-    Build the 36-byte initialization block sent before any video frames.
-    MUST be sent as the very first bytes on the video stream to set up the stream window.
-    Based on Windows PCAP:
-    0-7:   EPRD0600
-    8-11:  IP Address
-    12-19: Length (16 bytes, Little-Endian) -> 00 00 00 00 10 00 00 00
-    20-23: Init command (0xD0) -> d0 00 00 00
-    24:    Type/Channel -> 02
-    25-28: IP Address (slightly shifted/endian reversed) -> 58 a8 c0 00
-    29-35: 7 bytes of padding -> 00 00 00 00 00 00 00
     """
     ip_bytes = socket.inet_aton(my_ip)
-    
-    # Header: EPRD0600 + IP + Size 16
-    header = b'EPRD0600' + ip_bytes + struct.pack('<II', 0, 16)
-    
-    # The PCAP has exactly these 16 bytes for the payload:
-    # d0 00 00 00 02 58 a8 c0 00 00 00 00 00 00 00 00
-    # The '58 a8 c0 00' is IP bytes [2], [1], [0], 0x00
-    b3, b2, b1, b0 = ip_bytes[0], ip_bytes[1], ip_bytes[2], ip_bytes[3]
-    ip_weird = bytes([b1, b2, b3, 0x00])
-    
-    payload = struct.pack('<IB', 0xD0, 0x02) + ip_weird + b'\x00' * 7
-    
-    return header + payload
+    return b'EPRD0600' + ip_bytes + struct.pack('>II', 0, jpeg_size)
+
+# get_eprd_init_block is NOT needed during frame sending.
+# The channel is already initialized by get_video_init_payload_ctrl() during _open_video_channels().
+# Windows PCAP confirms: no extra init block before the first frame's meta/JPEG data.
     
 def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900, stream_w: int = 624, stream_h: int = 416) -> bytes:
     """
@@ -156,13 +127,15 @@ def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900, stream_w: int
 
 def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
     """
-    Build the 20-byte FIRST frame header: 4-byte type + 16-byte region descriptor.
+    Build the 20-byte frame header: 4-byte type (BE) + 16-byte region descriptor.
     
-    PCAP (tls.pcapng): 0000000400000000027001a00000000790d48902
-    We hardcode the exact bytes sent by Windows for the first frame to ensure protocol match.
-    The timestamp in the last 4 bytes `90d48902` is just echoed back and doesn't matter.
+    Layout: type(u32 BE) + x(u16 BE) + y(u16 BE) + w(u16 BE) + h(u16 BE) + flags(u32 BE) + timestamp(u32 BE)
+    
+    PCAP (tls.pcapng) first frame: 00000004 0000 0000 0270 01a0 00000007 90d48902
+      type=4, x=0, y=0, w=624, h=416, flags=0x07, ts=rolling
     """
-    return bytes.fromhex("0000000400000000027001a00000000790d48902")
+    ts = int(time.time() * 1000) & 0xFFFFFFFF
+    return struct.pack('>I', frame_type) + struct.pack('>HHHH', x, y, w, h) + struct.pack('>II', 0x00000007, ts)
 
 def get_subsequent_frame_header(x: int, y: int, w: int, h: int) -> bytes:
     """

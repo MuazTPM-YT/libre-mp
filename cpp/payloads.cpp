@@ -178,27 +178,14 @@ std::vector<uint8_t> get_eprd_jpeg_header(const std::string& my_ip, uint32_t jpe
 //  Display config + frame headers
 // ========================================================================
 
-std::vector<uint8_t> get_display_config_meta(int disp_w, int disp_h,
+std::vector<uint8_t> get_display_config_meta(int /*disp_w*/, int /*disp_h*/,
                                               int /*stream_w*/, int /*stream_h*/) {
-    std::vector<uint8_t> meta(46, 0);
-    meta[0] = 0xCC;
-    meta[4] = 0x04; meta[5] = 0x00;
-    meta[6] = 0x03; meta[7] = 0x00;
-    meta[8] = 0x20; meta[9] = 0x20;
-    meta[10] = 0x00; meta[11] = 0x01;
-    meta[12] = 0xFF; meta[13] = 0x00;
-    meta[14] = 0xFF; meta[15] = 0x00;
-    meta[16] = 0xFF; meta[17] = 0x00;
-    meta[18] = 0x10; meta[19] = 0x08;
-    // Bytes 24-27: display resolution (Big-Endian)
-    write_u16_be(meta, 24, static_cast<uint16_t>(disp_w));
-    write_u16_be(meta, 26, static_cast<uint16_t>(disp_h));
-    // Bytes 30-31: DPI hint
-    meta[30] = 0x00; meta[31] = 0x60;
-    // Bytes 32-35: hardcoded 1024x576 base plane scale
-    write_u16_be(meta, 32, 0x0400);
-    write_u16_be(meta, 34, 0x0240);
-    return meta;
+    // Exact 46-byte payload from Windows PCAP (tls.pcapng Frame 183).
+    // Rather than constructing byte-by-byte and risking gaps, use the known-good bytes.
+    return hex_to_bytes(
+        "cc0000000400030020200001ff00ff00ff"
+        "0010080000000006400384000000600400"
+        "024000000000000000000000");
 }
 
 std::vector<uint8_t> get_frame_header(int frame_type, int x, int y, int w, int h) {
@@ -216,8 +203,8 @@ std::vector<uint8_t> get_frame_header(int frame_type, int x, int y, int w, int h
     write_u16_be(hdr, 6, static_cast<uint16_t>(y));
     write_u16_be(hdr, 8, static_cast<uint16_t>(w));
     write_u16_be(hdr, 10, static_cast<uint16_t>(h));
-    // Flags (0x00000002) + rolling timestamp
-    write_u32_be(hdr, 12, 0x00000002);
+    // Flags (0x00000007) + rolling timestamp — matches Windows PCAP
+    write_u32_be(hdr, 12, 0x00000007);
     write_u32_be(hdr, 16, ms);
     return hdr;
 }
