@@ -1,0 +1,38 @@
+[
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/main.cpp.o -c /home/iffelse/libre-mp/cpp/main.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/main.cpp",
+  "output": "CMakeFiles/libre-mp.dir/main.cpp.o"
+},
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/config.cpp.o -c /home/iffelse/libre-mp/cpp/config.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/config.cpp",
+  "output": "CMakeFiles/libre-mp.dir/config.cpp.o"
+},
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/payloads.cpp.o -c /home/iffelse/libre-mp/cpp/payloads.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/payloads.cpp",
+  "output": "CMakeFiles/libre-mp.dir/payloads.cpp.o"
+},
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/client.cpp.o -c /home/iffelse/libre-mp/cpp/client.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/client.cpp",
+  "output": "CMakeFiles/libre-mp.dir/client.cpp.o"
+},
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/wifi.cpp.o -c /home/iffelse/libre-mp/cpp/wifi.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/wifi.cpp",
+  "output": "CMakeFiles/libre-mp.dir/wifi.cpp.o"
+},
+{
+  "directory": "/home/iffelse/libre-mp/cpp/build",
+  "command": "/usr/bin/c++   -std=gnu++17 -o CMakeFiles/libre-mp.dir/video_streamer.cpp.o -c /home/iffelse/libre-mp/cpp/video_streamer.cpp",
+  "file": "/home/iffelse/libre-mp/cpp/video_streamer.cpp",
+  "output": "CMakeFiles/libre-mp.dir/video_streamer.cpp.o"
+}
+]

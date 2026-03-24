@@ -3,7 +3,6 @@ import time
 import struct
 from . import config
 from . import payloads
-from .payloads import build_first_frame_payload, build_video_frame_payload
 
 class ProtocolError(Exception):
     pass
@@ -333,29 +332,47 @@ class EpsonEasyMPClient:
         if not self.s_video:
             print("[-] Cannot send video frame. Video socket not initialized!")
             return False
+            
+        def _send_chunked(sock, data, chunk_size=1460):
+            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
+            total_sent = 0
+            while total_sent < len(data):
+                chunk = data[total_sent:total_sent+chunk_size]
+                sock.sendall(chunk)
+                total_sent += len(chunk)
                 
         try:
             if self.first_frame:
-                # Build the entire first frame as a single contiguous buffer:
-                # [EPRD meta header (20)] [display config (46)] [EPRD jpeg header (20)] [frame header (20)] [JPEG data]
-                payload = build_first_frame_payload(
-                    self.my_ip,
-                    config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT,
-                    x_offset, y_offset, width, height,
-                    jpeg_bytes
-                )
-                print(f"[*]    Sending first frame as single buffer: {len(payload)} bytes")
-                self.s_video.sendall(payload)
+                # Build components
+                meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
+                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
+                
+                frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
+                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+
+                print(f"[*]    Sending first frame: meta_block=66, jpeg_block={jpeg_payload_size}")
+                
+                # Epson firmware TCP stack expects two distinct PUSH packets for the first frame:
+                # 1. Meta Block (66 bytes total)
+                self.s_video.sendall(meta_hdr + meta)
+                time.sleep(0.005) # tiny yield to network stack
+                
+                # 2. JPEG Block (Header + Frame Info + Data)
+                # We concatenate all and chunk it to MSS to ensure proper boundary fragmentation.
+                full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
+                _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
+                
                 self.first_frame = False
             else:
-                # Build subsequent frame as a single contiguous buffer:
-                # [EPRD jpeg header (20)] [frame header (20)] [JPEG data]
-                payload = build_video_frame_payload(
-                    self.my_ip, 3,
-                    x_offset, y_offset, width, height,
-                    jpeg_bytes
-                )
-                self.s_video.sendall(payload)
+                frame_hdr = payloads.get_frame_header(3, x_offset, y_offset, width, height)
+                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+
+                # Subsequent frames:
+                # Same thing: headers and data go together in one stream.
+                full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
+                _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
                 
             return True
         except Exception as e:
@@ -365,7 +382,7 @@ class EpsonEasyMPClient:
             if hasattr(e, 'errno'):
                 print(f"[-]    Errno: {e.errno} ({errno.errorcode.get(e.errno, 'unknown')})")
             if self.first_frame:
-                print(f"[-]    Failed on FIRST frame (buffer size would be {len(jpeg_bytes) + 106} bytes)")
+                print(f"[-]    Failed on FIRST frame (TCP segment mismatch?)")
             return False
 
     def send_keepalive(self):

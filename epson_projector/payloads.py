@@ -147,8 +147,8 @@ def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
     ts = int(time.time() * 1000) & 0xFFFFFFFF
     type_bytes = struct.pack('>I', frame_type)
     region = struct.pack('>HHHH', x, y, w, h)
-    # Flags field (constant 0x00000007 from pcap) + rolling timestamp
-    tail = struct.pack('>II', 0x00000007, ts)
+    # Flags field (0x00000002 is expected by the projector instead of 0x07) + rolling timestamp
+    tail = struct.pack('>II', 0x00000002, ts)
     return type_bytes + region + tail
 
 
