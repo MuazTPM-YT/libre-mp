@@ -30,8 +30,6 @@ PROJECTOR_DISPLAY_WIDTH = 1600
 PROJECTOR_DISPLAY_HEIGHT = 900
 
 # The resolution we stream JPEG frames at.
-# PCAP shows the official app sends ~624x416 images, NOT native resolution.
-# This keeps bandwidth low enough for the projector to handle in real-time.
 STREAM_WIDTH = 624
 STREAM_HEIGHT = 416
 

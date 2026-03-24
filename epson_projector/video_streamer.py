@@ -190,9 +190,9 @@ class VideoStreamer:
                 
                 self.frame_idx += 1
                 
-                # Send keepalive on aux channel every frame
-                # Windows PCAP shows ~1:1 aux-to-video ratio
-                self.client.send_keepalive()
+                # Do NOT send an AUX keepalive every frame! The Windows client
+                # only sends them every ~50 seconds, not per-frame. Sending them
+                # here overflows the projector's tiny embedded buffers.
                 
                 elapsed = time.time() - start_time
                 if elapsed < self.frame_duration:
