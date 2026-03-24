@@ -111,8 +111,10 @@ def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900, stream_w: int
     Build the 46-byte display configuration block sent on the first frame.
     Starts with 0xCC. Contains display resolution and color info.
     Derived from PCAP Frame 183.
+    
+    PCAP exact bytes (tls.pcapng reassembled):
+    cc0000000400030020200001ff00ff00ff0010080000000006400384000000600400024000000000000000000000
     """
-    # The PCAP shows this exact 46-byte block; we parameterize the resolution.
     meta = bytearray(46)
     meta[0] = 0xCC                          # Command byte
     # Bytes 4-7: subpixel / color-depth hints
@@ -128,28 +130,46 @@ def get_display_config_meta(disp_w: int = 1600, disp_h: int = 900, stream_w: int
     meta[16] = 0xFF; meta[17] = 0x00
     # Bytes 18-19: pixel format
     meta[18] = 0x10; meta[19] = 0x08
+    # Bytes 20-23: display resolution AGAIN (Big-Endian) — PCAP shows 0640 0384 = 1600x900
+    struct.pack_into('>HH', meta, 20, disp_w, disp_h)
     # Bytes 24-27: display resolution (Big-Endian)
     struct.pack_into('>HH', meta, 24, disp_w, disp_h)
     # Bytes 30-31: DPI hint
     meta[30] = 0x00; meta[31] = 0x60
-    
-    # REVERT: Use the hardcoded 1024x576 base plane scale!
+    # Bytes 32-35: base plane scale (1024x576)
     struct.pack_into('>HH', meta, 32, 0x0400, 0x0240)
     return bytes(meta)
 
 def get_frame_header(frame_type: int, x: int, y: int, w: int, h: int) -> bytes:
     """
-    Build the 20-byte frame header: 4-byte type + 16-byte region descriptor.
-    - frame_type: 4 = keyframe (first frame), 3 = delta (subsequent)
+    Build the 20-byte FIRST frame header: 4-byte type + 16-byte region descriptor.
+    - frame_type: 4 = keyframe (first frame only)
     - x, y, w, h: region coordinates in the scaled image (Big-Endian)
     The last 8 bytes contain flags and a timestamp-like field.
+    
+    PCAP (tls.pcapng): 0000000400000000027001a00000000790d48902
+    flags = 0x00000007 (NOT 0x02 as previously assumed)
     """
     ts = int(time.time() * 1000) & 0xFFFFFFFF
     type_bytes = struct.pack('>I', frame_type)
     region = struct.pack('>HHHH', x, y, w, h)
-    # Flags field (0x00000002 is expected by the projector instead of 0x07) + rolling timestamp
-    tail = struct.pack('>II', 0x00000002, ts)
+    tail = struct.pack('>II', 0x00000007, ts)
     return type_bytes + region + tail
+
+def get_subsequent_frame_header(x: int, y: int, w: int, h: int) -> bytes:
+    """
+    Build the 16-byte subsequent frame header (NO type prefix, NO EPRD header).
+    
+    PCAP (tls.pcapng) shows subsequent frames have only:
+      x(u16 BE), y(u16 BE), w(u16 BE), h(u16 BE), flags(u32 BE), timestamp(u32 BE)
+    
+    Example from pcap: 02700000019001a00000000790d8df00
+      x=624, y=0, w=400, h=416, flags=0x07, ts=rolling
+    """
+    ts = int(time.time() * 1000) & 0xFFFFFFFF
+    region = struct.pack('>HHHH', x, y, w, h)
+    tail = struct.pack('>II', 0x00000007, ts)
+    return region + tail
 
 
 # ========================================================================
