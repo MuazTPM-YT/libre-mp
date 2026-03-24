@@ -38,7 +38,7 @@ class VideoStreamer:
         if is_wayland:
             # On Wayland, ONLY use grim — mss produces blank frames
             if self._check_grim():
-                self.capture_method = 'grim'
+                self.capture_method = self._capture_grim
                 print(f"[+] Wayland detected. Using 'grim' for screen capture.")
             else:
                 print("[-] Wayland detected but 'grim' not found!")
@@ -46,10 +46,10 @@ class VideoStreamer:
         else:
             # On X11, try mss first, then fall back to grim
             if self._try_mss():
-                self.capture_method = 'mss'
+                self.capture_method = self._capture_mss
                 print(f"[+] Using mss for screen capture (X11).")
             elif self._check_grim():
-                self.capture_method = 'grim'
+                self.capture_method = self._capture_grim
                 print(f"[+] Using grim fallback for screen capture.")
         
         if self.capture_method is None:
@@ -114,12 +114,8 @@ class VideoStreamer:
         return img.resize((self.stream_width, self.stream_height), Image.LANCZOS)
 
     def _capture_screen(self):
-        """Capture the screen using the best available method."""
-        if self.capture_method == 'grim':
-            return self._capture_grim()
-        elif self.capture_method == 'mss':
-            return self._capture_mss()
-        return None
+        """Bypass PIL completely. Return a solid blue raw RGB block."""
+        return bytes([0, 0, 255] * (self.stream_width * self.stream_height))
 
     def _make_test_card(self):
         """Generate a synthetic test card frame."""
@@ -157,25 +153,10 @@ class VideoStreamer:
             while True:
                 start_time = time.time()
                 
-                try:
-                    if use_test_card:
-                        img = self._make_test_card()
-                    else:
-                        img = self._capture_screen()
-                        if img is None:
-                            print("[!] Capture failed, switching to test card")
-                            use_test_card = True
-                            continue
-                except Exception as e:
-                    print(f"[-] Screen capture error: {e}")
-                    use_test_card = True
-                    continue
-                
-                # Encode as JPEG with 4:2:0 chroma subsampling
-                # (matching Windows Epson iProjection encoding)
+                # Capture the screen frame and encode it as JPEG
+                frame = self.capture_method()
                 buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=self.jpeg_quality,
-                         subsampling='4:2:0')
+                frame.save(buf, format="JPEG", quality=self.jpeg_quality)
                 jpeg_bytes = buf.getvalue()
                 
                 # Send via EPRD protocol
