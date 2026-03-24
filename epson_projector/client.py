@@ -343,7 +343,7 @@ class EpsonEasyMPClient:
                 
         try:
             if self.first_frame:
-                # Build components
+                # === FIRST FRAME: EPRD meta header + meta + EPRD jpeg header + 20-byte frame header + JPEG ===
                 meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
                 meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
                 
@@ -351,28 +351,28 @@ class EpsonEasyMPClient:
                 jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
                 jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
 
-                print(f"[*]    Sending first frame: meta_block=66, jpeg_block={jpeg_payload_size}")
+                print(f"[*]    Sending first frame: meta_block={len(meta_hdr)+len(meta)}, jpeg_block={jpeg_payload_size}")
                 
-                # Epson firmware TCP stack expects two distinct PUSH packets for the first frame:
-                # 1. Meta Block (66 bytes total)
+                # 1. Meta Block
                 self.s_video.sendall(meta_hdr + meta)
-                time.sleep(0.005) # tiny yield to network stack
+                time.sleep(0.005)
                 
-                # 2. JPEG Block (Header + Frame Info + Data)
-                # We concatenate all and chunk it to MSS to ensure proper boundary fragmentation.
+                # 2. JPEG Block (EPRD header + 20-byte frame header + JPEG data)
                 full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
                 _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
                 
                 self.first_frame = False
             else:
-                frame_hdr = payloads.get_frame_header(3, x_offset, y_offset, width, height)
-                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
-
-                # Subsequent frames:
-                # Same thing: headers and data go together in one stream.
-                full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
-                _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
+                # === SUBSEQUENT FRAMES: 16-byte header + raw JPEG (NO EPRD header) ===
+                # PCAP (tls.pcapng) shows subsequent frames have NO EPRD0600 prefix.
+                # Just a 16-byte region descriptor then raw JPEG data.
+                frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
+                
+                full_payload = frame_hdr + jpeg_bytes
+                _send_chunked(self.s_video, full_payload, chunk_size=1460)
+                
+            # Send AUX keepalive after each frame (matching Windows pcap)
+            self._send_frame_keepalive()
                 
             return True
         except Exception as e:
@@ -385,23 +385,30 @@ class EpsonEasyMPClient:
                 print(f"[-]    Failed on FIRST frame (TCP segment mismatch?)")
             return False
 
+    def _send_frame_keepalive(self):
+        """
+        Send a 2646 + 1764 zero buffer pair on the AUX channel after each video frame.
+        
+        PCAP (tls.pcapng) shows Windows sends alternating 2646+1764 pairs
+        on the AUX channel, synchronized with video frames:
+          AUX segment 1: C9(7276)  \  warmup
+          AUX segment 2: C9(2646)   > warmup  
+          AUX segment 3: C9(1764)  /  warmup
+          AUX segment 4: C9(2646)  \  per-frame
+          AUX segment 5: C9(1764)  /  per-frame
+          ... repeating ...
+        """
+        if not self.s_video_aux:
+            return
+        try:
+            self._send_aux_bundle(2646)
+            self._send_aux_bundle(1764)
+        except Exception:
+            pass
+
     def send_keepalive(self):
-        """
-        Send a zero-buffer keepalive on the AUX channel.
-        
-        PCAP comparison (tshark analysis):
-          Windows (tls.pcapng): sends 2646-byte zero buffers after each video frame
-          Linux old (archtest7.pcapng): sent c900000000 (0-byte) — WRONG
-        
-        Must match Windows: 2646-byte zero buffers (same as warmup #2 size).
-        """
-        if self.s_video_aux:
-            try:
-                # Windows sends a 2646-byte zero buffer after each video frame
-                # to keep the AUX channel alive and happy.
-                self._send_aux_bundle(2646)
-            except Exception:
-                pass
+        """Legacy keepalive — now handled by _send_frame_keepalive() per frame."""
+        pass
 
     def disconnect(self):
         print("\n[*] Disconnecting client...")
