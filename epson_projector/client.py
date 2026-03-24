@@ -357,10 +357,21 @@ class EpsonEasyMPClient:
                     meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
                     
                     frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
-                    jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
-                    jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+                    
+                    # CRITICAL: Windows sends a FIXED buffer size of 76533 for the
+                    # first frame's EPRD header, regardless of actual JPEG size.
+                    # The projector firmware parses frames based on this declared size.
+                    # We MUST pad the actual payload to exactly 76533 bytes.
+                    FIRST_FRAME_BUFFER_SIZE = 76533
+                    actual_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                    
+                    if actual_payload_size < FIRST_FRAME_BUFFER_SIZE:
+                        padding_needed = FIRST_FRAME_BUFFER_SIZE - actual_payload_size
+                        jpeg_bytes = jpeg_bytes + b'\x00' * padding_needed
+                    
+                    jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, FIRST_FRAME_BUFFER_SIZE)
 
-                    print(f"[*]    Sending first frame: meta_hdr={len(meta_hdr)}, meta={len(meta)}, jpeg_hdr={len(jpeg_hdr)}, frame_hdr={len(frame_hdr)}, jpeg={len(jpeg_bytes)}")
+                    print(f"[*]    Sending first frame: meta_hdr={len(meta_hdr)}, meta={len(meta)}, jpeg_hdr={len(jpeg_hdr)}, frame_hdr={len(frame_hdr)}, jpeg={len(jpeg_bytes)}, eprd_size={FIRST_FRAME_BUFFER_SIZE}")
                     
                     # 1. Meta Block (EPRD header + meta data)
                     meta_block = meta_hdr + meta
@@ -368,15 +379,18 @@ class EpsonEasyMPClient:
                     self.s_video.sendall(meta_block)
                     time.sleep(0.005)
                     
-                    # 2. JPEG Block (EPRD header + 20-byte frame header + JPEG data)
+                    # 2. JPEG Block (EPRD header + 20-byte frame header + padded JPEG data)
                     full_jpeg_payload = jpeg_hdr + frame_hdr + jpeg_bytes
                     dump_file.write(full_jpeg_payload)
                     _send_chunked(self.s_video, full_jpeg_payload, chunk_size=1460)
                     
                     self.first_frame = False
                 else:
-                    # === SUBSEQUENT FRAMES: EPRD jpeg header + 16-byte region + raw JPEG ===
-                    frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
+                    # === SUBSEQUENT FRAMES: EPRD jpeg header + 20-byte frame header + JPEG ===
+                    # Windows pcap confirms ALL frames use 20-byte headers:
+                    #   EPRD(20) + type(4) + region(16) + JPEG
+                    # Type=3 for subsequent full-screen redraws
+                    frame_hdr = payloads.get_frame_header(3, x_offset, y_offset, width, height)
                     jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
                     jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
                     
