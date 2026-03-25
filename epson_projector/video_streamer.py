@@ -139,74 +139,74 @@ class VideoStreamer:
             pass
         return img
 
-    # def start_streaming(self):
-    #     print(f"[*] Starting video stream at ~{self.target_fps} fps...")
-    #     print(f"[*] Stream resolution: {self.stream_width}x{self.stream_height}, "
-    #           f"JPEG quality: {self.jpeg_quality}")
-        
-    #     use_test_card = self.capture_method is None
-    #     if use_test_card:
-    #         print("[!] No screen capture available. Using test card.")
-        
-        
-    #     try:
-    #         while True:
-    #             start_time = time.time()
-                
-    #             # Capture the screen frame and encode it as JPEG
-    #             frame = self.capture_method()
-    #             buf = io.BytesIO()
-    #             # frame.save(buf, format="JPEG", quality=self.jpeg_quality)
-    #             frame.save(buf, format="JPEG", quality=self.jpeg_quality, subsampling=2, optimize=False, progressive=False)
-    #             jpeg_bytes = buf.getvalue()
-                
-    #             # Send via EPRD protocol
-    #             success = self.client.send_video_frame(
-    #                 0, 0,
-    #                 self.stream_width, self.stream_height,
-    #                 jpeg_bytes
-    #             )
-    #             if not success:
-    #                 print("[-] Failed to send video frame. Aborting stream.")
-    #                 break
-                
-    #             self.frame_idx += 1
-                
-    #             # Send AUX keepalive every ~1 second (every target_fps frames)
-    #             # Windows PCAP shows keepalives at ~1s intervals, not per-frame
-    #             if self.frame_idx % self.target_fps == 0:
-    #                 self.client._send_frame_keepalive()
-                
-    #             elapsed = time.time() - start_time
-    #             if elapsed < self.frame_duration:
-    #                 time.sleep(self.frame_duration - elapsed)
-                    
-    #     except KeyboardInterrupt:
-    #         print("\n[*] Stopping video stream...")
-    #     except Exception as e:
-    #         print(f"[-] Video streaming error: {e}")
-    #         import traceback
-    #         traceback.print_exc()
-
     def start_streaming(self):
-        print(f"\n[*] ISOLATION TEST: Capturing and sending exactly 1 frame...")
+        print(f"[*] Starting video stream at ~{self.target_fps} fps...")
+        print(f"[*] Stream resolution: {self.stream_width}x{self.stream_height}, "
+              f"JPEG quality: {self.jpeg_quality}")
         
-        # 1. Capture
-        frame = self.capture_method()
+        use_test_card = self.capture_method is None
+        if use_test_card:
+            print("[!] No screen capture available. Using test card.")
         
-        # 2. Sanity Check: Save locally
-        frame.save("debug_frame.jpg")
-        print("[+] Saved 'debug_frame.jpg' to your folder.")
-        print("[!] OPEN 'debug_frame.jpg' NOW to confirm it is not a black box!")
         
-        # 3. Hardcode the dumbest, safest JPEG possible
-        buf = io.BytesIO()
-        frame.save(buf, format="JPEG", quality=self.jpeg_quality, subsampling=2, optimize=False, progressive=False)
-        jpeg_bytes = buf.getvalue()
+        try:
+            while True:
+                start_time = time.time()
+                
+                # Capture the screen frame and encode it as JPEG
+                frame = self.capture_method()
+                buf = io.BytesIO()
+                # frame.save(buf, format="JPEG", quality=self.jpeg_quality)
+                frame.save(buf, format="JPEG", quality=self.jpeg_quality, subsampling=2, optimize=False, progressive=False)
+                jpeg_bytes = buf.getvalue()
+                
+                # Send via EPRD protocol
+                success = self.client.send_video_frame(
+                    0, 0,
+                    self.stream_width, self.stream_height,
+                    jpeg_bytes
+                )
+                if not success:
+                    print("[-] Failed to send video frame. Aborting stream.")
+                    break
+                
+                self.frame_idx += 1
+                
+                # Send AUX keepalive every ~1 second (every target_fps frames)
+                # Windows PCAP shows keepalives at ~1s intervals, not per-frame
+                if self.frame_idx % self.target_fps == 0:
+                    self.client._send_frame_keepalive()
+                
+                elapsed = time.time() - start_time
+                if elapsed < self.frame_duration:
+                    time.sleep(self.frame_duration - elapsed)
+                    
+        except KeyboardInterrupt:
+            print("\n[*] Stopping video stream...")
+        except Exception as e:
+            print(f"[-] Video streaming error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    # def start_streaming(self):
+    #     print(f"\n[*] ISOLATION TEST: Capturing and sending exactly 1 frame...")
         
-        # 4. Fire the single frame
-        self.client.send_video_frame(0, 0, self.stream_width, self.stream_height, jpeg_bytes)
+    #     # 1. Capture
+    #     frame = self.capture_method()
         
-        print("[*] Frame sent! Holding TCP connection open for 15 seconds...")
-        print("[*] Watch the projector. Give the decoder time to flip the buffer.")
-        time.sleep(15)
+    #     # 2. Sanity Check: Save locally
+    #     frame.save("debug_frame.jpg")
+    #     print("[+] Saved 'debug_frame.jpg' to your folder.")
+    #     print("[!] OPEN 'debug_frame.jpg' NOW to confirm it is not a black box!")
+        
+    #     # 3. Hardcode the dumbest, safest JPEG possible
+    #     buf = io.BytesIO()
+    #     frame.save(buf, format="JPEG", quality=self.jpeg_quality, subsampling=2, optimize=False, progressive=False)
+    #     jpeg_bytes = buf.getvalue()
+        
+    #     # 4. Fire the single frame
+    #     self.client.send_video_frame(0, 0, self.stream_width, self.stream_height, jpeg_bytes)
+        
+    #     print("[*] Frame sent! Holding TCP connection open for 15 seconds...")
+    #     print("[*] Watch the projector. Give the decoder time to flip the buffer.")
+    #     time.sleep(15)
