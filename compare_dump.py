@@ -50,12 +50,12 @@ def read_tcp(filename, target_port=3621):
         if len(r) > 36 and r[28] == 0x00: return r
     return b''
 
-win = read_tcp('/home/iffelse/libre-mp/pcap/tls.pcapng')
+win = read_tcp('./pcap/tls.pcapng')
 if not win:
     print("Could not load Windows PCAP.")
     sys.exit(1)
 
-dump_path = '/home/iffelse/libre-mp/video_stream_debug.bin'
+dump_path = './video_stream_debug.bin'
 if not os.path.exists(dump_path):
     print(f"Dump file {dump_path} not found. Run the client first.")
     sys.exit(0)
