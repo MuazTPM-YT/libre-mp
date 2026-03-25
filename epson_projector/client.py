@@ -345,11 +345,12 @@ class EpsonEasyMPClient:
             with open('video_stream_debug.bin', 'wb') as dump_file:
                 if self.first_frame:
                     meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
-                    type_prefix = struct.pack('>I', 4) # 00 00 00 04
                     
-                    full_payload = meta + type_prefix + jpeg_bytes
+                    # We MUST use the 20-byte frame_hdr to tell it x=0, y=0!
+                    frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
+                    full_payload = meta + frame_hdr + jpeg_bytes
                     
-                    print(f"[*]    Sending first frame: meta={len(meta)}, type=4, jpeg={len(jpeg_bytes)}")
+                    print(f"[*]    Sending first frame: meta={len(meta)}, frame_hdr={len(frame_hdr)}, jpeg={len(jpeg_bytes)}")
                     _send_chunked(self.s_video, full_payload, chunk_size=1460)
                     
                     self.first_frame = False
