@@ -294,9 +294,7 @@ class EpsonEasyMPClient:
 
     def _send_aux_bundle(self, size: int):
         """
-        Send an auxiliary packet (zeros or keepalive) matching Windows TCP segmentation:
-        1. Send the 5-byte header (0xC9 + length) as a distinct packet.
-        2. Send the actual payload data.
+        Send an auxiliary packet (zeros or keepalive) on byte28=0x01 (s_video_aux).
         """
         if not self.s_video_aux:
             return
@@ -304,8 +302,6 @@ class EpsonEasyMPClient:
         hdr = payloads.get_aux_header(size)
         self.s_video_aux.sendall(hdr)
         
-        # Windows often sends the data immediately after, but the 5-byte header 
-        # is definitely its own TCP segment in the PCAP.
         data = b'\x00' * size
         self.s_video_aux.sendall(data)
 
@@ -318,82 +314,87 @@ class EpsonEasyMPClient:
         if self.warmup_sent:
             return
             
-        print("[*] 4. Sending warmup buffers on aux channel...")
+        print("[*] 4. Sending warmup buffers on byte28=0x01...")
         warmup_sizes = [7276, 2646, 1764]
         for i, size in enumerate(warmup_sizes):
             self._send_aux_bundle(size)
-            print(f"[+]    Warmup buffer {i+1}: {size} zeros on aux channel")
+            print(f"[+]    Warmup buffer {i+1}: {size} zeros")
             time.sleep(0.05)
         
         self.warmup_sent = True
+        time.sleep(0.5)  # Give projector time to process warmups before video
         print("[+]    Warmup complete.")
 
     def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
+        """
+        Send a video frame matching the EXACT Windows TCP segmentation.
+        
+        Windows pcap (tls.pcapng frames 182-196) sends each EPRD piece as
+        its own TCP segment via TCP_NODELAY:
+          Frame 182: EPRD meta header  (20 bytes)
+          Frame 183: Display config    (46 bytes, starts 0xCC)
+          Frame 184: EPRD JPEG header  (20 bytes)
+          Frame 185: Frame type        (4 bytes: 00000004)
+          Frame 186: Region descriptor (16 bytes)
+          Frame 187+: JPEG data        (1460-byte chunks)
+        
+        The projector's embedded parser expects this segmentation.
+        Concatenating into one blob and chunking at 1460 causes RST.
+        """
         if not self.s_video:
-            print("[-] Cannot send video frame. VIDEO socket not initialized!")
+            print("[-] Cannot send video frame. VIDEO socket (byte28=0x00) not initialized!")
             return False
-            
-        def _send_chunked(sock, data, chunk_size=1460):
-            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
-            total_sent = 0
-            while total_sent < len(data):
-                chunk = data[total_sent:total_sent+chunk_size]
-                sock.sendall(chunk)
-                total_sent += len(chunk)
-                
-    def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
-        # YOU ARE THE BOSS. WE ARE PLUGGING INTO THE "SPEAKER" SOCKET (s_video_aux)
-        if not self.s_video_aux:
-            print("[-] Cannot send video frame. MEDIA/AUX socket not initialized!")
-            return False
-            
-        def _send_chunked(sock, data, chunk_size=1460):
-            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
-            total_sent = 0
-            while total_sent < len(data):
-                chunk = data[total_sent:total_sent+chunk_size]
-                sock.sendall(chunk)
-                total_sent += len(chunk)
                 
         try:
             if self.first_frame:
-                print(f"[*]    [DEBUG] Assembling PCAP First Frame for MEDIA socket...")
-                # 1. Meta Block (Little-Endian wrapper)
+                print(f"[*]    [DEBUG] Assembling First Frame for VIDEO socket (byte28=0x00)...")
+                
+                # 1. Meta Block
                 meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
                 meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
                 
-                # 2. Frame Header (20 bytes: Type 4 + Region)
-                frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
+                # 2. Frame Header — split into type (4 bytes) + region (16 bytes)
+                frame_type = struct.pack('>I', 4)  # Type 4
+                ts = int(time.time() * 1000) & 0xFFFFFFFF
+                region = struct.pack('>HHHH', x_offset, y_offset, width, height) + struct.pack('>II', 0x00000007, ts)
                 
-                # 3. Exactly 76533 Padding
-                FIRST_FRAME_BUFFER_SIZE = 76533
-                actual_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                # 3. Calculate exact JPEG Payload size (do NOT pad with zeros!)
+                actual_payload_size = len(frame_type) + len(region) + len(jpeg_bytes)
                 
-                if actual_payload_size < FIRST_FRAME_BUFFER_SIZE:
-                    padding_needed = FIRST_FRAME_BUFFER_SIZE - actual_payload_size
-                    jpeg_bytes = jpeg_bytes + (b'\x00' * padding_needed)
-                elif actual_payload_size > FIRST_FRAME_BUFFER_SIZE:
-                    print(f"[-]    [FATAL] Image {actual_payload_size} bytes exceeds 76533 buffer!")
-                    return False
+                # 4. JPEG Header with exact dynamic size
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, actual_payload_size)
                 
-                # 4. JPEG Header (Big-Endian wrapper)
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, FIRST_FRAME_BUFFER_SIZE)
+                total_size = len(meta_hdr) + len(meta) + len(jpeg_hdr) + len(frame_type) + len(region) + len(jpeg_bytes)
+                print(f"[*]    Sending FIRST FRAME to VIDEO socket (byte28=0x00): {total_size} bytes.")
                 
-                # 5. Assemble everything into ONE chunked stream
-                full_payload = meta_hdr + meta + jpeg_hdr + frame_hdr + jpeg_bytes
+                # 5. Send frame header payload (no delays to avoid EPRD parse timeouts!)
+                self.s_video.sendall(meta_hdr)    # 20 bytes — EPRD meta header
+                self.s_video.sendall(meta)         # 46 bytes — display config (0xCC)
+                self.s_video.sendall(jpeg_hdr)     # 20 bytes — EPRD JPEG header
+                self.s_video.sendall(frame_type)   #  4 bytes — frame type
+                self.s_video.sendall(region)       # 16 bytes — region descriptor
                 
-                print(f"[*]    Sending FIRST FRAME to MEDIA socket (s_video_aux): {len(full_payload)} bytes.")
-                _send_chunked(self.s_video_aux, full_payload, chunk_size=1460)
+                # JPEG data in 1460-byte MSS chunks
+                offset = 0
+                while offset < len(jpeg_bytes):
+                    chunk = jpeg_bytes[offset:offset+1460]
+                    self.s_video.sendall(chunk)
+                    offset += len(chunk)
                 
                 self.first_frame = False
             else:
                 # === SUBSEQUENT FRAMES ===
-                frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
-                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                region = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
+                jpeg_payload_size = len(region) + len(jpeg_bytes)
                 jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
                 
-                full_payload = jpeg_hdr + frame_hdr + jpeg_bytes
-                _send_chunked(self.s_video_aux, full_payload, chunk_size=1460)
+                self.s_video.sendall(jpeg_hdr)
+                self.s_video.sendall(region)
+                offset = 0
+                while offset < len(jpeg_bytes):
+                    chunk = jpeg_bytes[offset:offset+1460]
+                    self.s_video.sendall(chunk)
+                    offset += len(chunk)
                 
             return True
             
@@ -405,12 +406,9 @@ class EpsonEasyMPClient:
 
     def _send_frame_keepalive(self):
         """
-        Send a 2646 + 1764 zero buffer pair on the AUX channel after each video frame.
-        
-        PCAP evidence shows Windows sends these at ~1s intervals,
-        NOT per-frame. Sending per-frame at 24fps overwhelms the
-        projector's embedded buffer. Call this periodically from
-        the streaming loop instead."""
+        Send a 2646 + 1764 zero buffer pair on byte28=0x01.
+        Sent at ~1s intervals, not per-frame.
+        """
         if not self.s_video_aux:
             return
         try:
