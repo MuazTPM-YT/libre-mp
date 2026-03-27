@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Libre MP — Projector Control</title>
+  <meta name="description" content="Modern open-source Epson projector control application" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ═══════════════ STATUS BANNER ═══════════════ -->
+    <header id="status-banner" class="status-banner" data-status="disconnected">
+      <div class="status-banner__left">
+        <span class="status-dot"></span>
+        <span class="status-text">Disconnected</span>
+      </div>
+      <h1 class="status-banner__title">Libre MP</h1>
+      <button id="btn-settings-toggle" class="icon-btn" title="Settings" aria-label="Open settings">
+        <!-- settings icon injected by JS -->
+      </button>
+    </header>
+
+    <!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+    <main class="main-grid">
+      <!-- ─── LEFT COLUMN: SEARCH + RECENT ─── -->
+      <aside class="sidebar">
+        <!-- SEARCH & FILTER -->
+        <div class="search-box card">
+          <span id="icon-search" class="search-box__icon"></span>
+          <input
+            type="text"
+            id="search-input"
+            class="search-box__input"
+            placeholder="Search projectors…"
+            autocomplete="off"
+          />
+          <button id="btn-filter" class="icon-btn icon-btn--sm" title="Filter">
+            <!-- filter icon -->
+          </button>
+        </div>
+
+        <!-- FILTER DROPDOWN (hidden by default) -->
+        <div id="filter-dropdown" class="filter-dropdown card hidden">
+          <label class="filter-option">
+            <input type="checkbox" id="filter-epson" checked /> Epson SSIDs only
+          </label>
+          <label class="filter-option">
+            <input type="checkbox" id="filter-strong" /> Strong signal only
+          </label>
+        </div>
+
+        <!-- RECENT CONNECTIONS -->
+        <section class="recent-section">
+          <h2 class="section-title">
+            <span id="icon-recent" class="section-title__icon"></span>
+            Recent Connections
+          </h2>
+          <div id="recent-list" class="recent-list">
+            <!-- populated by JS -->
+            <div class="empty-state" id="recent-empty">
+              <span class="empty-state__text">No recent connections</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <!-- ─── CENTER: PROJECTOR LIST ─── -->
+      <section class="projector-section">
+        <div class="projector-section__header">
+          <h2 class="section-title">
+            <span id="icon-projector-title" class="section-title__icon"></span>
+            Available Projectors
+          </h2>
+          <button id="btn-refresh" class="btn btn--ghost" title="Refresh">
+            <span id="icon-refresh" class="btn__icon"></span>
+            Refresh
+          </button>
+        </div>
+
+        <div id="projector-list" class="projector-list">
+          <!-- populated by JS -->
+          <div class="empty-state" id="projectors-empty">
+            <div class="spinner" id="scan-spinner"></div>
+            <span class="empty-state__text">Scanning for projectors…</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ═══════════════ SETTINGS PANEL (slide-out) ═══════════════ -->
+    <div id="settings-overlay" class="settings-overlay hidden"></div>
+    <aside id="settings-panel" class="settings-panel hidden">
+      <div class="settings-panel__header">
+        <h2 class="section-title">
+          <span id="icon-settings-title" class="section-title__icon"></span>
+          Settings
+        </h2>
+        <button id="btn-settings-close" class="icon-btn" title="Close settings" aria-label="Close settings">
+          <!-- close icon -->
+        </button>
+      </div>
+
+      <div class="settings-panel__body">
+        <!-- Display Mode -->
+        <div class="setting-group">
+          <label class="setting-label">
+            <span id="icon-display" class="setting-label__icon"></span>
+            Display Mode
+          </label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="display-mode" value="operations" checked />
+              <span class="radio-custom"></span>
+              Operations
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="display-mode" value="movies" />
+              <span class="radio-custom"></span>
+              Movies
+            </label>
+          </div>
+        </div>
+
+        <!-- Brightness -->
+        <div class="setting-group">
+          <label class="setting-label" for="brightness-slider">
+            <span id="icon-brightness" class="setting-label__icon"></span>
+            Brightness
+          </label>
+          <div class="slider-group">
+            <input type="range" id="brightness-slider" class="slider" min="0" max="100" value="75" />
+            <span id="brightness-value" class="slider-value">75%</span>
+          </div>
+        </div>
+
+        <!-- Resolution -->
+        <div class="setting-group">
+          <label class="setting-label" for="resolution-select">
+            <span id="icon-resolution" class="setting-label__icon"></span>
+            Resolution
+          </label>
+          <select id="resolution-select" class="select-input">
+            <option value="1600x900" selected>1600 × 900</option>
+            <option value="1920x1080">1920 × 1080</option>
+            <option value="1280x720">1280 × 720</option>
+            <option value="1024x768">1024 × 768</option>
+          </select>
+        </div>
+
+        <!-- Bandwidth -->
+        <div class="setting-group">
+          <label class="setting-label" for="bandwidth-select">
+            <span id="icon-bandwidth" class="setting-label__icon"></span>
+            Bandwidth
+          </label>
+          <select id="bandwidth-select" class="select-input">
+            <option value="15">15 Mbps</option>
+            <option value="10">10 Mbps</option>
+            <option value="5">5 Mbps</option>
+            <option value="3">3 Mbps</option>
+          </select>
+        </div>
+
+        <!-- Audio -->
+        <div class="setting-group">
+          <label class="setting-label">
+            <span id="icon-audio" class="setting-label__icon"></span>
+            Audio Output
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="audio-toggle" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <!-- Auto-Reconnect -->
+        <div class="setting-group">
+          <label class="setting-label">
+            <span id="icon-reconnect" class="setting-label__icon"></span>
+            Auto-Reconnect
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="autoreconnect-toggle" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="settings-panel__footer">
+        <button id="btn-apply-settings" class="btn btn--primary">Apply</button>
+        <button id="btn-reset-settings" class="btn btn--ghost">Reset</button>
+      </div>
+    </aside>
+
+    <!-- ═══════════════ HELP BUTTON ═══════════════ -->
+    <button id="btn-help" class="help-fab" title="Help" aria-label="Open help">
+      <!-- ? icon -->
+    </button>
+
+    <!-- ═══════════════ HELP OVERLAY ═══════════════ -->
+    <div id="help-overlay" class="help-overlay hidden">
+      <div class="help-dialog card">
+        <div class="help-dialog__header">
+          <h2 class="section-title">Help</h2>
+          <button id="btn-help-close" class="icon-btn" title="Close help" aria-label="Close help">
+            <!-- close icon -->
+          </button>
+        </div>
+        <div class="help-dialog__body">
+          <div class="help-item">
+            <span class="help-item__icon">🔍</span>
+            <div>
+              <h3>Search & Filter</h3>
+              <p>Type a projector name or SSID to find it instantly. Use the filter icon to narrow results.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item__icon">⚡</span>
+            <div>
+              <h3>1-Tap Connect</h3>
+              <p>Click the <strong>Connect</strong> button next to any projector to connect immediately.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item__icon">🕐</span>
+            <div>
+              <h3>Recent Connections</h3>
+              <p>Your last connected projectors appear in the sidebar for quick re-connection.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item__icon">🔄</span>
+            <div>
+              <h3>Auto-Reconnect</h3>
+              <p>Enable in Settings to automatically reconnect to a known projector on startup.</p>
+            </div>
+          </div>
+          <div class="help-item">
+            <span class="help-item__icon">⚙️</span>
+            <div>
+              <h3>Settings</h3>
+              <p>Click the gear icon in the top bar to adjust display mode, brightness, resolution, and audio.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
