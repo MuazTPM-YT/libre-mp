@@ -20,6 +20,7 @@ def main():
             streamer.start_streaming()
             
         client.disconnect()
+        
     except KeyboardInterrupt:
         print("\n[*] Exiting script...")
         try:

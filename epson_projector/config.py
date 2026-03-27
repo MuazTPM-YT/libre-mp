@@ -30,8 +30,8 @@ PROJECTOR_DISPLAY_WIDTH = 1600
 PROJECTOR_DISPLAY_HEIGHT = 900
 
 # The resolution we stream JPEG frames at.
-STREAM_WIDTH = 1024
-STREAM_HEIGHT = 768
+STREAM_WIDTH = 624
+STREAM_HEIGHT = 416
 
 # JPEG compression quality for streamed frames (pcap shows ~50 quality)
 JPEG_QUALITY = 50

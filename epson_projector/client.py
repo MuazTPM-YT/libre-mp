@@ -330,7 +330,21 @@ class EpsonEasyMPClient:
 
     def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
         if not self.s_video:
-            print("[-] Cannot send video frame. Video socket not initialized!")
+            print("[-] Cannot send video frame. VIDEO socket not initialized!")
+            return False
+            
+        def _send_chunked(sock, data, chunk_size=1460):
+            """Send data in chunks matching Ethernet MSS (1460 bytes)."""
+            total_sent = 0
+            while total_sent < len(data):
+                chunk = data[total_sent:total_sent+chunk_size]
+                sock.sendall(chunk)
+                total_sent += len(chunk)
+                
+    def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
+        # YOU ARE THE BOSS. WE ARE PLUGGING INTO THE "SPEAKER" SOCKET (s_video_aux)
+        if not self.s_video_aux:
+            print("[-] Cannot send video frame. MEDIA/AUX socket not initialized!")
             return False
             
         def _send_chunked(sock, data, chunk_size=1460):
@@ -342,35 +356,51 @@ class EpsonEasyMPClient:
                 total_sent += len(chunk)
                 
         try:
-            with open('video_stream_debug.bin', 'wb') as dump_file:
-                if self.first_frame:
-                    meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
-                    
-                    # We MUST use the 20-byte frame_hdr to tell it x=0, y=0!
-                    frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
-                    full_payload = meta + frame_hdr + jpeg_bytes
-                    
-                    print(f"[*]    Sending first frame: meta={len(meta)}, frame_hdr={len(frame_hdr)}, jpeg={len(jpeg_bytes)}")
-                    _send_chunked(self.s_video, full_payload, chunk_size=1460)
-                    
-                    self.first_frame = False
-                else:
-                    # === SUBSEQUENT FRAMES ===
-                    frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
-                    full_payload = frame_hdr + jpeg_bytes
-                    _send_chunked(self.s_video, full_payload, chunk_size=1460)
-                    
-
-            return True
-        except Exception as e:
-            import errno
-            print(f"[-] Stream interrupted: {e}")
-            print(f"[-]    Error type: {type(e).__name__}")
-            if hasattr(e, 'errno'):
-                print(f"[-]    Errno: {e.errno} ({errno.errorcode.get(e.errno, 'unknown')})")
             if self.first_frame:
-                print(f"[-]    Failed on FIRST frame (TCP segment mismatch?)")
-                print(f"[*]    DUMP SAVED TO 'video_stream_debug.bin'. Comparing to PCAP signatures...")
+                print(f"[*]    [DEBUG] Assembling PCAP First Frame for MEDIA socket...")
+                # 1. Meta Block (Little-Endian wrapper)
+                meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
+                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
+                
+                # 2. Frame Header (20 bytes: Type 4 + Region)
+                frame_hdr = payloads.get_frame_header(4, x_offset, y_offset, width, height)
+                
+                # 3. Exactly 76533 Padding
+                FIRST_FRAME_BUFFER_SIZE = 76533
+                actual_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                
+                if actual_payload_size < FIRST_FRAME_BUFFER_SIZE:
+                    padding_needed = FIRST_FRAME_BUFFER_SIZE - actual_payload_size
+                    jpeg_bytes = jpeg_bytes + (b'\x00' * padding_needed)
+                elif actual_payload_size > FIRST_FRAME_BUFFER_SIZE:
+                    print(f"[-]    [FATAL] Image {actual_payload_size} bytes exceeds 76533 buffer!")
+                    return False
+                
+                # 4. JPEG Header (Big-Endian wrapper)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, FIRST_FRAME_BUFFER_SIZE)
+                
+                # 5. Assemble everything into ONE chunked stream
+                full_payload = meta_hdr + meta + jpeg_hdr + frame_hdr + jpeg_bytes
+                
+                print(f"[*]    Sending FIRST FRAME to MEDIA socket (s_video_aux): {len(full_payload)} bytes.")
+                _send_chunked(self.s_video_aux, full_payload, chunk_size=1460)
+                
+                self.first_frame = False
+            else:
+                # === SUBSEQUENT FRAMES ===
+                frame_hdr = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
+                jpeg_payload_size = len(frame_hdr) + len(jpeg_bytes)
+                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+                
+                full_payload = jpeg_hdr + frame_hdr + jpeg_bytes
+                _send_chunked(self.s_video_aux, full_payload, chunk_size=1460)
+                
+            return True
+            
+        except Exception as e:
+            print(f"[-] Stream interrupted: {e}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def _send_frame_keepalive(self):

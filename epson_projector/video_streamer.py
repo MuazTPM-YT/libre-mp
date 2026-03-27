@@ -148,7 +148,6 @@ class VideoStreamer:
         if use_test_card:
             print("[!] No screen capture available. Using test card.")
         
-        
         try:
             while True:
                 start_time = time.time()
