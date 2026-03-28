@@ -1,22 +1,22 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Libre MP",
+  "productName": "frontend",
   "version": "0.1.0",
-  "identifier": "com.libremp.projector",
+  "identifier": "com.user.frontend",
   "build": {
-    "frontendDist": "../src"
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
   },
   "app": {
-    "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Libre MP — Projector Control",
-        "width": 1000,
-        "height": 700,
-        "minWidth": 800,
-        "minHeight": 600,
-        "decorations": true,
-        "resizable": true,
+        "title": "LibreMP — Network Projector",
+        "width": 800,
+        "height": 600,
+        "resizable": false,
+        "maximizable": false,
         "center": true
       }
     ],
