@@ -325,77 +325,62 @@ class EpsonEasyMPClient:
         time.sleep(0.5)  # Give projector time to process warmups before video
         print("[+]    Warmup complete.")
 
-    def send_video_frame(self, x_offset, y_offset, width, height, jpeg_bytes):
+    def send_video_batch(self, tiles):
         """
-        Send a video frame matching the EXACT Windows TCP segmentation.
+        Send a complete video frame as a multi-tile EPRD batch.
         
-        Windows pcap (tls.pcapng frames 182-196) sends each EPRD piece as
-        its own TCP segment via TCP_NODELAY:
-          Frame 182: EPRD meta header  (20 bytes)
-          Frame 183: Display config    (46 bytes, starts 0xCC)
-          Frame 184: EPRD JPEG header  (20 bytes)
-          Frame 185: Frame type        (4 bytes: 00000004)
-          Frame 186: Region descriptor (16 bytes)
-          Frame 187+: JPEG data        (1460-byte chunks)
+        `tiles` is a list of (x, y, w, h, jpeg_bytes) tuples — one per tile.
         
-        The projector's embedded parser expects this segmentation.
-        Concatenating into one blob and chunking at 1460 causes RST.
+        Binary analysis of windows_perfect_stream.bin shows:
+        - EVERY batch has a 4-byte frame_type prefix (not just the first)
+        - Frame types: 4 (full frame), 3 (partial update), 1 (cursor/small)
+        - The meta EPRD block (0xCC) only appears before the FIRST batch
+        - The working PCAP replay sends everything through a uniform
+          1460-byte chunker with 2ms delays — we do the same here.
         """
         if not self.s_video:
-            print("[-] Cannot send video frame. VIDEO socket (byte28=0x00) not initialized!")
+            print("[-] Cannot send video batch. VIDEO socket not initialized!")
             return False
-                
+        
         try:
-            if self.first_frame:
-                print(f"[*]    [DEBUG] Assembling First Frame for VIDEO socket (byte28=0x00)...")
-                
-                # 1. Meta Block
-                meta = payloads.get_display_config_meta(config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
-                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
-                
-                # 2. Frame Header — split into type (4 bytes) + region (16 bytes)
-                frame_type = struct.pack('>I', 4)  # Type 4
+            # 1. Build region+jpeg blobs for all tiles
+            tile_blobs = []
+            for (x, y, w, h, jpeg_bytes) in tiles:
                 ts = int(time.time() * 1000) & 0xFFFFFFFF
-                region = struct.pack('>HHHH', x_offset, y_offset, width, height) + struct.pack('>II', 0x00000007, ts)
-                
-                # 3. Calculate exact JPEG Payload size (do NOT pad with zeros!)
-                actual_payload_size = len(frame_type) + len(region) + len(jpeg_bytes)
-                
-                # 4. JPEG Header with exact dynamic size
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, actual_payload_size)
-                
-                total_size = len(meta_hdr) + len(meta) + len(jpeg_hdr) + len(frame_type) + len(region) + len(jpeg_bytes)
-                print(f"[*]    Sending FIRST FRAME to VIDEO socket (byte28=0x00): {total_size} bytes.")
-                
-                # 5. Send frame header payload (no delays to avoid EPRD parse timeouts!)
-                self.s_video.sendall(meta_hdr)    # 20 bytes — EPRD meta header
-                self.s_video.sendall(meta)         # 46 bytes — display config (0xCC)
-                self.s_video.sendall(jpeg_hdr)     # 20 bytes — EPRD JPEG header
-                self.s_video.sendall(frame_type)   #  4 bytes — frame type
-                self.s_video.sendall(region)       # 16 bytes — region descriptor
-                
-                # JPEG data in 1460-byte MSS chunks
-                offset = 0
-                while offset < len(jpeg_bytes):
-                    chunk = jpeg_bytes[offset:offset+1460]
-                    self.s_video.sendall(chunk)
-                    offset += len(chunk)
-                
+                region = struct.pack('>HHHH', x, y, w, h) + struct.pack('>II', 0x00000007, ts)
+                tile_blobs.append(region + jpeg_bytes)
+            
+            # 2. Frame type is present in ALL batches (confirmed from Windows binary)
+            frame_type = struct.pack('>I', 4)
+            
+            # 3. JPEG batch payload = frame_type + all tile blobs
+            jpeg_payload_size = len(frame_type) + sum(len(b) for b in tile_blobs)
+            jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
+            
+            # 4. Assemble the entire frame as one contiguous buffer
+            buf = bytearray()
+            
+            if self.first_frame:
+                # First batch: prepend meta block
+                meta = payloads.get_display_config_meta(
+                    config.PROJECTOR_DISPLAY_WIDTH, config.PROJECTOR_DISPLAY_HEIGHT)
+                meta_hdr = payloads.get_eprd_meta_header(self.my_ip, len(meta))
+                buf += meta_hdr + meta
                 self.first_frame = False
-            else:
-                # === SUBSEQUENT FRAMES ===
-                region = payloads.get_subsequent_frame_header(x_offset, y_offset, width, height)
-                jpeg_payload_size = len(region) + len(jpeg_bytes)
-                jpeg_hdr = payloads.get_eprd_jpeg_header(self.my_ip, jpeg_payload_size)
-                
-                self.s_video.sendall(jpeg_hdr)
-                self.s_video.sendall(region)
-                offset = 0
-                while offset < len(jpeg_bytes):
-                    chunk = jpeg_bytes[offset:offset+1460]
-                    self.s_video.sendall(chunk)
-                    offset += len(chunk)
-                
+            
+            buf += jpeg_hdr + frame_type
+            for blob in tile_blobs:
+                buf += blob
+            
+            # 5. Send through uniform 1460-byte chunker with 2ms pacing
+            #    (identical to the working Windows PCAP replay in main.py)
+            offset = 0
+            while offset < len(buf):
+                chunk = buf[offset:offset+1460]
+                self.s_video.sendall(chunk)
+                time.sleep(0.002)
+                offset += len(chunk)
+            
             return True
             
         except Exception as e:
