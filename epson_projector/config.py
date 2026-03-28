@@ -29,9 +29,21 @@ PORT_WAKE = 3629
 PROJECTOR_DISPLAY_WIDTH = 1600
 PROJECTOR_DISPLAY_HEIGHT = 900
 
-# The resolution we stream JPEG frames at.
-STREAM_WIDTH = 624
-STREAM_HEIGHT = 416
+# The full VNC viewport resolution the projector expects.
+# Windows slices 1600x900 into a 1024x768 grid (matching VNC conventions).
+STREAM_WIDTH = 1024
+STREAM_HEIGHT = 768
+
+# The exact 4-tile grid from the Windows PCAP binary analysis.
+# Every frame is sliced into these regions; the projector hardware expects
+# all 4 tiles packed into a single EPRD JPEG batch.
+# Each tuple: (x_offset, y_offset, width, height)
+TILE_GRID = [
+    (0,   0,   624, 416),
+    (624, 0,   400, 416),
+    (0,   416, 624, 352),
+    (624, 416, 400, 352),
+]
 
 # JPEG compression quality for streamed frames (pcap shows ~50 quality)
 JPEG_QUALITY = 50
