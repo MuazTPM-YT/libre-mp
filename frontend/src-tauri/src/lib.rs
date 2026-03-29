@@ -63,6 +63,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
     let mut current_ssid = String::new();
     let mut current_security = String::from("Open");
     let mut current_bssid = String::new();
+    let mut current_signal = 0;
 
     let ssid_line_re = Regex::new(r"^SSID\s+\d+\s*:\s*(.*)").unwrap();
 
@@ -71,9 +72,28 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 
         // New SSID block starts
         if let Some(caps) = ssid_line_re.captures(trimmed) {
+            if !current_ssid.is_empty() {
+                let bssid = if current_bssid.is_empty() {
+                    format!("unknown-{}", networks.len())
+                } else {
+                    current_bssid.clone()
+                };
+                networks.push(WifiNetwork {
+                    ssid: current_ssid.clone(),
+                    bssid,
+                    signal: current_signal.max(1), // Default minimal signal if visible but no signal reported
+                    security: current_security.clone(),
+                    is_projector: {
+                        let l = current_ssid.to_lowercase();
+                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
+                    },
+                });
+            }
+
             current_ssid = caps[1].trim().to_string();
             current_security = String::from("Open");
             current_bssid = String::new();
+            current_signal = 0;
             continue;
         }
 
@@ -88,30 +108,48 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 
         // BSSID line
         if let Some(caps) = BSSID_RE.captures(trimmed) {
+            if !current_bssid.is_empty() {
+                networks.push(WifiNetwork {
+                    ssid: current_ssid.clone(),
+                    bssid: current_bssid.clone(),
+                    signal: current_signal.max(1),
+                    security: current_security.clone(),
+                    is_projector: {
+                        let l = current_ssid.to_lowercase();
+                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
+                    },
+                });
+                current_signal = 0;
+            }
             current_bssid = caps[1].to_string();
             continue;
         }
 
-        // Signal line — this completes a network entry
+        // Signal line
         if let Some(caps) = SIGNAL_RE.captures(trimmed) {
             if let Ok(sig) = caps[1].parse::<u8>() {
-                let bssid = if current_bssid.is_empty() {
-                    format!("unknown-{}", networks.len())
-                } else {
-                    current_bssid.clone()
-                };
-                networks.push(WifiNetwork {
-                    ssid: current_ssid.clone(),
-                    bssid,
-                    signal: sig,
-                    security: current_security.clone(),
-                    is_projector: current_ssid.to_lowercase().contains("epson"),
-                });
-                // Reset BSSID for next entry within same SSID block
-                current_bssid = String::new();
+                current_signal = sig;
             }
             continue;
         }
+    }
+
+    if !current_ssid.is_empty() {
+        let bssid = if current_bssid.is_empty() {
+            format!("unknown-{}", networks.len())
+        } else {
+            current_bssid.clone()
+        };
+        networks.push(WifiNetwork {
+            ssid: current_ssid.clone(),
+            bssid,
+            signal: current_signal.max(1),
+            security: current_security.clone(),
+            is_projector: {
+                let l = current_ssid.to_lowercase();
+                l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
+            },
+        });
     }
     
     // Deduplicate by SSID, keeping strongest signal
