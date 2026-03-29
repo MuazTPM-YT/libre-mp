@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   HelpCircle, RefreshCw, Settings, Wifi, WifiOff, MonitorDot, Search,
-  FolderOpen, Signal, Radio, Zap, Clock, ArrowRight,
-  Sun, Volume2, Gauge, Monitor, RotateCcw
+  Signal, Radio, Zap, ArrowRight,
+  Sun, Volume2, Gauge, Monitor, RotateCcw, AlertTriangle, X, Shield, ShieldCheck
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
@@ -43,6 +43,7 @@ function App() {
   // Connection state
   const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -126,6 +127,14 @@ function App() {
     return () => clearInterval(interval);
   }, [scanNetworks]);
 
+  // Auto-dismiss connection error after 8 seconds
+  useEffect(() => {
+    if (connectionError) {
+      const timer = setTimeout(() => setConnectionError(null), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [connectionError]);
+
   const handleNetworkClick = (network: NetworkItem) => {
     if (network.security !== 'Open' && network.security !== 'Projector') {
       setPasswordModalNet(network);
@@ -136,6 +145,7 @@ function App() {
 
   const handleConnect = async (network: NetworkItem, password?: string) => {
     setConnectingSSID(network.ssid);
+    setConnectionError(null);
     try {
       const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid, password });
       if (success) {
@@ -154,8 +164,9 @@ function App() {
           console.error("UDP Discovery failed", e);
         }
       }
-    } catch {
-      // silent
+    } catch (err: any) {
+      console.error("Connection failed:", err);
+      setConnectionError(typeof err === 'string' ? err : (err?.message || 'Connection failed. Please try again.'));
     } finally {
       setConnectingSSID(null);
     }
@@ -163,6 +174,7 @@ function App() {
 
   const handleDisconnect = () => {
     setConnectedSSID(null);
+    setConnectionError(null);
   };
 
   // Filtering
@@ -183,18 +195,23 @@ function App() {
   return (
     <div className="app">
       {/* ====== CONNECTION STATUS BANNER ====== */}
-      <header className={`status-banner ${connectedSSID ? 'connected' : connectingSSID ? 'connecting' : 'idle'}`}>
+      <header className={`status-banner ${connectedSSID ? 'connected' : connectingSSID ? 'connecting' : connectionError ? 'error' : 'idle'}`}>
         <div className="banner-left">
-          <div className={`banner-dot ${connectedSSID ? 'on' : connectingSSID ? 'pulse' : ''}`} />
+          <div className={`banner-dot ${connectedSSID ? 'on' : connectingSSID ? 'pulse' : connectionError ? 'error' : ''}`} />
           {connectedSSID ? (
             <>
-              <Wifi size={14} />
+              <ShieldCheck size={14} />
               <span>Connected to <strong>{connectedNetwork?.name || connectedSSID}</strong></span>
             </>
           ) : connectingSSID ? (
             <>
               <RotateCcw size={14} className="spinning" />
               <span>Connecting to <strong>{connectingSSID}</strong>...</span>
+            </>
+          ) : connectionError ? (
+            <>
+              <AlertTriangle size={14} />
+              <span className="banner-error-text">{connectionError}</span>
             </>
           ) : (
             <>
@@ -204,8 +221,16 @@ function App() {
           )}
         </div>
         <div className="banner-right">
+          {connectionError && (
+            <button className="banner-dismiss" onClick={() => setConnectionError(null)} title="Dismiss">
+              <X size={14} />
+            </button>
+          )}
           {connectedSSID && (
-            <button className="banner-btn" onClick={handleDisconnect}>Disconnect</button>
+            <button className="disconnect-btn" onClick={handleDisconnect}>
+              <WifiOff size={16} />
+              <span>Disconnect</span>
+            </button>
           )}
           {appSettings.autoReconnect && (
             <span className="banner-tag">
@@ -359,11 +384,15 @@ function App() {
                 </div>
               ) : (
                 <div className="network-list">
-                  {filtered.map(n => {
+                  {filtered.map((n, idx) => {
                     const isConnected = n.ssid === connectedSSID;
                     const isConnecting = n.ssid === connectingSSID;
                     return (
-                      <div key={n.id} className={`net-card ${isConnected ? 'connected' : ''} ${n.is_projector ? 'projector' : ''}`}>
+                      <div
+                        key={n.id}
+                        className={`net-card ${isConnected ? 'connected' : ''} ${n.is_projector ? 'projector' : ''}`}
+                        style={{ animationDelay: `${idx * 40}ms` }}
+                      >
                         <div className="net-icon">
                           {n.is_projector ? <MonitorDot size={20} /> : <Wifi size={20} />}
                         </div>
@@ -374,6 +403,7 @@ function App() {
                             {isConnected && <span className="connected-tag">Connected</span>}
                           </div>
                           <div className="net-meta">
+                            <Shield size={10} />
                             <span>{n.security}</span>
                             <span className="meta-dot">·</span>
                             <span>{n.signal}% signal</span>
@@ -395,8 +425,8 @@ function App() {
                             <RotateCcw size={14} className="spinning" />
                           ) : isConnected ? (
                             <>
-                              <Wifi size={14} />
-                              <span>Connected</span>
+                              <WifiOff size={16} />
+                              <span>Disconnect</span>
                             </>
                           ) : (
                             <>
