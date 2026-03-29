@@ -322,23 +322,170 @@ fn try_extract_ascii_name(data: &[u8]) -> Option<String> {
 
 
 #[tauri::command]
-async fn connect_to_wifi(ssid: String) -> Result<bool, String> {
-    println!("Connecting to network: {}", ssid);
+async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool, String> {
+    println!("Connecting to network: {} (password provided: {})", ssid, password.is_some());
     
     if cfg!(target_os = "windows") {
-        let output = Command::new("netsh")
-            .args(["wlan", "connect", "name=", &ssid])
+        // If a password was provided, create a temporary XML profile
+        if let Some(ref pwd) = password {
+            if !pwd.is_empty() {
+                let profile_xml = format!(
+                    r#"<?xml version="1.0"?>
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+    <name>{ssid}</name>
+    <SSIDConfig>
+        <SSID>
+            <name>{ssid}</name>
+        </SSID>
+    </SSIDConfig>
+    <connectionType>ESS</connectionType>
+    <connectionMode>auto</connectionMode>
+    <MSM>
+        <security>
+            <authEncryption>
+                <authentication>WPA2PSK</authentication>
+                <encryption>AES</encryption>
+                <useOneX>false</useOneX>
+            </authEncryption>
+            <sharedKey>
+                <keyType>passPhrase</keyType>
+                <protected>false</protected>
+                <keyMaterial>{pwd}</keyMaterial>
+            </sharedKey>
+        </security>
+    </MSM>
+</WLANProfile>"#,
+                    ssid = ssid,
+                    pwd = pwd
+                );
+
+                // Write profile to a temp file
+                let temp_dir = std::env::temp_dir();
+                let profile_path = temp_dir.join(format!("libremp_wifi_{}.xml", ssid.replace(' ', "_")));
+                std::fs::write(&profile_path, &profile_xml)
+                    .map_err(|e| format!("Failed to write Wi-Fi profile: {}", e))?;
+
+                // Add the profile
+                let add_output = Command::new("netsh")
+                    .args(["wlan", "add", "profile", &format!("filename={}", profile_path.display())])
+                    .output()
+                    .map_err(|e| format!("Failed to add Wi-Fi profile: {}", e))?;
+
+                // Clean up temp file
+                let _ = std::fs::remove_file(&profile_path);
+
+                if !add_output.status.success() {
+                    let stderr = String::from_utf8_lossy(&add_output.stderr);
+                    let stdout = String::from_utf8_lossy(&add_output.stdout);
+                    return Err(format!("Failed to add Wi-Fi profile: {} {}", stdout, stderr));
+                }
+            }
+        }
+
+        // Now connect using the profile name (which matches the SSID)
+        let connect_output = Command::new("netsh")
+            .args(["wlan", "connect", &format!("name={}", ssid)])
             .output()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| format!("Failed to connect: {}", e))?;
+
+        if !connect_output.status.success() {
+            let stderr = String::from_utf8_lossy(&connect_output.stderr);
+            let stdout = String::from_utf8_lossy(&connect_output.stdout);
+            return Err(format!("Connection command failed: {} {}", stdout.trim(), stderr.trim()));
+        }
+
+        // Wait and verify actual connection (up to 15 seconds)
+        let start = std::time::Instant::now();
+        let timeout = std::time::Duration::from_secs(15);
+        let mut consecutive_disconnected: u32 = 0;
+        
+        // Give the OS a moment to initiate the connection
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        
+        while start.elapsed() < timeout {
+            tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
             
-        Ok(output.status.success())
+            // Check current connection status via netsh
+            let status_output = Command::new("netsh")
+                .args(["wlan", "show", "interfaces"])
+                .output();
+            
+            if let Ok(output) = status_output {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                
+                let mut iface_state = String::new();
+                let mut iface_ssid = String::new();
+                
+                for line in stdout.lines() {
+                    let trimmed = line.trim();
+                    if let Some(colon_pos) = trimmed.find(':') {
+                        let key = trimmed[..colon_pos].trim();
+                        let val = trimmed[colon_pos + 1..].trim();
+                        
+                        // Match key names case-insensitively
+                        let key_lower = key.to_lowercase();
+                        if key_lower == "state" || key_lower == "status" {
+                            iface_state = val.to_lowercase();
+                        } else if key_lower == "ssid" {
+                            iface_ssid = val.to_string();
+                        }
+                    }
+                }
+                
+                // Successfully connected to target SSID
+                if iface_ssid == ssid 
+                    && iface_state.contains("connected") 
+                    && !iface_state.contains("disconnected") 
+                {
+                    return Ok(true);
+                }
+                
+                // Track consecutive disconnected polls for fast failure detection
+                if iface_state.contains("disconnected") {
+                    consecutive_disconnected += 1;
+                } else {
+                    consecutive_disconnected = 0;
+                }
+                
+                // 3+ consecutive disconnected checks (~3.6s) = auth/connection failure
+                if consecutive_disconnected >= 3 {
+                    return Err("Authentication failed. Please check your password and try again.".to_string());
+                }
+                
+                // If still stuck authenticating after 8s, password is likely wrong
+                if start.elapsed() > std::time::Duration::from_secs(8) 
+                    && iface_state.contains("authenticating") 
+                {
+                    return Err("Authentication failed. The password appears to be incorrect.".to_string());
+                }
+            }
+        }
+        
+        // Timeout reached — connection failed
+        Err("Connection timed out. The password may be incorrect or the network is unreachable.".to_string())
     } else {
+        // Linux: nmcli handles password automatically
+        let mut args = vec!["dev", "wifi", "connect", &ssid];
+        let pwd_str;
+        if let Some(ref pwd) = password {
+            if !pwd.is_empty() {
+                pwd_str = pwd.clone();
+                args.push("password");
+                args.push(&pwd_str);
+            }
+        }
+        
         let output = Command::new("nmcli")
-            .args(["dev", "wifi", "connect", &ssid])
+            .args(&args)
             .output()
-            .map_err(|e| e.to_string())?;
-            
-        Ok(output.status.success())
+            .map_err(|e| format!("Failed to connect: {}", e))?;
+
+        if output.status.success() {
+            Ok(true)
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(format!("Connection failed: {}", stderr.trim()))
+        }
     }
 }
 
