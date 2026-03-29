@@ -284,12 +284,17 @@ h1, h2, h3, h4, h5 { font-family: 'Outfit', sans-serif; }
 
 .qs-value, .qs-value-input {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--t1);
   background: rgba(255,255,255,0.04);
-  padding: 2px 8px;
+  padding: 4px 10px;
   border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
 }
 
 .qs-value-input {

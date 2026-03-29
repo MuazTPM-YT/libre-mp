@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   HelpCircle, RefreshCw, Settings, Wifi, WifiOff, MonitorDot, Search,
   FolderOpen, Signal, Radio, Zap, Clock, ArrowRight,
-  Sun, Volume2, Gauge, Monitor, RotateCcw, ChevronRight
+  Sun, Volume2, Gauge, Monitor, RotateCcw
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
@@ -43,7 +43,6 @@ function App() {
   // Connection state
   const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
-  const [recentConnections, setRecentConnections] = useState<NetworkItem[]>([]);
 
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -109,13 +108,9 @@ function App() {
         setNetworks([]);
       }
 
-      // Auto-reconnect logic
-      if (appSettings.autoReconnect && !connectedSSID && recentConnections.length > 0) {
-        const lastSSID = recentConnections[0].ssid;
-        const match = items.find(n => n.ssid === lastSSID);
-        if (match) {
-          handleConnect(match);
-        }
+      // Auto-reconnect logic without relying on recent array
+      if (appSettings.autoReconnect && !connectedSSID) {
+        // We only reconnect if the currently connected SSID on the OS has not dropped but we aren't tracking, or we need to poll os
       }
     } catch {
       // silent fail
@@ -123,7 +118,7 @@ function App() {
       setIsScanning(false);
       isScanningRef.current = false;
     }
-  }, [appSettings.autoReconnect, connectedSSID, recentConnections, networks.length]);
+  }, [appSettings.autoReconnect, connectedSSID, networks.length]);
 
   useEffect(() => {
     scanNetworks();
@@ -145,11 +140,6 @@ function App() {
       const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid, password });
       if (success) {
         setConnectedSSID(network.ssid);
-        // Add to recent
-        setRecentConnections(prev => {
-          const filtered = prev.filter(r => r.ssid !== network.ssid);
-          return [network, ...filtered].slice(0, 5);
-        });
 
         // Try to get friendly name via UDP discovery now that we are connected
         try {
@@ -253,7 +243,7 @@ function App() {
             <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, displayMode: s.displayMode === 'operations' ? 'movies' : 'operations' }))}>
               <Monitor size={14} />
               <span>Display</span>
-              <span className="qs-value clickable">{appSettings.displayMode === 'operations' ? 'Operations' : 'Movies'} <ChevronRight size={10} /></span>
+              <span className="qs-value clickable">{appSettings.displayMode === 'operations' ? 'Operations' : 'Movies'}</span>
             </div>
             <div className="quick-setting">
               <Sun size={14} />
@@ -303,12 +293,12 @@ function App() {
             <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, audioOutput: !s.audioOutput }))}>
               <Volume2 size={14} />
               <span>Audio</span>
-              <span className={`qs-value clickable ${appSettings.audioOutput ? '' : 'off'}`}>{appSettings.audioOutput ? 'On' : 'Off'} <ChevronRight size={10} /></span>
+              <span className={`qs-value clickable ${appSettings.audioOutput ? '' : 'off'}`}>{appSettings.audioOutput ? 'On' : 'Off'}</span>
             </div>
             <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, bandwidth: s.bandwidth === 15 ? 10 : s.bandwidth === 10 ? 5 : 15 }))}>
               <Gauge size={14} />
               <span>Bandwidth</span>
-              <span className="qs-value clickable">{appSettings.bandwidth}Mbps <ChevronRight size={10} /></span>
+              <span className="qs-value clickable">{appSettings.bandwidth}Mbps</span>
             </div>
           </div>
 
@@ -353,25 +343,6 @@ function App() {
 
           {/* Scrollable Body */}
           <div className="main-scroll">
-            {/* Recent Connections */}
-            {recentConnections.length > 0 && (
-              <section className="recent-section">
-                <h3 className="section-heading">
-                  <Clock size={14} />
-                  Recent Connections
-                </h3>
-                <div className="recent-row">
-                  {recentConnections.map(r => (
-                    <button key={r.ssid} className="recent-chip" onClick={() => handleNetworkClick(r)}>
-                      <MonitorDot size={14} />
-                      <span>{r.name}</span>
-                      <Zap size={12} />
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
-
             {/* Available Networks */}
             <section className="networks-section">
               <h3 className="section-heading">
