@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   HelpCircle, RefreshCw, Settings, Wifi, WifiOff, MonitorDot, Search,
   FolderOpen, Signal, Radio, Zap, Clock, ArrowRight,
-  Sun, Volume2, Gauge, Monitor, RotateCcw
+  Sun, Volume2, Gauge, Monitor, RotateCcw, ChevronRight
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
 
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, type AppSettings, defaultSettings } from './components/SettingsModal';
 import { ConnectionModeModal } from './components/ConnectionModeModal';
 import { HelpModal } from './components/HelpModal';
+import { PasswordModal } from './components/PasswordModal';
 
 interface WifiNetwork {
   ssid: string;
@@ -36,32 +37,47 @@ function App() {
 
   const [connectionMode, setConnectionMode] = useState<'quick' | 'advanced'>('quick');
 
+  // App settings (shared between sidebar + modal)
+  const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
+
   // Connection state
   const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
   const [recentConnections, setRecentConnections] = useState<NetworkItem[]>([]);
-  const [autoReconnect] = useState(true);
 
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConnectionModeOpen, setIsConnectionModeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<'discovery' | 'profiles'>('discovery');
+  const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
+  const [isEditingBrightness, setIsEditingBrightness] = useState(false);
+  const [brightnessInput, setBrightnessInput] = useState("");
+  
+  const isScanningRef = import.meta.env.DEV ? { current: false } : { current: false };
 
   const scanNetworks = useCallback(async () => {
+    if (isScanningRef.current) return;
+    isScanningRef.current = true;
     try {
       setIsScanning(true);
-      const results: WifiNetwork[] = await invoke('scan_wifi_networks');
-      const items: NetworkItem[] = results.map((n) => ({
-        id: n.bssid,
-        name: n.ssid || "Hidden Network",
-        ssid: n.ssid,
-        signal: n.signal,
-        security: n.security,
-        is_projector: n.is_projector,
-      }));
+      let items: NetworkItem[] = [];
 
-      // Also discover projectors via UDP broadcast
+      // 1. Wi-Fi Scan
+      try {
+        const results: WifiNetwork[] = await invoke('scan_wifi_networks');
+        items = results.map((n) => ({
+          id: n.bssid || `wifi-${n.ssid}`,
+          name: n.ssid || "Hidden Network",
+          ssid: n.ssid,
+          signal: n.signal,
+          security: n.security,
+          is_projector: n.is_projector,
+        }));
+      } catch (e) {
+        console.warn("Wi-Fi scan failed:", e);
+      }
+
+      // 2. UDP Projector Discovery
       try {
         const projectors: any[] = await invoke('discover_projectors');
         for (const p of projectors) {
@@ -82,14 +98,19 @@ function App() {
             if (idx >= 0) items[idx].is_projector = true;
           }
         }
-      } catch {
-        // UDP discovery may fail silently
+      } catch (e) {
+        console.warn("UDP discovery failed:", e);
       }
 
-      setNetworks(items);
+      // 3. Update State
+      if (items.length > 0) {
+        setNetworks(items);
+      } else if (networks.length === 0) {
+        setNetworks([]);
+      }
 
       // Auto-reconnect logic
-      if (autoReconnect && !connectedSSID && recentConnections.length > 0) {
+      if (appSettings.autoReconnect && !connectedSSID && recentConnections.length > 0) {
         const lastSSID = recentConnections[0].ssid;
         const match = items.find(n => n.ssid === lastSSID);
         if (match) {
@@ -100,8 +121,9 @@ function App() {
       // silent fail
     } finally {
       setIsScanning(false);
+      isScanningRef.current = false;
     }
-  }, [autoReconnect, connectedSSID, recentConnections]);
+  }, [appSettings.autoReconnect, connectedSSID, recentConnections, networks.length]);
 
   useEffect(() => {
     scanNetworks();
@@ -109,10 +131,18 @@ function App() {
     return () => clearInterval(interval);
   }, [scanNetworks]);
 
-  const handleConnect = async (network: NetworkItem) => {
+  const handleNetworkClick = (network: NetworkItem) => {
+    if (network.security !== 'Open' && network.security !== 'Projector') {
+      setPasswordModalNet(network);
+    } else {
+      handleConnect(network, '');
+    }
+  };
+
+  const handleConnect = async (network: NetworkItem, password?: string) => {
     setConnectingSSID(network.ssid);
     try {
-      const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid });
+      const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid, password });
       if (success) {
         setConnectedSSID(network.ssid);
         // Add to recent
@@ -187,7 +217,7 @@ function App() {
           {connectedSSID && (
             <button className="banner-btn" onClick={handleDisconnect}>Disconnect</button>
           )}
-          {autoReconnect && (
+          {appSettings.autoReconnect && (
             <span className="banner-tag">
               <Zap size={10} />
               Auto
@@ -199,8 +229,10 @@ function App() {
       <div className="app-body">
         {/* ====== SIDEBAR ====== */}
         <aside className="sidebar">
-          <div className="brand">
-            <div className="brand-icon"><Radio size={16} /></div>
+          <div className="brand" title="LibreMP">
+            <div className="brand-icon">
+              <Radio size={16} />
+            </div>
             <div className="brand-text">
               <span className="brand-name">LibreMP</span>
               <span className="brand-ver">v1.0</span>
@@ -208,39 +240,75 @@ function App() {
           </div>
 
           <nav className="nav">
-            <button className={`nav-btn ${activeSection === 'discovery' ? 'active' : ''}`} onClick={() => setActiveSection('discovery')}>
+            <button className="nav-btn active">
               <Search size={16} />
               <span>Discovery</span>
               {networks.length > 0 && <span className="badge">{networks.length}</span>}
             </button>
-            <button className={`nav-btn ${activeSection === 'profiles' ? 'active' : ''}`} onClick={() => setActiveSection('profiles')}>
-              <FolderOpen size={16} />
-              <span>Profiles</span>
-            </button>
           </nav>
 
-          {/* Quick Settings */}
+          {/* Quick Settings — Interactive */}
           <div className="sidebar-section">
             <h4 className="section-label">Quick Settings</h4>
-            <div className="quick-setting">
+            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, displayMode: s.displayMode === 'operations' ? 'movies' : 'operations' }))}>
               <Monitor size={14} />
               <span>Display</span>
-              <span className="qs-value">Operations</span>
+              <span className="qs-value clickable">{appSettings.displayMode === 'operations' ? 'Operations' : 'Movies'} <ChevronRight size={10} /></span>
             </div>
             <div className="quick-setting">
               <Sun size={14} />
               <span>Brightness</span>
-              <span className="qs-value">80%</span>
+              
+              {isEditingBrightness ? (
+                <input
+                  type="text"
+                  autoFocus
+                  className="qs-value-input"
+                  value={brightnessInput}
+                  onChange={e => setBrightnessInput(e.target.value.replace(/\D/g, ''))}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      let val = parseInt(brightnessInput);
+                      if (!isNaN(val)) {
+                        val = Math.max(10, Math.min(100, val));
+                        setAppSettings((s: AppSettings) => ({ ...s, brightness: val }));
+                      }
+                      setIsEditingBrightness(false);
+                    } else if (e.key === 'Escape') {
+                      setIsEditingBrightness(false);
+                    }
+                  }}
+                  onBlur={() => {
+                    let val = parseInt(brightnessInput);
+                    if (!isNaN(val)) {
+                      val = Math.max(10, Math.min(100, val));
+                      setAppSettings((s: AppSettings) => ({ ...s, brightness: val }));
+                    }
+                    setIsEditingBrightness(false);
+                  }}
+                />
+              ) : (
+                <span 
+                  className="qs-value clickable" 
+                  onClick={() => {
+                    setBrightnessInput(appSettings.brightness.toString());
+                    setIsEditingBrightness(true);
+                  }}
+                  title="Click to type"
+                >
+                  {appSettings.brightness}%
+                </span>
+              )}
             </div>
-            <div className="quick-setting">
+            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, audioOutput: !s.audioOutput }))}>
               <Volume2 size={14} />
               <span>Audio</span>
-              <span className="qs-value">On</span>
+              <span className={`qs-value clickable ${appSettings.audioOutput ? '' : 'off'}`}>{appSettings.audioOutput ? 'On' : 'Off'} <ChevronRight size={10} /></span>
             </div>
-            <div className="quick-setting">
+            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, bandwidth: s.bandwidth === 15 ? 10 : s.bandwidth === 10 ? 5 : 15 }))}>
               <Gauge size={14} />
               <span>Bandwidth</span>
-              <span className="qs-value">15Mbps</span>
+              <span className="qs-value clickable">{appSettings.bandwidth}Mbps <ChevronRight size={10} /></span>
             </div>
           </div>
 
@@ -294,7 +362,7 @@ function App() {
                 </h3>
                 <div className="recent-row">
                   {recentConnections.map(r => (
-                    <button key={r.ssid} className="recent-chip" onClick={() => handleConnect(r)}>
+                    <button key={r.ssid} className="recent-chip" onClick={() => handleNetworkClick(r)}>
                       <MonitorDot size={14} />
                       <span>{r.name}</span>
                       <Zap size={12} />
@@ -349,7 +417,7 @@ function App() {
                         </div>
                         <button
                           className={`connect-btn-sm ${isConnected ? 'active' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); isConnected ? handleDisconnect() : handleConnect(n); }}
+                          onClick={(e) => { e.stopPropagation(); isConnected ? handleDisconnect() : handleNetworkClick(n); }}
                           disabled={isConnecting}
                         >
                           {isConnecting ? (
@@ -377,9 +445,18 @@ function App() {
       </div>
 
       {/* ====== MODALS ====== */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <ConnectionModeModal isOpen={isConnectionModeOpen} onClose={() => setIsConnectionModeOpen(false)} mode={connectionMode} setMode={setConnectionMode} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <PasswordModal 
+        isOpen={!!passwordModalNet} 
+        networkName={passwordModalNet?.name || ''} 
+        onCancel={() => setPasswordModalNet(null)}
+        onSubmit={(pwd) => {
+          if (passwordModalNet) handleConnect(passwordModalNet, pwd);
+          setPasswordModalNet(null);
+        }}
+      />
 
       {/* ====== HELP FAB ====== */}
       {!isHelpOpen && (
