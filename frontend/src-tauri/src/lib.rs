@@ -45,10 +45,53 @@ lazy_static! {
 #[tauri::command]
 async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
     if !cfg!(target_os = "windows") {
-        return Ok(vec![
-            WifiNetwork { ssid: "EPSON_Projector_CE1A4".into(), bssid: "00:11:22:33:44:55".into(), signal: 95, security: "Open".into(), is_projector: true },
-            WifiNetwork { ssid: "Home_WiFi_5G".into(), bssid: "AA:BB:CC:DD:EE:FF".into(), signal: 82, security: "WPA2".into(), is_projector: false },
-        ]);
+        let output = Command::new("nmcli")
+            .args(["-t", "-f", "SSID,BSSID,SECURITY,SIGNAL", "dev", "wifi"])
+            .output()
+            .map_err(|e| format!("Failed to execute nmcli: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut networks = Vec::new();
+
+        for line in stdout.lines() {
+            let line = line.trim();
+            if line.is_empty() { continue; }
+            
+            let unescaped = line.replace("\\:", "%%COLON%%");
+            let parts: Vec<&str> = unescaped.split(':').collect();
+            if parts.len() >= 4 {
+                let ssid = parts[0].replace("%%COLON%%", ":");
+                let bssid = parts[1].replace("%%COLON%%", ":");
+                let security = parts[2].to_string();
+                let signal = parts[3].parse::<u8>().unwrap_or(0);
+                
+                if !ssid.is_empty() && ssid != "--" {
+                    let is_projector = {
+                        let l = ssid.to_lowercase();
+                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
+                    };
+                    networks.push(WifiNetwork {
+                        ssid,
+                        bssid,
+                        signal,
+                        security,
+                        is_projector,
+                    });
+                }
+            }
+        }
+        
+        let mut unique_nets: std::collections::HashMap<String, WifiNetwork> = std::collections::HashMap::new();
+        for n in networks {
+            let entry = unique_nets.entry(n.ssid.clone()).or_insert_with(|| n.clone());
+            if n.signal > entry.signal {
+                *entry = n;
+            }
+        }
+
+        let mut result: Vec<WifiNetwork> = unique_nets.into_values().collect();
+        result.sort_by(|a, b| b.signal.cmp(&a.signal));
+        return Ok(result);
     }
 
     let output = Command::new("netsh")
@@ -290,8 +333,12 @@ async fn connect_to_wifi(ssid: String) -> Result<bool, String> {
             
         Ok(output.status.success())
     } else {
-        std::thread::sleep(std::time::Duration::from_secs(2));
-        Ok(true)
+        let output = Command::new("nmcli")
+            .args(["dev", "wifi", "connect", &ssid])
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        Ok(output.status.success())
     }
 }
 
