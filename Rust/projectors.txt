@@ -1,0 +1,12 @@
+# Epson Projector Password List
+# Format: SSID = PASSWORD
+# The password is typically the projector's Wired LAN MAC address
+# (found on the projector body sticker or in Menu → Network → Wired LAN → MAC Address)
+# Remove dots/colons and use uppercase, e.g., A4.D7.3C.CD.AF.45 → A4D73CCDAF45
+#
+# Lines starting with # are comments.
+# Example:
+# MyProjector-xYz123abc456 = A4D73CCDAF45
+
+RESEARCHLAB-fE8DSypQz51AR2Q = A4D73CCDAF45
+A325-fC8DSypQye1AKdd = A4D73CCDAF28

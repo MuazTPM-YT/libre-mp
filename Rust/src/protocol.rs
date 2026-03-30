@@ -3,8 +3,12 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Ipv4Addr, TcpStream};
 use std::time::Duration;
 
-#[cfg(unix)]
+#[cfg(target_os = "linux")]
 use std::os::unix::io::AsRawFd;
+#[cfg(target_os = "macos")]
+use std::os::unix::io::AsRawFd;
+#[cfg(target_os = "windows")]
+use std::os::windows::io::AsRawSocket;
 
 use crate::hex;
 
@@ -430,28 +434,58 @@ pub fn build_video_frame(
     buf
 }
 
-/// Enable TCP keepalive on a socket — prevents session timeout.
-/// Sends keepalive probes every 10s, with 3 retries at 5s intervals.
-#[cfg(unix)]
+/// Linux TCP keepalive
+#[cfg(target_os = "linux")]
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
     let fd = stream.as_raw_fd();
     unsafe {
         let val: libc::c_int = 1;
-        // Enable keepalive
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
             &val as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
-        // Idle time before first probe: 10 seconds
         let idle: libc::c_int = 10;
         setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPIDLE,
             &idle as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
-        // Interval between probes: 5 seconds
         let interval: libc::c_int = 5;
         setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPINTVL,
             &interval as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
-        // Number of failed probes before dropping: 3
         let count: libc::c_int = 3;
         setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPCNT,
             &count as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+    }
+}
+
+/// macOS TCP keepalive — uses TCP_KEEPALIVE instead of TCP_KEEPIDLE
+#[cfg(target_os = "macos")]
+fn enable_tcp_keepalive(stream: &TcpStream) {
+    use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
+    let fd = stream.as_raw_fd();
+    unsafe {
+        let val: libc::c_int = 1;
+        setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+            &val as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        // macOS uses TCP_KEEPALIVE = 0x10 instead of TCP_KEEPIDLE
+        let idle: libc::c_int = 10;
+        setsockopt(fd, IPPROTO_TCP, 0x10, // TCP_KEEPALIVE
+            &idle as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        let interval: libc::c_int = 5;
+        setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPINTVL,
+            &interval as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        let count: libc::c_int = 3;
+        setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPCNT,
+            &count as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+    }
+}
+
+/// Windows TCP keepalive
+#[cfg(target_os = "windows")]
+fn enable_tcp_keepalive(stream: &TcpStream) {
+    use winapi::um::winsock2::setsockopt;
+    use winapi::shared::ws2def::{SOL_SOCKET, SO_KEEPALIVE};
+    let sock = stream.as_raw_socket() as usize;
+    unsafe {
+        let val: i32 = 1;
+        setsockopt(sock, SOL_SOCKET as i32, SO_KEEPALIVE as i32,
+            &val as *const _ as *const i8, std::mem::size_of::<i32>() as i32);
     }
 }

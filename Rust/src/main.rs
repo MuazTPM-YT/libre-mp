@@ -21,10 +21,13 @@ fn main() {
 
     let orig_uuid = wifi::wifi_connect();
 
-    // Ctrl+C: set flag immediately, cleanup happens after loop exits
+    // Ctrl+C: set flag immediately (cross-platform via ctrlc crate)
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
-    ctrlc_handler(r);
+    ctrlc::set_handler(move || {
+        r.store(false, Ordering::Relaxed);
+    })
+    .expect("Error setting Ctrl+C handler");
 
     let mut tpl = match template::Template::load(&find_template()) {
         Ok(t) => t,
@@ -182,15 +185,4 @@ fn find_template() -> String {
     }
     eprintln!("[-] Cannot find windows_perfect_stream.bin!");
     std::process::exit(1);
-}
-
-fn ctrlc_handler(running: Arc<AtomicBool>) {
-    let _ = std::thread::spawn(move || {
-        let mut sigs =
-            signal_hook::iterator::Signals::new(&[signal_hook::consts::SIGINT]).unwrap();
-        for _ in sigs.forever() {
-            running.store(false, Ordering::Relaxed);
-            break; // exit the signal handler thread
-        }
-    });
 }
