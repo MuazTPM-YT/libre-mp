@@ -11,6 +11,32 @@ fn known_password(ssid: &str) -> Option<&'static str> {
     }
 }
 
+/// Detect if an SSID belongs to an Epson projector.
+/// Epson projectors create Wi-Fi networks with recognizable patterns.
+/// Password = BSSID MAC address (no colons, uppercase).
+fn is_epson_projector(ssid: &str, _security: &str) -> bool {
+    // Pattern 1: DIRECT-xx-EPSON-xxxxxx (Wi-Fi Direct mode)
+    if ssid.starts_with("DIRECT-") && ssid.contains("EPSON") {
+        return true;
+    }
+    // Pattern 2: SSIDs with long random suffix (projector-generated hotspot)
+    // e.g., RESEARCHLAB-fE8DSypQz51AR2Q, A325-fC8DSypQye1AKdd
+    if ssid.len() > 10 {
+        let parts: Vec<&str> = ssid.rsplitn(2, '-').collect();
+        if parts.len() == 2 && parts[0].len() >= 12 {
+            // Has a long random suffix after a dash — likely a projector hotspot
+            let suffix = parts[0];
+            let has_mixed = suffix.chars().any(|c| c.is_ascii_uppercase())
+                && suffix.chars().any(|c| c.is_ascii_lowercase())
+                && suffix.chars().any(|c| c.is_ascii_digit());
+            if has_mixed {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 #[derive(Debug)]
 struct WifiNetwork {
     ssid: String,
@@ -115,7 +141,9 @@ pub fn wifi_connect() -> Option<String> {
 
     eprintln!("Available Wi-Fi Networks:");
     for (i, net) in networks.iter().enumerate() {
-        let known = if known_password(&net.ssid).is_some() {
+        let known = if known_password(&net.ssid).is_some()
+            || is_epson_projector(&net.ssid, &net.security)
+        {
             " ★"
         } else {
             ""
@@ -146,9 +174,16 @@ pub fn wifi_connect() -> Option<String> {
 
     // Determine password
     let password = if let Some(pw) = known_password(&selected.ssid) {
+        // 1. Exact match in our known projector database
         eprintln!("[*] Known projector detected! Using saved password.");
         pw.to_string()
+    } else if is_epson_projector(&selected.ssid, &selected.security) {
+        // 2. Auto-detect Epson projector → derive password from BSSID MAC
+        let mac_pw = selected.bssid.replace(':', "").to_uppercase();
+        eprintln!("[*] Epson projector detected! Deriving password from MAC: {mac_pw}");
+        mac_pw
     } else {
+        // 3. Unknown network → ask for password
         eprint!("Enter password for '{}': ", selected.ssid);
         io::stderr().flush().ok();
         let mut pw = String::new();
