@@ -1,4 +1,7 @@
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 mod hex;
 mod wifi;
 mod template;
@@ -10,15 +13,18 @@ use std::time::{Duration, Instant};
 
 pub const STREAM_W: u32 = 1024;
 pub const STREAM_H: u32 = 768;
-pub const JPEG_QUALITY: i32 = 50;
+pub const JPEG_QUALITY: i32 = 95;
 const TARGET_FPS: u64 = 24;
 
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
     let orig_uuid = wifi::wifi_connect();
-    let orig_uuid_clone = orig_uuid.clone();
-    ctrlc_handler(orig_uuid_clone);
+
+    // Ctrl+C: set flag immediately, cleanup happens after loop exits
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    ctrlc_handler(r);
 
     let mut tpl = match template::Template::load(&find_template()) {
         Ok(t) => t,
@@ -43,28 +49,39 @@ fn main() {
         );
     }
 
-    // Auto-reconnect loop
-    loop {
+    // Auto-reconnect loop — runs until Ctrl+C
+    while running.load(Ordering::Relaxed) {
         let mut client = match protocol::EpsonClient::connect() {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("[-] Connection failed: {e}");
+                if !running.load(Ordering::Relaxed) {
+                    break;
+                }
                 eprintln!("[*] Retrying in 3s...");
                 std::thread::sleep(Duration::from_secs(3));
                 continue;
             }
         };
 
-        let reason = stream_loop(&mut client, &mut tpl);
+        let reason = stream_loop(&mut client, &mut tpl, &running);
+        if !running.load(Ordering::Relaxed) {
+            eprintln!("\n[*] Ctrl+C received, shutting down...");
+            break;
+        }
         eprintln!("[-] Stream ended: {reason}");
         eprintln!("[*] Auto-reconnecting in 2s...\n");
         std::thread::sleep(Duration::from_secs(2));
     }
+
+    // Clean shutdown
+    wifi::wifi_restore(orig_uuid);
 }
 
 fn stream_loop(
     client: &mut protocol::EpsonClient,
     tpl: &mut template::Template,
+    running: &AtomicBool,
 ) -> String {
     let mut frame_idx = 0u64;
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
@@ -73,7 +90,7 @@ fn stream_loop(
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
     let my_ip = client.my_ip;
 
-    loop {
+    while running.load(Ordering::Relaxed) {
         let t0 = Instant::now();
 
         // 1. Capture
@@ -113,16 +130,16 @@ fn stream_loop(
         }
         let t_send = t0.elapsed();
 
-        // 4. Drain auth channel (respond to any queries)
+        // 4. Drain auth channel
         protocol::drain_auth(&mut client.s_auth, my_ip);
 
-        // 5. Proactive auth heartbeat every 30s — keeps session alive
+        // 5. Proactive auth heartbeat every 30s
         if last_auth_heartbeat.elapsed() > Duration::from_secs(30) {
             let _ = client.s_auth.write_all(&protocol::response_0x0108(my_ip));
             last_auth_heartbeat = Instant::now();
         }
 
-        // 6. Aux keepalive every 3s (more frequent, includes full warmup)
+        // 6. Aux keepalive every 3s
         if last_keepalive.elapsed() > Duration::from_secs(3) {
             if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
                 return format!("Keepalive: {e}");
@@ -144,12 +161,14 @@ fn stream_loop(
             );
         }
 
-        // 6. Frame rate limiter — sleep to match 24fps target
+        // 7. Frame rate limiter
         let elapsed = t0.elapsed();
         if elapsed < frame_budget {
             std::thread::sleep(frame_budget - elapsed);
         }
     }
+
+    "Ctrl+C".to_string()
 }
 
 fn find_template() -> String {
@@ -165,13 +184,13 @@ fn find_template() -> String {
     std::process::exit(1);
 }
 
-fn ctrlc_handler(orig_uuid: Option<String>) {
+fn ctrlc_handler(running: Arc<AtomicBool>) {
     let _ = std::thread::spawn(move || {
         let mut sigs =
             signal_hook::iterator::Signals::new(&[signal_hook::consts::SIGINT]).unwrap();
         for _ in sigs.forever() {
-            wifi::wifi_restore(orig_uuid);
-            std::process::exit(0);
+            running.store(false, Ordering::Relaxed);
+            break; // exit the signal handler thread
         }
     });
 }

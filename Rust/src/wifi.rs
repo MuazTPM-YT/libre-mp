@@ -190,12 +190,14 @@ pub fn wifi_connect() -> Option<String> {
 }
 
 pub fn wifi_restore(orig_uuid: Option<String>) {
-    eprintln!("\n[*] Restoring original Wi-Fi...");
-    // We don't know the exact SSID chosen, so just restore the original
     if let Some(uuid) = orig_uuid {
+        eprintln!("\n[*] Restoring Wi-Fi (background)...");
+        // Spawn nmcli in background — don't block exit
         let _ = Command::new("nmcli")
             .args(["connection", "up", &uuid])
-            .output();
-        eprintln!("[+] Network restored.");
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        eprintln!("[+] Network restore initiated. Exiting.");
     }
 }

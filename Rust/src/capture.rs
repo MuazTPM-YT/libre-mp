@@ -126,8 +126,8 @@ pub fn encode_tile_adaptive(
             return jpeg;
         }
 
-        // Reduce quality and retry
-        quality = (quality * 3) / 4; // 50→37→28→21→15→11→8→6→5
+        // Reduce quality by 5 and retry (finer steps = better slot utilization)
+        quality -= 5;
         if quality < 5 {
             quality = 5;
         }
