@@ -14,14 +14,12 @@ Our team, **LibreMP**, built a lightweight, highly compatible cross-platform des
 3. **Stream**: Captures the screen, encodes it into JPEG tiles using high-performance SIMD instructions, and streams it using the native EasyMP protocol directly to the projector display.
 
 ## Tech Stack
-We built this application prioritizing safety, performance, native OS integration, and cross-platform compatibility. Our chosen technologies are:
 - **Tauri**: Framework for building our tiny, blazing fast, and secure cross-platform desktop application.
 - **React**: Used to create a modern, fluid, glassmorphic UI that feels "premium" and consistent on any operating system.
 - **Rust**: Powers the backend, handling critical system-level operations such as network discovery, Wi-Fi management, high-performance stream encoding, and the EasyMP protocol communication with extreme safety and speed.
 - **TurboJPEG**: Used for high-speed hardware-accelerated JPEG encoding of screen frames.
 
 ## Required Dependencies
-To build and run this application from source, you will need the following core development tools:
 - **Node.js & npm**: Required to manage frontend dependencies and development scripts.
 - **Rust & Cargo**: Required to compile the Tauri backend and manage Rust crate dependencies.
 - **NASM (Netwide Assembler)**: Required by our `turbojpeg-sys` dependency for high-performance JPEG encoding using SIMD instructions.
