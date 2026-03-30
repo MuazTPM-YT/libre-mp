@@ -1,3 +1,4 @@
+use std::io::Write;
 mod hex;
 mod wifi;
 mod template;
@@ -68,6 +69,7 @@ fn stream_loop(
     let mut frame_idx = 0u64;
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
     let mut last_keepalive = Instant::now();
+    let mut last_auth_heartbeat = Instant::now();
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
     let my_ip = client.my_ip;
 
@@ -104,19 +106,24 @@ fn stream_loop(
         }
         let t_encode = t0.elapsed();
 
-        // 3. Send — write_all (TCP handles segmentation, frame limiter prevents buildup)
+        // 3. Send frame
         if let Err(e) = protocol::send_frame(&mut client.s_video, &tpl.buf[0..tpl.first_frame_end])
         {
             return format!("{e}");
         }
         let t_send = t0.elapsed();
 
-        // 4. Drain auth channel — respond to projector heartbeat queries
-        //    This prevents the 50-second RST timeout!
+        // 4. Drain auth channel (respond to any queries)
         protocol::drain_auth(&mut client.s_auth, my_ip);
 
-        // 5. Keepalive on aux channel every 5s
-        if last_keepalive.elapsed() > Duration::from_secs(5) {
+        // 5. Proactive auth heartbeat every 30s — keeps session alive
+        if last_auth_heartbeat.elapsed() > Duration::from_secs(30) {
+            let _ = client.s_auth.write_all(&protocol::response_0x0108(my_ip));
+            last_auth_heartbeat = Instant::now();
+        }
+
+        // 6. Aux keepalive every 3s (more frequent, includes full warmup)
+        if last_keepalive.elapsed() > Duration::from_secs(3) {
             if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
                 return format!("Keepalive: {e}");
             }

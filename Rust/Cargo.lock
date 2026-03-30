@@ -38,6 +38,7 @@ name = "epson-streamer"
 version = "0.1.0"
 dependencies = [
  "byteorder",
+ "libc",
  "signal-hook",
  "turbojpeg",
 ]
