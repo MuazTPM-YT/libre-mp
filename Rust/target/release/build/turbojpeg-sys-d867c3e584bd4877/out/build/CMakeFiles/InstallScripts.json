@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/chiaa/Documents/libre-mp/Rust/target/release/build/turbojpeg-sys-d867c3e584bd4877/out/build/cmake_install.cmake",
+		"/home/chiaa/Documents/libre-mp/Rust/target/release/build/turbojpeg-sys-d867c3e584bd4877/out/build/simd/cmake_install.cmake",
+		"/home/chiaa/Documents/libre-mp/Rust/target/release/build/turbojpeg-sys-d867c3e584bd4877/out/build/src/md5/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
