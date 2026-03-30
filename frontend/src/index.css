@@ -175,9 +175,8 @@ h5,
   display: flex;
   flex-direction: column;
   height: 100vh;
+  width: 100%;
   background: var(--bg-0);
-  max-width: 1000px;
-  margin: 0 auto;
   transition: background 0.3s var(--ease);
 }
 
@@ -494,8 +493,8 @@ h5,
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  max-width: 1100px;
   width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -505,11 +504,16 @@ h5,
   border: 1px solid var(--border);
   border-radius: 18px;
   overflow: hidden;
-  transition: border-color 0.3s var(--ease);
+  transition: border-color 0.3s var(--ease), box-shadow 0.3s var(--ease);
   background: var(--bg-1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
   flex: 1;
   /* Stretch to fill available vertical space */
   max-height: 100%;
+}
+
+[data-theme="dark"] .network-table {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 
 /* Column Header */
@@ -1584,8 +1588,8 @@ input[type="checkbox"] {
    SCROLLBAR
    ============================================================ */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 14px;
+  height: 14px;
 }
 
 ::-webkit-scrollbar-track {
@@ -1593,12 +1597,18 @@ input[type="checkbox"] {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  background-color: var(--scrollbar-thumb);
+  border-radius: 10px;
+  border: 4px solid var(--bg-1);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  border-color: var(--bg-1);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 /* ============================================================
