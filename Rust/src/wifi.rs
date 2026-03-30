@@ -494,29 +494,24 @@ pub fn wifi_connect() -> Option<String> {
         eprintln!("[-] Saved password failed.");
     }
 
-    // 2. Determine password based on network type
-    let password = if is_epson_projector(&selected.ssid) {
+    // 2. Ask user for password
+    if is_epson_projector(&selected.ssid) {
         eprintln!("[*] Epson projector detected: '{}'", selected.ssid);
         eprintln!();
-        eprintln!("    ┌─────────────────────────────────────────────────┐");
-        eprintln!("    │  On the projector, go to:                      │");
-        eprintln!("    │  Menu → Network → Net. Info → Wired LAN       │");
-        eprintln!("    │  Find the MAC Address (e.g. A4.D7.3C.CD.AF.45)│");
-        eprintln!("    │  Type it below (dots/colons are OK):           │");
-        eprintln!("    └─────────────────────────────────────────────────┘");
+        eprintln!("    ┌───────────────────────────────────────────────────────┐");
+        eprintln!("    │  Enter the projector's Wi-Fi password.               │");
+        eprintln!("    │                                                      │");
+        eprintln!("    │  No password set? Set one on the projector:          │");
+        eprintln!("    │  Menu → Network → Security → Web Control Password   │");
+        eprintln!("    └───────────────────────────────────────────────────────┘");
         eprintln!();
-        eprint!("    MAC Address: ");
-        io::stderr().flush().ok();
-        let mut mac = String::new();
-        io::stdin().read_line(&mut mac).unwrap_or(0);
-        mac.trim().replace('.', "").replace(':', "").replace('-', "").to_uppercase()
-    } else {
-        eprint!("Enter password for '{}': ", selected.ssid);
-        io::stderr().flush().ok();
-        let mut pw = String::new();
-        io::stdin().read_line(&mut pw).unwrap_or(0);
-        pw.trim().to_string()
-    };
+    }
+
+    eprint!("    Password: ");
+    io::stderr().flush().ok();
+    let mut pw = String::new();
+    io::stdin().read_line(&mut pw).unwrap_or(0);
+    let password = pw.trim().to_string();
 
     if password.is_empty() {
         eprintln!("[-] No password entered.");
