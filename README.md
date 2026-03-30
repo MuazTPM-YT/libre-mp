@@ -1,5 +1,7 @@
 # LibreMP (Epson EasyMP Cross-Platform Streamer)
 
+> **Disclaimer**: The code for this project was written with the assistance of AI. However, **the entire logic, network protocol reverse-engineering, architecture design, and problem-solving** were accomplished entirely by us. 
+
 ## Problem Statement
 Many projectors available today rely on proprietary software (like Epson EasyMP) that is strictly designed and supported only for the Windows operating system. This software limitation leaves users of Linux and macOS without a native, reliable way to connect to and cast their screens onto these devices. As teams and environments grow more diverse in the operating systems they use daily, this "Windows-only" restriction creates a significant barrier to communication, collaboration, and productivity.
 
