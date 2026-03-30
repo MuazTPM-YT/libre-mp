@@ -316,6 +316,47 @@ pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     Ok(())
 }
 
+/// Drain and respond to projector heartbeat queries on auth channel (port 3620).
+/// The projector sends periodic 0x010E queries during streaming.
+/// If we don't respond, it RSTs the connection after ~50 seconds.
+pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) {
+    // Non-blocking read
+    s_auth.set_read_timeout(Some(Duration::from_millis(1))).ok();
+    let mut buf = vec![0u8; 4096];
+    match s_auth.read(&mut buf) {
+        Ok(0) => {}
+        Ok(n) => {
+            let data = &buf[..n];
+            let mut offset = 0;
+            while offset + 20 <= data.len() {
+                if &data[offset..offset + 8] != b"EEMP0100" {
+                    break;
+                }
+                let mut c = Cursor::new(&data[offset + 12..offset + 16]);
+                let cmd = c.read_u32::<LittleEndian>().unwrap();
+                let mut c = Cursor::new(&data[offset + 16..offset + 20]);
+                let payload_len = c.read_u32::<LittleEndian>().unwrap() as usize;
+                let msg_len = 20 + payload_len;
+
+                if cmd == 0x010E {
+                    // Respond with 0x0108
+                    let _ = s_auth.write_all(&response_0x0108(my_ip));
+                }
+                offset += msg_len;
+            }
+        }
+        Err(_) => {} // timeout = no data = fine
+    }
+}
+
+/// Send video frame data. Uses write_all for maximum throughput.
+/// TCP handles segmentation naturally. Frame limiter in main.rs
+/// prevents buffer buildup.
+pub fn send_frame(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
+    stream.write_all(data)?;
+    Ok(())
+}
+
 // ─── Custom EPRD Frame Builder ───────────────────────────────────────────────
 // Builds frames from scratch — no template needed, no COM padding, no gray boxes.
 
@@ -382,12 +423,4 @@ pub fn build_video_frame(
     buf
 }
 
-/// Paced send: 1460-byte chunks with 2ms delay.
-/// Matches Windows PCAP timing — proven stable with projector RTOS.
-pub fn send_paced(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
-    for chunk in data.chunks(1460) {
-        stream.write_all(chunk)?;
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    Ok(())
-}
+
