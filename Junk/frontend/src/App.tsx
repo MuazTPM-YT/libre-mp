@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   HelpCircle, RefreshCw, Settings, Wifi, WifiOff, MonitorDot, Search,
   Signal, Radio, Zap, ArrowRight,
-  Sun, Volume2, Gauge, Monitor, RotateCcw, AlertTriangle, X, Shield, ShieldCheck
+  Sun, Moon, Volume2, Gauge, Monitor, RotateCcw, AlertTriangle, X, Shield, ShieldCheck
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
@@ -27,6 +27,7 @@ interface NetworkItem {
   signal: number;
   security: string;
   is_projector: boolean;
+  ip?: string;
 }
 
 
@@ -37,6 +38,20 @@ function App() {
 
   const [connectionMode, setConnectionMode] = useState<'quick' | 'advanced'>('quick');
 
+  // Theme state
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('libre-mp-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('libre-mp-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+
   // App settings (shared between sidebar + modal)
   const [appSettings, setAppSettings] = useState<AppSettings>(defaultSettings);
 
@@ -44,6 +59,7 @@ function App() {
   const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isCasting, setIsCasting] = useState(false);
 
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -91,11 +107,15 @@ function App() {
               signal: 100,
               security: 'Projector',
               is_projector: true,
+              ip: p.ip,
             });
           } else {
             // Mark existing Wi-Fi entry as a projector if it matches
             const idx = items.findIndex(n => n.name === p.name || n.ssid === p.name);
-            if (idx >= 0) items[idx].is_projector = true;
+            if (idx >= 0) {
+              items[idx].is_projector = true;
+              items[idx].ip = p.ip;
+            }
           }
         }
       } catch (e) {
@@ -108,18 +128,38 @@ function App() {
       } else if (networks.length === 0) {
         setNetworks([]);
       }
-
-      // Auto-reconnect logic without relying on recent array
-      if (appSettings.autoReconnect && !connectedSSID) {
-        // We only reconnect if the currently connected SSID on the OS has not dropped but we aren't tracking, or we need to poll os
-      }
     } catch {
       // silent fail
     } finally {
       setIsScanning(false);
       isScanningRef.current = false;
     }
-  }, [appSettings.autoReconnect, connectedSSID, networks.length]);
+  }, [networks.length]);
+
+  const toggleCasting = async () => {
+    if (isCasting) {
+      try {
+        await invoke('stop_casting');
+        setIsCasting(false);
+      } catch (e) {
+        console.error("Failed to stop casting:", e);
+      }
+    } else {
+      // Find a projector to cast to
+      const projector = networks.find(n => n.ssid === connectedSSID && n.ip) || networks.find(n => n.is_projector && n.ip);
+      if (projector && projector.ip) {
+        try {
+          await invoke('start_casting_async', { ip: projector.ip });
+          setIsCasting(true);
+        } catch (e) {
+          setConnectionError("Failed to start casting. Make sure you are connected to the projector network.");
+          console.error("Failed to start casting:", e);
+        }
+      } else {
+        setConnectionError("No projector found to cast to. Please connect to a projector network first.");
+      }
+    }
+  };
 
   useEffect(() => {
     scanNetworks();
@@ -232,146 +272,51 @@ function App() {
               <span>Disconnect</span>
             </button>
           )}
-          {appSettings.autoReconnect && (
-            <span className="banner-tag">
-              <Zap size={10} />
-              Auto
-            </span>
-          )}
         </div>
       </header>
 
+      {/* ====== NEW TOP HEADER ====== */}
+      <div className="top-header">
+        <div className="brand">
+          <div className="brand-icon">
+            <Radio size={20} />
+          </div>
+          <span className="brand-name">LibreMP</span>
+        </div>
+
+        <div className="header-controls">
+          <div className="search-bar">
+            <Search size={18} />
+            <input
+              type="text"
+              placeholder="Search networks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <div className="header-actions">
+            <button className="icon-btn-rounded" onClick={scanNetworks} disabled={isScanning} title="Refresh">
+              <RefreshCw size={20} className={isScanning ? 'spinning' : ''} />
+            </button>
+            <button className="icon-btn-rounded" onClick={() => setIsSettingsOpen(true)} title="Settings">
+              <Settings size={20} />
+            </button>
+            <button className="theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+              {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div className="app-body">
-        {/* ====== SIDEBAR ====== */}
-        <aside className="sidebar">
-          <div className="brand" title="LibreMP">
-            <div className="brand-icon">
-              <Radio size={16} />
-            </div>
-            <div className="brand-text">
-              <span className="brand-name">LibreMP</span>
-              <span className="brand-ver">v1.0</span>
-            </div>
-          </div>
-
-          <nav className="nav">
-            <button className="nav-btn active">
-              <Search size={16} />
-              <span>Discovery</span>
-              {networks.length > 0 && <span className="badge">{networks.length}</span>}
-            </button>
-          </nav>
-
-          {/* Quick Settings — Interactive */}
-          <div className="sidebar-section">
-            <h4 className="section-label">Quick Settings</h4>
-            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, displayMode: s.displayMode === 'operations' ? 'movies' : 'operations' }))}>
-              <Monitor size={14} />
-              <span>Display</span>
-              <span className="qs-value clickable">{appSettings.displayMode === 'operations' ? 'Operations' : 'Movies'}</span>
-            </div>
-            <div className="quick-setting">
-              <Sun size={14} />
-              <span>Brightness</span>
-              
-              {isEditingBrightness ? (
-                <input
-                  type="text"
-                  autoFocus
-                  className="qs-value-input"
-                  value={brightnessInput}
-                  onChange={e => setBrightnessInput(e.target.value.replace(/\D/g, ''))}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      let val = parseInt(brightnessInput);
-                      if (!isNaN(val)) {
-                        val = Math.max(10, Math.min(100, val));
-                        setAppSettings((s: AppSettings) => ({ ...s, brightness: val }));
-                      }
-                      setIsEditingBrightness(false);
-                    } else if (e.key === 'Escape') {
-                      setIsEditingBrightness(false);
-                    }
-                  }}
-                  onBlur={() => {
-                    let val = parseInt(brightnessInput);
-                    if (!isNaN(val)) {
-                      val = Math.max(10, Math.min(100, val));
-                      setAppSettings((s: AppSettings) => ({ ...s, brightness: val }));
-                    }
-                    setIsEditingBrightness(false);
-                  }}
-                />
-              ) : (
-                <span 
-                  className="qs-value clickable" 
-                  onClick={() => {
-                    setBrightnessInput(appSettings.brightness.toString());
-                    setIsEditingBrightness(true);
-                  }}
-                  title="Click to type"
-                >
-                  {appSettings.brightness}%
-                </span>
-              )}
-            </div>
-            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, audioOutput: !s.audioOutput }))}>
-              <Volume2 size={14} />
-              <span>Audio</span>
-              <span className={`qs-value clickable ${appSettings.audioOutput ? '' : 'off'}`}>{appSettings.audioOutput ? 'On' : 'Off'}</span>
-            </div>
-            <div className="quick-setting" onClick={() => setAppSettings((s: AppSettings) => ({ ...s, bandwidth: s.bandwidth === 15 ? 10 : s.bandwidth === 10 ? 5 : 15 }))}>
-              <Gauge size={14} />
-              <span>Bandwidth</span>
-              <span className="qs-value clickable">{appSettings.bandwidth}Mbps</span>
-            </div>
-          </div>
-
-          <div className="sidebar-spacer" />
-
-          <div className="sidebar-footer">
-            <button className="nav-btn subtle" onClick={() => setIsSettingsOpen(true)}>
-              <Settings size={16} />
-              <span>Settings</span>
-            </button>
-          </div>
-        </aside>
-
         {/* ====== MAIN CONTENT ====== */}
         <main className="main">
-          {/* Header Row */}
-          <div className="main-header">
-            <div>
-              <h1 className="page-title">
-                <Signal size={22} />
-                Network Discovery
-              </h1>
-              <p className="page-sub">Find and connect to available projectors</p>
-            </div>
-            <div className="header-tools">
-              <div className="search-pill">
-                <Search size={15} />
-                <input
-                  type="text"
-                  placeholder="Search networks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <button className="icon-circle" onClick={scanNetworks} disabled={isScanning} title="Refresh">
-                <RefreshCw size={15} className={isScanning ? 'spinning' : ''} />
-              </button>
-            </div>
-          </div>
-
-
-
           {/* Scrollable Body */}
           <div className="main-scroll">
             {/* Available Networks */}
             <section className="networks-section">
               <h3 className="section-heading">
-                <Wifi size={14} />
                 Available Networks
                 <span className="heading-count">{filtered.length}</span>
               </h3>
@@ -391,24 +336,21 @@ function App() {
                       <div
                         key={n.id}
                         className={`net-card ${isConnected ? 'connected' : ''} ${n.is_projector ? 'projector' : ''}`}
-                        style={{ animationDelay: `${idx * 40}ms` }}
                       >
-                        <div className="net-icon">
-                          {n.is_projector ? <MonitorDot size={20} /> : <Wifi size={20} />}
-                        </div>
-                        <div className="net-info">
-                          <div className="net-name">
-                            {n.name}
-                            {n.is_projector && <span className="projector-tag">Projector</span>}
-                            {isConnected && <span className="connected-tag">Connected</span>}
-                          </div>
-                          <div className="net-meta">
-                            <Shield size={10} />
-                            <span>{n.security}</span>
-                            <span className="meta-dot">·</span>
-                            <span>{n.signal}% signal</span>
+                        <div className="net-name">
+                          <span>{n.name}</span>
+                          <div className="net-icon">
+                            {n.is_projector ? <MonitorDot size={20} /> : <Wifi size={20} />}
                           </div>
                         </div>
+                        
+                        <div className="net-meta">
+                          {n.is_projector && <span className="projector-tag">Projector</span>}
+                          <span>{n.security}</span>
+                          <span className="meta-dot">·</span>
+                          <span>{n.signal}% signal</span>
+                        </div>
+
                         <div className="net-signal">
                           <div className={`signal-bars ${signalColor(n.signal)}`}>
                             {[1,2,3,4,5].map(i => (
@@ -416,6 +358,7 @@ function App() {
                             ))}
                           </div>
                         </div>
+
                         <button
                           className={`connect-btn-sm ${isConnected ? 'active' : ''}`}
                           onClick={(e) => { e.stopPropagation(); isConnected ? handleDisconnect() : handleNetworkClick(n); }}
