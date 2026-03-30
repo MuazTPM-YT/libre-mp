@@ -261,9 +261,9 @@ CMakeFiles/jpeg16-static.dir/clean:
 # Target rules for target CMakeFiles/jpeg-static.dir
 
 # All Build rule for target.
-CMakeFiles/jpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 CMakeFiles/jpeg-static.dir/all: CMakeFiles/jpeg12-static.dir/all
 CMakeFiles/jpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
+CMakeFiles/jpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jpeg-static.dir/build.make CMakeFiles/jpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jpeg-static.dir/build.make CMakeFiles/jpeg-static.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-37c3bfbe493d0c1c/out/build/CMakeFiles --progress-num=10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33 "Built target jpeg-static"
@@ -361,9 +361,9 @@ CMakeFiles/turbojpeg16-static.dir/clean:
 # All Build rule for target.
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/turbojpeg12-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/turbojpeg16-static.dir/all
-CMakeFiles/turbojpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/jpeg12-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
+CMakeFiles/turbojpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/turbojpeg-static.dir/build.make CMakeFiles/turbojpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/turbojpeg-static.dir/build.make CMakeFiles/turbojpeg-static.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-37c3bfbe493d0c1c/out/build/CMakeFiles --progress-num=72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97 "Built target turbojpeg-static"
@@ -523,9 +523,9 @@ CMakeFiles/cjpeg16-static.dir/clean:
 # Target rules for target CMakeFiles/cjpeg-static.dir
 
 # All Build rule for target.
+CMakeFiles/cjpeg-static.dir/all: CMakeFiles/jpeg-static.dir/all
 CMakeFiles/cjpeg-static.dir/all: CMakeFiles/cjpeg12-static.dir/all
 CMakeFiles/cjpeg-static.dir/all: CMakeFiles/cjpeg16-static.dir/all
-CMakeFiles/cjpeg-static.dir/all: CMakeFiles/jpeg-static.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cjpeg-static.dir/build.make CMakeFiles/cjpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cjpeg-static.dir/build.make CMakeFiles/cjpeg-static.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-37c3bfbe493d0c1c/out/build/CMakeFiles --progress-num=1,2,3 "Built target cjpeg-static"
