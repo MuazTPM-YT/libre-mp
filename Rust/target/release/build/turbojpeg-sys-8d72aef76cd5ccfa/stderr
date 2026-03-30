@@ -1,0 +1,11 @@
+running: cd "/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-8d72aef76cd5ccfa/out/build" && CMAKE_PREFIX_PATH="" DESTDIR="" LC_ALL="C" "cmake" "/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo" "-B" "/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-8d72aef76cd5ccfa/out/build" "-DCMAKE_INSTALL_DEFAULT_LIBDIR=lib" "-DCMAKE_INSTALL_PREFIX=/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-8d72aef76cd5ccfa/out" "-DCMAKE_C_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64 -w" "-DCMAKE_C_COMPILER=/usr/bin/cc" "-DCMAKE_CXX_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64 -w" "-DCMAKE_CXX_COMPILER=/usr/bin/c++" "-DCMAKE_ASM_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64 -w" "-DCMAKE_ASM_COMPILER=/usr/bin/cc" "-DCMAKE_BUILD_TYPE=Release" "-DENABLE_SHARED=0" "-DENABLE_STATIC=1" "-DREQUIRE_SIMD=ON"
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_ASM_COMPILER
+    CMAKE_ASM_FLAGS
+    CMAKE_CXX_COMPILER
+    CMAKE_CXX_FLAGS
+
+
+running: cd "/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-8d72aef76cd5ccfa/out/build" && DESTDIR="" LC_ALL="C" MAKEFLAGS="-j --jobserver-fds=11,13 --jobserver-auth=11,13" "cmake" "--build" "/home/Muaz/Documents/Software/projector/Rust/target/release/build/turbojpeg-sys-8d72aef76cd5ccfa/out/build" "--target" "install" "--config" "Release"
