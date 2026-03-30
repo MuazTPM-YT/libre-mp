@@ -11,9 +11,16 @@ pub struct JpegSlot {
     pub h: u16,
 }
 
+#[allow(dead_code)]
 pub struct Template {
     pub buf: Vec<u8>,
     pub slots: Vec<JpegSlot>,
+    /// Byte offset where the META (0xCC) EPRD block ends
+    pub meta_end: usize,
+    /// Byte offset where the first JPEG EPRD block ends
+    pub first_frame_end: usize,
+    /// Number of JPEG slots in the first JPEG EPRD block
+    pub first_frame_slots: usize,
 }
 
 impl Template {
@@ -21,6 +28,11 @@ impl Template {
         let buf = std::fs::read(path)?;
         let mut slots = Vec::new();
         let mut pos = 0;
+
+        let mut meta_end = 0;
+        let mut first_jpeg_found = false;
+        let mut first_frame_end = 0;
+        let mut first_frame_slots = 0;
 
         while pos + 20 <= buf.len() {
             if &buf[pos..pos + 8] != b"EPRD0600" {
@@ -40,11 +52,13 @@ impl Template {
 
             if first_payload_byte == 0xCC {
                 pos += 20 + payload_size;
+                meta_end = pos;
                 continue;
             }
 
             let payload_start = pos + 20;
             let mut tp: usize = 4; // skip frame_type (4 bytes)
+            let block_slot_start = slots.len();
 
             while tp + 16 <= payload_size {
                 let mut c = Cursor::new(&buf[payload_start + tp..payload_start + tp + 8]);
@@ -86,16 +100,37 @@ impl Template {
                 tp = jpeg_end - payload_start;
             }
 
-            pos += 20 + payload_size;
+            let block_end = pos + 20 + payload_size;
+
+            if !first_jpeg_found {
+                first_jpeg_found = true;
+                first_frame_slots = slots.len() - block_slot_start;
+                first_frame_end = block_end;
+            }
+
+            pos = block_end;
         }
 
         eprintln!(
-            "[*] Template: {} bytes, {} JPEG slots",
+            "[*] Template: {} bytes, {} total JPEG slots",
             buf.len(),
             slots.len()
         );
+        eprintln!(
+            "[*] First frame: {} tiles, {} bytes (meta_end={}, frame_end={})",
+            first_frame_slots,
+            first_frame_end,
+            meta_end,
+            first_frame_end
+        );
 
-        Ok(Template { buf, slots })
+        Ok(Template {
+            buf,
+            slots,
+            meta_end,
+            first_frame_end,
+            first_frame_slots,
+        })
     }
 
     pub fn swap(&mut self, idx: usize, padded_jpeg: &[u8]) {

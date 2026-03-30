@@ -5,7 +5,6 @@ edition = "2021"
 
 [dependencies]
 turbojpeg = "1"
-image = { version = "0.25", default-features = false, features = ["png"] }
 byteorder = "1"
 signal-hook = "0.3"
 
