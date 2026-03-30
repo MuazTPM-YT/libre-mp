@@ -328,59 +328,77 @@ function App() {
                   <p>Ensure your Wi-Fi adapter is active and click refresh.</p>
                 </div>
               ) : (
-                <div className="network-list">
-                  {filtered.map((n, idx) => {
-                    const isConnected = n.ssid === connectedSSID;
-                    const isConnecting = n.ssid === connectingSSID;
-                    return (
-                      <div
-                        key={n.id}
-                        className={`net-card ${isConnected ? 'connected' : ''} ${n.is_projector ? 'projector' : ''}`}
-                      >
-                        <div className="net-name">
-                          <span>{n.name}</span>
-                          <div className="net-icon">
-                            {n.is_projector ? <MonitorDot size={20} /> : <Wifi size={20} />}
-                          </div>
-                        </div>
-                        
-                        <div className="net-meta">
-                          {n.is_projector && <span className="projector-tag">Projector</span>}
-                          <span>{n.security}</span>
-                          <span className="meta-dot">·</span>
-                          <span>{n.signal}% signal</span>
-                        </div>
+                <div className="network-table">
+                  {/* Column Header */}
+                  <div className="net-table-header">
+                    <span className="col-status">Status</span>
+                    <span className="col-name">Projector Name</span>
+                    <span className="col-ssid">SSID</span>
+                    <span className="col-signal">Signal</span>
+                    <span className="col-action"></span>
+                  </div>
 
-                        <div className="net-signal">
-                          <div className={`signal-bars ${signalColor(n.signal)}`}>
-                            {[1,2,3,4,5].map(i => (
-                              <div key={i} className={`bar ${i <= signalLevel(n.signal) ? 'on' : ''}`} />
-                            ))}
-                          </div>
-                        </div>
-
-                        <button
-                          className={`connect-btn-sm ${isConnected ? 'active' : ''}`}
-                          onClick={(e) => { e.stopPropagation(); isConnected ? handleDisconnect() : handleNetworkClick(n); }}
-                          disabled={isConnecting}
+                  {/* Rows */}
+                  <div className="network-list">
+                    {filtered.map((n, idx) => {
+                      const isConnected = n.ssid === connectedSSID;
+                      const isConnecting = n.ssid === connectingSSID;
+                      return (
+                        <div
+                          key={n.id}
+                          className={`net-row ${isConnected ? 'connected' : ''} ${n.is_projector ? 'projector' : ''}`}
                         >
-                          {isConnecting ? (
-                            <RotateCcw size={14} className="spinning" />
-                          ) : isConnected ? (
-                            <>
-                              <WifiOff size={16} />
-                              <span>Disconnect</span>
-                            </>
-                          ) : (
-                            <>
-                              <ArrowRight size={14} />
-                              <span>Connect</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
+                          {/* Status */}
+                          <div className="col-status">
+                            <div className="net-status-icon">
+                              {n.is_projector ? <MonitorDot size={18} /> : <Wifi size={18} />}
+                            </div>
+                            <span className={`status-label ${isConnected ? 'on' : ''}`}>
+                              {isConnected ? 'Connected' : isConnecting ? 'Connecting…' : n.is_projector ? 'Available' : n.security}
+                            </span>
+                          </div>
+
+                          {/* Projector Name */}
+                          <span className="col-name" title={n.name}>{n.name}</span>
+
+                          {/* SSID */}
+                          <span className="col-ssid" title={n.ssid}>{n.ssid}</span>
+
+                          {/* Signal */}
+                          <div className="col-signal">
+                            <div className={`signal-bars ${signalColor(n.signal)}`}>
+                              {[1,2,3,4,5].map(i => (
+                                <div key={i} className={`bar ${i <= signalLevel(n.signal) ? 'on' : ''}`} />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Action */}
+                          <div className="col-action">
+                            <button
+                              className={`connect-btn-sm ${isConnected ? 'active' : ''}`}
+                              onClick={(e) => { e.stopPropagation(); isConnected ? handleDisconnect() : handleNetworkClick(n); }}
+                              disabled={isConnecting}
+                            >
+                              {isConnecting ? (
+                                <RotateCcw size={14} className="spinning" />
+                              ) : isConnected ? (
+                                <>
+                                  <WifiOff size={14} />
+                                  <span>Disconnect</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ArrowRight size={14} />
+                                  <span>Connect</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </section>

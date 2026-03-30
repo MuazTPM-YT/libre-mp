@@ -403,138 +403,169 @@ h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif; font-weight: 600; }
 }
 
 /* ============================================================
-   NETWORK LIST
+   NETWORK TABLE — Column-aligned layout
    ============================================================ */
+.network-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  transition: border-color 0.3s var(--ease);
+}
+
+/* Column Header */
+.net-table-header {
+  display: grid;
+  grid-template-columns: 2fr 2.5fr 2.5fr 1fr 120px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  user-select: none;
+  transition: background 0.3s var(--ease);
+}
+
+/* Rows container */
 .network-list {
   display: flex;
   flex-direction: column;
 }
 
-.net-card {
-  display: flex;
+/* Individual row */
+.net-row {
+  display: grid;
+  grid-template-columns: 2fr 2.5fr 2.5fr 1fr 120px;
   align-items: center;
-  gap: 20px;
-  padding: 18px 16px;
+  gap: 8px;
+  padding: 14px 20px;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  border-radius: 0;
   transition: background 0.15s var(--ease);
   cursor: default;
 }
 
-.net-card:first-child {
-  border-top: 1px solid var(--border);
+.net-row:last-child {
+  border-bottom: none;
 }
 
-.net-card:hover {
+.net-row:hover {
   background: var(--bg-2);
 }
 
-.net-card.connected {
+.net-row.connected {
   background: var(--accent-surface);
 }
 
-.net-card.projector {
+.net-row.projector {
   border-left: 3px solid var(--accent);
-  padding-left: 13px;
 }
 
-.net-icon {
-  width: 40px; height: 40px;
+[data-theme="dark"] .net-row.projector {
+  border-left-color: #8E8358;
+}
+
+/* Status column */
+.col-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.net-status-icon {
+  width: 32px; height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--t3);
   background: var(--bg-3);
-  border-radius: var(--r-md);
+  border-radius: var(--r-sm);
   flex-shrink: 0;
   transition: all 0.2s var(--ease);
 }
 
-.net-card.projector .net-icon {
+.net-row.projector .net-status-icon {
   background: var(--accent-surface);
   color: var(--accent);
 }
 
-[data-theme="dark"] .net-card.projector .net-icon {
+[data-theme="dark"] .net-row.projector .net-status-icon {
   color: #8E8358;
 }
 
-.net-name {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.net-name span {
-  font-size: 15px;
+.status-label {
+  font-size: 12px;
   font-weight: 500;
-  color: var(--t1);
+  color: var(--t3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.net-meta {
-  font-size: 12px;
-  color: var(--t3);
+.status-label.on {
+  color: var(--green);
+  font-weight: 600;
+}
+
+/* Name & SSID columns */
+.col-name,
+.col-ssid {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.col-ssid {
+  color: var(--t2);
+  font-weight: 400;
+}
+
+/* Signal column */
+.col-signal {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: center;
 }
 
-.meta-dot { color: var(--border-h); }
-
-.projector-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  background: var(--accent);
-  color: var(--bg-0);
-  border-radius: var(--r-xs);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  transition: background 0.3s var(--ease);
-}
-
-[data-theme="dark"] .projector-tag {
-  background: #8E8358;
-  color: #121212;
-}
-
-.net-signal {
-  display: flex;
-  align-items: center;
-  width: 56px;
-  flex-shrink: 0;
-}
-
-.signal-bars { display: flex; gap: 2.5px; height: 12px; align-items: flex-end; }
-.signal-bars .bar { width: 3px; background: var(--bg-4); border-radius: 1px; transition: background 0.2s var(--ease); }
+.signal-bars { display: flex; gap: 2.5px; height: 14px; align-items: flex-end; }
+.signal-bars .bar { width: 4px; background: var(--bg-4); border-radius: 1px; transition: background 0.2s var(--ease); }
 .bar:nth-child(1) { height: 4px; }
 .bar:nth-child(2) { height: 6px; }
 .bar:nth-child(3) { height: 8px; }
 .bar:nth-child(4) { height: 10px; }
-.bar:nth-child(5) { height: 12px; }
+.bar:nth-child(5) { height: 14px; }
 
 .signal-bars.high .bar.on { background: var(--green); }
 .signal-bars.mid .bar.on { background: var(--amber); }
 .signal-bars.low .bar.on { background: var(--red); }
 
+/* Action column */
+.col-action {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .connect-btn-sm {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 18px;
+  height: 32px;
+  padding: 0 14px;
   border: 1px solid var(--accent);
   background: transparent;
   color: var(--accent);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
