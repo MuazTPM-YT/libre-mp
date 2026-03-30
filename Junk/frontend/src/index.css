@@ -409,7 +409,7 @@ h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif; font-weight: 600; }
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-radius: 14px;
   overflow: hidden;
   transition: border-color 0.3s var(--ease);
 }
@@ -417,10 +417,10 @@ h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif; font-weight: 600; }
 /* Column Header */
 .net-table-header {
   display: grid;
-  grid-template-columns: 2fr 2.5fr 2.5fr 1fr 120px;
+  grid-template-columns: 1.5fr 2.5fr 2.5fr 1fr 110px;
   align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
+  gap: 12px;
+  padding: 12px 24px;
   background: var(--bg-3);
   border-bottom: 1px solid var(--border);
   font-size: 11px;
@@ -441,14 +441,15 @@ h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif; font-weight: 600; }
 /* Individual row */
 .net-row {
   display: grid;
-  grid-template-columns: 2fr 2.5fr 2.5fr 1fr 120px;
+  grid-template-columns: 1.5fr 2.5fr 2.5fr 1fr 110px;
   align-items: center;
-  gap: 8px;
-  padding: 14px 20px;
+  gap: 12px;
+  padding: 16px 24px;
   background: transparent;
   border-bottom: 1px solid var(--border);
-  transition: background 0.15s var(--ease);
+  transition: background 0.2s var(--ease);
   cursor: default;
+  animation: cardSlideIn 0.25s var(--ease) both;
 }
 
 .net-row:last-child {
@@ -475,33 +476,11 @@ h1, h2, h3, h4, h5 { font-family: 'Inter', sans-serif; font-weight: 600; }
 .col-status {
   display: flex;
   align-items: center;
-  gap: 10px;
   min-width: 0;
 }
 
-.net-status-icon {
-  width: 32px; height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--t3);
-  background: var(--bg-3);
-  border-radius: var(--r-sm);
-  flex-shrink: 0;
-  transition: all 0.2s var(--ease);
-}
-
-.net-row.projector .net-status-icon {
-  background: var(--accent-surface);
-  color: var(--accent);
-}
-
-[data-theme="dark"] .net-row.projector .net-status-icon {
-  color: #8E8358;
-}
-
 .status-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--t3);
   white-space: nowrap;
@@ -1243,3 +1222,66 @@ input[type="radio"], input[type="checkbox"] {
 
 .spinning { animation: spin 0.7s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* ============================================================
+   TOAST POPUP
+   ============================================================ */
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--t1);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 300;
+  animation: toastSlideUp 0.3s var(--spring);
+  white-space: nowrap;
+  transition: background 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+
+.toast-success {
+  border-color: var(--green);
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+[data-theme="dark"] .toast-success {
+  background: rgba(111, 207, 104, 0.1);
+}
+
+.toast-info {
+  border-color: var(--border-accent);
+  background: var(--bg-2);
+}
+
+.toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--r-xs);
+  transition: opacity 0.15s var(--ease);
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
