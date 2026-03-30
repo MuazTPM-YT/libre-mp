@@ -1,0 +1,13 @@
+[package]
+name = "epson-streamer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+turbojpeg = "1"
+byteorder = "1"
+signal-hook = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = true

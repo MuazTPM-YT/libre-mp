@@ -1,0 +1,1 @@
+/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/rdjpgcom.dir/link.d CMakeFiles/rdjpgcom.dir/src/rdjpgcom.c.o -o rdjpgcom
