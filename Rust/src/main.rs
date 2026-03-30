@@ -34,8 +34,6 @@ fn main() {
         tpl.first_frame_end / 1024,
         TARGET_FPS,
     );
-
-    // Print slot sizes so we can verify adaptive encoding
     for i in 0..tpl.first_frame_slots {
         let s = &tpl.slots[i];
         eprintln!(
@@ -71,6 +69,7 @@ fn stream_loop(
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
     let mut last_keepalive = Instant::now();
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
+    let my_ip = client.my_ip;
 
     loop {
         let t0 = Instant::now();
@@ -85,7 +84,7 @@ fn stream_loop(
         };
         let t_capture = t0.elapsed();
 
-        // 2. Encode + swap — ADAPTIVE quality per tile
+        // 2. Encode + swap — adaptive quality per tile
         jpeg_cache.clear();
         for idx in 0..tpl.first_frame_slots {
             let slot = tpl.slots[idx].clone();
@@ -94,7 +93,6 @@ fn stream_loop(
             let jpeg_raw = jpeg_cache
                 .entry(key)
                 .or_insert_with(|| {
-                    // Adaptive: JPEG is guaranteed <= slot.size
                     capture::encode_tile_adaptive(
                         &screen, slot.x, slot.y, slot.w, slot.h, slot.size,
                     )
@@ -106,14 +104,18 @@ fn stream_loop(
         }
         let t_encode = t0.elapsed();
 
-        // 3. Send — paced to match projector throughput
-        if let Err(e) = protocol::send_paced(&mut client.s_video, &tpl.buf[0..tpl.first_frame_end])
+        // 3. Send — write_all (TCP handles segmentation, frame limiter prevents buildup)
+        if let Err(e) = protocol::send_frame(&mut client.s_video, &tpl.buf[0..tpl.first_frame_end])
         {
             return format!("{e}");
         }
         let t_send = t0.elapsed();
 
-        // 4. Keepalive every 5s
+        // 4. Drain auth channel — respond to projector heartbeat queries
+        //    This prevents the 50-second RST timeout!
+        protocol::drain_auth(&mut client.s_auth, my_ip);
+
+        // 5. Keepalive on aux channel every 5s
         if last_keepalive.elapsed() > Duration::from_secs(5) {
             if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
                 return format!("Keepalive: {e}");
@@ -122,7 +124,7 @@ fn stream_loop(
         }
 
         frame_idx += 1;
-        if frame_idx <= 5 || frame_idx % 50 == 0 {
+        if frame_idx <= 5 || frame_idx % 100 == 0 {
             let fps = 1000.0 / t_send.as_millis().max(1) as f64;
             eprintln!(
                 "  Frame {}: cap={:.0}ms enc={:.0}ms send={:.0}ms total={:.0}ms ({:.1}fps)",
@@ -135,7 +137,7 @@ fn stream_loop(
             );
         }
 
-        // 5. Frame rate limiter
+        // 6. Frame rate limiter — sleep to match 24fps target
         let elapsed = t0.elapsed();
         if elapsed < frame_budget {
             std::thread::sleep(frame_budget - elapsed);
