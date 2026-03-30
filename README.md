@@ -41,7 +41,7 @@ rustup default stable
 
 **Clone and Build:**
 ```bash
-git clone <repository_url> libre-mp
+git clone https://github.com/MuazTPM-YT/libre-mp.git
 cd libre-mp/frontend
 npm install
 npm run tauri dev
@@ -59,7 +59,7 @@ source $HOME/.cargo/env
 
 **Clone and Build:**
 ```bash
-git clone <repository_url> libre-mp
+git clone https://github.com/MuazTPM-YT/libre-mp.git
 cd libre-mp/frontend
 npm install
 npm run tauri dev
@@ -75,7 +75,7 @@ sudo dnf install grim
 
 **Clone and Build:**
 ```bash
-git clone <repository_url> libre-mp
+git clone https://github.com/MuazTPM-YT/libre-mp.git
 cd libre-mp/frontend
 npm install
 npm run tauri dev
@@ -95,7 +95,7 @@ source $HOME/.cargo/env
 
 **Clone and Build:**
 ```bash
-git clone <repository_url> libre-mp
+git clone https://github.com/MuazTPM-YT/libre-mp.git
 cd libre-mp/frontend
 npm install
 npm run tauri dev
@@ -111,7 +111,7 @@ npm run tauri dev
 
 **Clone and Build (PowerShell as Admin):**
 ```powershell
-git clone <repository_url> libre-mp
+git clone https://github.com/MuazTPM-YT/libre-mp.git
 cd libre-mp/frontend
 npm install
 npm run tauri dev
