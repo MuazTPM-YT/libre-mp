@@ -498,19 +498,6 @@ async fn get_connection_status() -> Result<ConnectionStatus, String> {
     })
 }
 
-#[tauri::command]
-async fn start_casting(ip: String, _state: tauri::State<'_, AppState>) -> Result<bool, String> {
-    let mut streamer = protocol::streamer::VideoStreamer::new(&ip, 30);
-    
-    // Attempt negotiation immediately
-    if let Err(e) = streamer.start().await {
-        return Err(format!("Failed to connect to projector: {:?}", e));
-    }
-    
-    // If successful, store it or let it run.
-    // However, streamer.start() loops forever! We need to spawn it in a tokio task.
-    Ok(true)
-}
 
 #[tauri::command]
 async fn start_casting_async(ip: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
@@ -519,7 +506,7 @@ async fn start_casting_async(ip: String, state: tauri::State<'_, AppState>) -> R
         return Err("Already casting".into());
     }
 
-    let mut streamer = protocol::streamer::VideoStreamer::new(&ip, 15);
+    let streamer = protocol::streamer::VideoStreamer::new(&ip, 15);
     // Note: To make this robust, we'd spawn the start() method in a tokio task, 
     // but we can spawn it here. We need the streamer to be Clone or Arc'd.
     // For now, let's just create a basic bridge logic.
