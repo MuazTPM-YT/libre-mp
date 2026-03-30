@@ -1,3 +1,0 @@
-/home/iffelse/libre-mp/cpp/build/CMakeFiles/libre-mp.dir
-/home/iffelse/libre-mp/cpp/build/CMakeFiles/edit_cache.dir
-/home/iffelse/libre-mp/cpp/build/CMakeFiles/rebuild_cache.dir
