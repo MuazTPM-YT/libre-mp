@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  HelpCircle, RefreshCw, Settings, Wifi, WifiOff, MonitorDot, Search,
-  Signal, Radio, Zap, ArrowRight,
-  Sun, Moon, Volume2, Gauge, Monitor, RotateCcw, AlertTriangle, X, Shield, ShieldCheck
+  HelpCircle, RefreshCw, Settings, Search,
+  Signal, Radio,
+  Sun, Moon, RotateCcw, X
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
@@ -61,13 +61,14 @@ function App() {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [isCasting, setIsCasting] = useState(false);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+
   // UI state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConnectionModeOpen, setIsConnectionModeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
-  const [isEditingBrightness, setIsEditingBrightness] = useState(false);
-  const [brightnessInput, setBrightnessInput] = useState("");
   
   const isScanningRef = import.meta.env.DEV ? { current: false } : { current: false };
 
@@ -190,6 +191,7 @@ function App() {
       const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid, password });
       if (success) {
         setConnectedSSID(network.ssid);
+        setToast({ message: `Connected to ${network.name}`, type: 'success' });
 
         // Try to get friendly name via UDP discovery now that we are connected
         try {
@@ -213,8 +215,10 @@ function App() {
   };
 
   const handleDisconnect = () => {
+    const name = connectedNetwork?.name || connectedSSID || 'network';
     setConnectedSSID(null);
     setConnectionError(null);
+    setToast({ message: `Disconnected from ${name}`, type: 'info' });
   };
 
   // Filtering
@@ -239,25 +243,13 @@ function App() {
         <div className="banner-left">
           <div className={`banner-dot ${connectedSSID ? 'on' : connectingSSID ? 'pulse' : connectionError ? 'error' : ''}`} />
           {connectedSSID ? (
-            <>
-              <ShieldCheck size={14} />
-              <span>Connected to <strong>{connectedNetwork?.name || connectedSSID}</strong></span>
-            </>
+            <span>Connected to <strong>{connectedNetwork?.name || connectedSSID}</strong></span>
           ) : connectingSSID ? (
-            <>
-              <RotateCcw size={14} className="spinning" />
-              <span>Connecting to <strong>{connectingSSID}</strong>...</span>
-            </>
+            <span>Connecting to <strong>{connectingSSID}</strong>...</span>
           ) : connectionError ? (
-            <>
-              <AlertTriangle size={14} />
-              <span className="banner-error-text">{connectionError}</span>
-            </>
+            <span className="banner-error-text">{connectionError}</span>
           ) : (
-            <>
-              <WifiOff size={14} />
-              <span>Not connected</span>
-            </>
+            <span>Not connected</span>
           )}
         </div>
         <div className="banner-right">
@@ -268,7 +260,6 @@ function App() {
           )}
           {connectedSSID && (
             <button className="disconnect-btn" onClick={handleDisconnect}>
-              <WifiOff size={16} />
               <span>Disconnect</span>
             </button>
           )}
@@ -340,7 +331,7 @@ function App() {
 
                   {/* Rows */}
                   <div className="network-list">
-                    {filtered.map((n, idx) => {
+                    {filtered.map((n) => {
                       const isConnected = n.ssid === connectedSSID;
                       const isConnecting = n.ssid === connectingSSID;
                       return (
@@ -350,9 +341,6 @@ function App() {
                         >
                           {/* Status */}
                           <div className="col-status">
-                            <div className="net-status-icon">
-                              {n.is_projector ? <MonitorDot size={18} /> : <Wifi size={18} />}
-                            </div>
                             <span className={`status-label ${isConnected ? 'on' : ''}`}>
                               {isConnected ? 'Connected' : isConnecting ? 'Connecting…' : n.is_projector ? 'Available' : n.security}
                             </span>
@@ -383,15 +371,9 @@ function App() {
                               {isConnecting ? (
                                 <RotateCcw size={14} className="spinning" />
                               ) : isConnected ? (
-                                <>
-                                  <WifiOff size={14} />
-                                  <span>Disconnect</span>
-                                </>
+                                'Disconnect'
                               ) : (
-                                <>
-                                  <ArrowRight size={14} />
-                                  <span>Connect</span>
-                                </>
+                                'Connect'
                               )}
                             </button>
                           </div>
@@ -425,6 +407,16 @@ function App() {
         <button className="help-fab" onClick={() => setIsHelpOpen(true)} title="Help &amp; Guide">
           <HelpCircle size={20} />
         </button>
+      )}
+
+      {/* ====== TOAST POPUP ====== */}
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          <span>{toast.message}</span>
+          <button className="toast-close" onClick={() => setToast(null)}>
+            <X size={14} />
+          </button>
+        </div>
       )}
     </div>
   );
