@@ -6,7 +6,7 @@ use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
 /// Capture screen via grim PPM, resize to STREAM_W × STREAM_H.
 pub fn capture_screen() -> Option<Vec<u8>> {
     let output = Command::new("grim")
-        .args(["-t", "ppm", "-"])
+        .args(["-c", "-t", "ppm", "-"])
         .output()
         .ok()?;
 
