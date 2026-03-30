@@ -1,1 +1,0 @@
-/usr/bin/c++ -Wl,--dependency-file=CMakeFiles/libre-mp.dir/link.d "CMakeFiles/libre-mp.dir/main.cpp.o" "CMakeFiles/libre-mp.dir/config.cpp.o" "CMakeFiles/libre-mp.dir/payloads.cpp.o" "CMakeFiles/libre-mp.dir/client.cpp.o" "CMakeFiles/libre-mp.dir/wifi.cpp.o" "CMakeFiles/libre-mp.dir/video_streamer.cpp.o" -o libre-mp  /usr/lib/libturbojpeg.so
