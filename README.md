@@ -1,10 +1,10 @@
-# libre-mp (Epson EasyMP Cross-Platform Streamer)
+# LibreMP (Epson EasyMP Cross-Platform Streamer)
 
 ## Problem Statement
 Many projectors available today rely on proprietary software (like Epson EasyMP) that is strictly designed and supported only for the Windows operating system. This software limitation leaves users of Linux and macOS without a native, reliable way to connect to and cast their screens onto these devices. As teams and environments grow more diverse in the operating systems they use daily, this "Windows-only" restriction creates a significant barrier to communication, collaboration, and productivity.
 
 ## Solution
-Our team, **libre-mp**, built a lightweight, highly compatible cross-platform desktop application designed to interact seamlessly with Epson projectors across all major operating systems. We reverse-engineered the EasyMP (RFBPlus) protocol and built a solution capable of discovering available projectors on the network, bypassing the vendor's restrictive single-OS software. Our application allows Linux, macOS, and Windows users to easily manage, connect, and stream to projectors with zero friction at 24fps.
+Our team, **LibreMP**, built a lightweight, highly compatible cross-platform desktop application designed to interact seamlessly with Epson projectors across all major operating systems. We reverse-engineered the EasyMP (RFBPlus) protocol and built a solution capable of discovering available projectors on the network, bypassing the vendor's restrictive single-OS software. Our application allows Linux, macOS, and Windows users to easily manage, connect, and stream to projectors with zero friction at 24fps.
 
 ### How It Works
 1. **Wi-Fi Discovery**: Automatically scans for networks and detects Epson projectors by their SSID pattern.
