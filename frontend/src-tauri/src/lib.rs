@@ -399,11 +399,12 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
         let timeout = std::time::Duration::from_secs(15);
         let mut consecutive_disconnected: u32 = 0;
         
-        // Give the OS a moment to initiate the connection
-        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+        // Reduced initial sleep to start polling sooner
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         
         while start.elapsed() < timeout {
-            tokio::time::sleep(std::time::Duration::from_millis(1200)).await;
+            // Faster polling (500ms instead of 1200ms) for smoother progress feedback
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             
             // Check current connection status via netsh
             let status_output = Command::new("netsh")
@@ -422,7 +423,6 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
                         let key = trimmed[..colon_pos].trim();
                         let val = trimmed[colon_pos + 1..].trim();
                         
-                        // Match key names case-insensitively
                         let key_lower = key.to_lowercase();
                         if key_lower == "state" || key_lower == "status" {
                             iface_state = val.to_lowercase();
@@ -443,17 +443,18 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
                 // Track consecutive disconnected polls for fast failure detection
                 if iface_state.contains("disconnected") {
                     consecutive_disconnected += 1;
-                } else {
+                } else if !iface_state.contains("authenticating") && !iface_state.contains("connecting") {
+                    // Reset if we are in some other state (like identifying or already connected to wrong ssid)
                     consecutive_disconnected = 0;
                 }
                 
-                // 3+ consecutive disconnected checks (~3.6s) = auth/connection failure
-                if consecutive_disconnected >= 3 {
+                // Faster failure detection (5 polls @ 500ms = 2.5s)
+                if consecutive_disconnected >= 5 {
                     return Err("Authentication failed. Please check your password and try again.".to_string());
                 }
                 
-                // If still stuck authenticating after 8s, password is likely wrong
-                if start.elapsed() > std::time::Duration::from_secs(8) 
+                // If still stuck authenticating after 7s, password is likely wrong
+                if start.elapsed() > std::time::Duration::from_secs(7) 
                     && iface_state.contains("authenticating") 
                 {
                     return Err("Authentication failed. The password appears to be incorrect.".to_string());
