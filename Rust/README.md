@@ -1,86 +1,117 @@
 # Epson EasyMP Streamer
 
-Cross-platform desktop streaming to Epson projectors via the EasyMP (RFBPlus) protocol.
+Stream your desktop to any Epson projector. Cross-platform: Linux (Arch/Ubuntu/Fedora), macOS, and Windows.
 
-## Supported Platforms
+## Quick Start
 
-| OS | Display Server | Capture Tool | Wi-Fi Tool |
-|---|---|---|---|
-| **Arch Linux** | Wayland | `grim` | `nmcli` |
-| **Ubuntu/Fedora** | X11 | `gnome-screenshot` / `import` / `scrot` | `nmcli` |
-| **macOS** | Aqua | `screencapture` | `networksetup` |
-| **Windows** | Desktop | PowerShell (.NET) | `netsh wlan` |
+```bash
+cd Rust
+cargo build --release
+cargo run --release
+```
+
+1. Select the projector's Wi-Fi network (marked with ★)
+2. Enter the projector's Wi-Fi password and connect
+3. Streaming starts at 24fps
+
+Passwords auto-save to `projectors.txt` — instant connect next time!
+
+> **No password set?** Set one on the projector via:
+> **Menu → Network → Security → Web Control Password**
+
+---
 
 ## Build Instructions
 
-### Arch Linux
+### Dependencies by Platform
+
+| Platform | Rustup | Build Tools | JPEG Assembler | Capture Tool |
+|---|---|---|---|---|
+| **Arch Linux** | `pacman -S rust` | built-in | `pacman -S nasm` | `pacman -S grim` (Wayland) |
+| **Ubuntu/Debian** | [rustup.rs](https://rustup.rs) | `apt install build-essential cmake pkg-config` | `apt install nasm` | `apt install imagemagick` (X11) |
+| **Fedora** | `dnf install rust cargo` | `dnf install cmake` | `dnf install nasm` | `dnf install ImageMagick` (X11) |
+| **macOS** | [rustup.rs](https://rustup.rs) | Xcode CLI: `xcode-select --install` | `brew install nasm` | Built-in (`screencapture`) |
+| **Windows** | [rustup.rs](https://rustup.rs) | Visual Studio Build Tools | [nasm.us](https://nasm.us) + [cmake.org](https://cmake.org) | Built-in (PowerShell) |
+
+### Full Install Commands
+
+**Arch Linux (Wayland)**
 ```bash
-sudo pacman -S rust grim   # grim for Wayland capture
+sudo pacman -S rust nasm grim
 cd Rust && cargo build --release
 ```
 
-### Ubuntu / Debian
+**Ubuntu / Debian (X11)**
 ```bash
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
 
-# Install build dependencies
-sudo apt install build-essential cmake nasm pkg-config libturbojpeg0-dev
-
-# Install a capture tool (at least one):
-sudo apt install imagemagick   # provides 'import' command
-# or: sudo apt install scrot
-# or: gnome-screenshot comes pre-installed on GNOME
+# Build deps + capture tool
+sudo apt install build-essential cmake nasm pkg-config imagemagick
 
 cd Rust && cargo build --release
 ```
 
-### Fedora
+**Fedora (X11 or Wayland)**
 ```bash
-sudo dnf install rust cargo cmake nasm turbojpeg-devel
-sudo dnf install ImageMagick   # for 'import' command
+sudo dnf install rust cargo cmake nasm ImageMagick
+# For Wayland: sudo dnf install grim
+
 cd Rust && cargo build --release
 ```
 
-### macOS
+**macOS**
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 brew install cmake nasm
+
 cd Rust && cargo build --release
 ```
 
-### Windows
+**Windows (PowerShell as Admin)**
 ```powershell
-# Install Rust from https://rustup.rs
-# Install CMake from https://cmake.org
-# Install NASM from https://nasm.us
+# 1. Install Rust from https://rustup.rs
+# 2. Install Visual Studio Build Tools (C++ workload)
+# 3. Install CMake from https://cmake.org
+# 4. Install NASM from https://nasm.us (add to PATH)
+
 cd Rust
 cargo build --release
 ```
 
-## Usage
+---
 
-```bash
-cd Rust && cargo run --release
-```
+## How It Works
 
-1. Select the projector's Wi-Fi network (marked with ★)
-2. If first time: enter the Wired LAN MAC address from the projector's menu
-   - On projector: **Menu → Network → Net. Info → Wired LAN → MAC Address**
-   - Type it in (dots/colons are OK, e.g., `A4.D7.3C.CD.AF.45`)
-   - It auto-saves to `projectors.txt` for instant connect next time
-3. Streaming starts automatically at 24fps
+1. **Wi-Fi**: Scans for networks, detects Epson projectors by SSID pattern
+2. **Connect**: Connects to projector's Wi-Fi with your password
+3. **Stream**: Captures screen → JPEG tiles → EasyMP protocol → projector display
 
-## Projector Password
+### Screen Capture Methods
 
-The Wi-Fi password for Epson projectors is the **Wired LAN MAC address**
-(NOT the Wireless MAC / BSSID visible in Wi-Fi scans).
+| Platform | Method | Notes |
+|---|---|---|
+| Linux (Wayland) | `grim` → PPM pipe | Zero-copy, fastest |
+| Linux (X11) | `gnome-screenshot` / `import` / `scrot` | Auto-detected fallback |
+| macOS | `screencapture` → BMP | Built-in, reliable |
+| Windows | PowerShell System.Drawing → BMP | No extra deps |
 
-Find it on the projector sticker or via:
-**Menu → Network → Net. Info → Wired LAN → MAC Address**
+### Projector Compatibility
 
-Saved passwords are stored in `projectors.txt`:
-```
-RESEARCHLAB-fE8DSypQz51AR2Q = A4D73CCDAF45
-A325-fC8DSypQye1AKdd = A4D73CCDAF28
-```
+Tested with Epson projectors using the EasyMP (RFBPlus) protocol.
+The projector's IP is `192.168.88.1` (standard Epson Quick Connect).
+
+---
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `src/main.rs` | Entry point, frame loop, auto-reconnect |
+| `src/wifi.rs` | Cross-platform Wi-Fi scan/connect/restore |
+| `src/capture.rs` | Screen capture (Wayland/X11/macOS/Windows) |
+| `src/protocol.rs` | EasyMP protocol handshake + streaming |
+| `src/template.rs` | JPEG tile template system |
+| `projectors.txt` | Saved Wi-Fi passwords (auto-populated) |
+| `windows_perfect_stream.bin` | Protocol template (required, in parent dir) |
