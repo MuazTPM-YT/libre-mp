@@ -3,6 +3,9 @@ use std::io::{self, Cursor, Read, Write};
 use std::net::{Ipv4Addr, TcpStream};
 use std::time::Duration;
 
+#[cfg(unix)]
+use std::os::unix::io::AsRawFd;
+
 use crate::hex;
 
 const PROJECTOR_IP: &str = "192.168.88.1";
@@ -84,7 +87,7 @@ fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
-fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
+pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     let pcap_hex = concat!(
         "45454d5030313030c0a858020801000048010000",
         "0001000000000000000000000000000000000000",
@@ -169,6 +172,7 @@ impl EpsonClient {
         let mut s_auth = TcpStream::connect((PROJECTOR_IP, PORT_CONTROL))?;
         s_auth.set_nodelay(true)?;
         s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
+        enable_tcp_keepalive(&s_auth);
         s_auth.write_all(&registration_payload(my_ip))?;
 
         // Python: recv resp1, then try recv resp2 with 1s timeout
@@ -189,6 +193,7 @@ impl EpsonClient {
         let mut s_auth = TcpStream::connect((PROJECTOR_IP, PORT_CONTROL))?;
         s_auth.set_nodelay(true)?;
         s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
+        enable_tcp_keepalive(&s_auth);
         s_auth.write_all(&auth_payload(my_ip, proj_ip))?;
 
         // Python: single recv(1024) for auth response
@@ -263,13 +268,15 @@ impl EpsonClient {
 
         let mut s_video = TcpStream::connect((PROJECTOR_IP, PORT_VIDEO))?;
         s_video.set_nodelay(true)?;
-        s_video.set_read_timeout(None)?; // blocking for streaming
+        s_video.set_read_timeout(None)?;
+        enable_tcp_keepalive(&s_video);
         s_video.write_all(&video_init_ctrl(my_ip))?;
         eprintln!("[+]    Video channel OPEN (byte28=0x00)");
 
         let mut s_aux = TcpStream::connect((PROJECTOR_IP, PORT_VIDEO))?;
         s_aux.set_nodelay(true)?;
         s_aux.set_read_timeout(None)?;
+        enable_tcp_keepalive(&s_aux);
         s_aux.write_all(&video_init_data(my_ip))?;
         eprintln!("[+]    Aux channel OPEN (byte28=0x01)");
 
@@ -423,4 +430,28 @@ pub fn build_video_frame(
     buf
 }
 
-
+/// Enable TCP keepalive on a socket — prevents session timeout.
+/// Sends keepalive probes every 10s, with 3 retries at 5s intervals.
+#[cfg(unix)]
+fn enable_tcp_keepalive(stream: &TcpStream) {
+    use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
+    let fd = stream.as_raw_fd();
+    unsafe {
+        let val: libc::c_int = 1;
+        // Enable keepalive
+        setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
+            &val as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        // Idle time before first probe: 10 seconds
+        let idle: libc::c_int = 10;
+        setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPIDLE,
+            &idle as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        // Interval between probes: 5 seconds
+        let interval: libc::c_int = 5;
+        setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPINTVL,
+            &interval as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+        // Number of failed probes before dropping: 3
+        let count: libc::c_int = 3;
+        setsockopt(fd, IPPROTO_TCP, libc::TCP_KEEPCNT,
+            &count as *const _ as *const libc::c_void, std::mem::size_of::<libc::c_int>() as u32);
+    }
+}
