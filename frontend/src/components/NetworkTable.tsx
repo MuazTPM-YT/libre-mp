@@ -17,6 +17,9 @@ interface NetworkTableProps {
   onConnect: (network: NetworkItem) => void;
   onDisconnect: () => void;
   isScanning: boolean;
+  isCasting: boolean;
+  onStartCast: () => void;
+  onStopCast: () => void;
 }
 
 const signalLevel = (s: number) => s > 80 ? 5 : s > 60 ? 4 : s > 40 ? 3 : s > 20 ? 2 : 1;
@@ -28,7 +31,10 @@ export function NetworkTable({
   connectingSSID,
   onConnect,
   onDisconnect,
-  isScanning
+  isScanning,
+  isCasting,
+  onStartCast,
+  onStopCast
 }: NetworkTableProps) {
   return (
     <section className="networks-section">
@@ -79,7 +85,19 @@ export function NetworkTable({
                     </div>
                   </div>
 
-                  <div className="col-action">
+                  <div className="col-action" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    {isConnected && (
+                      <button
+                        className={`connect-btn-sm ${isCasting ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          isCasting ? onStopCast() : onStartCast();
+                        }}
+                        style={{ backgroundColor: isCasting ? '#e53e3e' : '#3182ce', color: 'white' }}
+                      >
+                        {isCasting ? 'Stop Cast' : 'Cast'}
+                      </button>
+                    )}
                     <button
                       className={`connect-btn-sm ${isConnected ? 'active' : ''}`}
                       onClick={(e) => {

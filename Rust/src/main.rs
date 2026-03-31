@@ -20,9 +20,35 @@ const TARGET_FPS: u64 = 24;
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
-    let (orig_uuid, ssid, _bssid, password) = wifi::wifi_connect();
+    // Parse CLI args: --skip-wifi --ssid <SSID> --password <PWD> --os <1-4>
+    let args: Vec<String> = std::env::args().collect();
+    let has_flag = |f: &str| args.iter().any(|a| a == f);
+    let get_arg = |f: &str| -> Option<String> {
+        args.iter()
+            .position(|a| a == f)
+            .and_then(|i| args.get(i + 1))
+            .cloned()
+    };
 
-    let os_mode = {
+    let skip_wifi = has_flag("--skip-wifi");
+    let cli_ssid = get_arg("--ssid");
+    let cli_password = get_arg("--password");
+    let cli_os: Option<u8> = get_arg("--os").and_then(|v| v.parse().ok());
+
+    // Determine credentials: CLI args or interactive
+    let (orig_uuid, ssid, password) = if skip_wifi {
+        let ssid = cli_ssid.unwrap_or_default();
+        let password = cli_password.unwrap_or_default();
+        eprintln!("[*] CLI mode: skip-wifi, ssid={}, os={}", ssid, cli_os.unwrap_or(3));
+        (None, ssid, password)
+    } else {
+        let (uuid, ssid, _bssid, password) = wifi::wifi_connect();
+        (uuid, ssid, password)
+    };
+
+    let os_mode = if let Some(os) = cli_os {
+        os
+    } else {
         eprintln!("\n[*] Select your Operating System / Display Environment:");
         eprintln!("    [1] Windows (Native DXGI)");
         eprintln!("    [2] MacOS (Native CoreGraphics)");

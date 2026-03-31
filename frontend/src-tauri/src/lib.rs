@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 pub mod protocol;
 
 pub struct AppState {
-    pub streamer: Arc<Mutex<Option<protocol::streamer::VideoStreamer>>>,
+    pub child_process: Arc<Mutex<Option<std::process::Child>>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -501,23 +501,86 @@ async fn get_connection_status() -> Result<ConnectionStatus, String> {
 
 
 #[tauri::command]
-async fn start_casting_async(ip: String, ssid: String, password: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
-    let mut streamer_guard = state.streamer.lock().await;
-    if streamer_guard.is_some() {
-        return Err("Already casting".into());
+async fn start_casting_async(ssid: String, password: String, os_mode: u32, state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    let mut child_guard = state.child_process.lock().await;
+    if child_guard.is_some() {
+        return Err("Already streaming".into());
     }
 
-    let streamer = protocol::streamer::VideoStreamer::new(&ip, 15, &password, &ssid);
-    *streamer_guard = Some(streamer);
-    
+    // Find the epson-streamer binary
+    let binary = find_streamer_binary()
+        .ok_or_else(|| "Could not find epson-streamer binary. Run `cargo build --release` in the Rust/ directory first.".to_string())?;
+
+    // Convert to absolute path so that setting current_dir doesn't break the executable lookup
+    let binary = std::fs::canonicalize(&binary).unwrap_or(binary);
+
+    // Derive the Rust/ directory from the binary path (binary is at Rust/target/release/epson-streamer)
+    let rust_dir = binary.parent()   // target/release/
+        .and_then(|p| p.parent())    // target/
+        .and_then(|p| p.parent())    // Rust/
+        .ok_or_else(|| "Could not determine Rust project directory".to_string())?;
+
+    println!("[+] Spawning streamer: {:?}", binary);
+    println!("[+] Working dir: {:?}", rust_dir);
+    println!("[+] Args: --skip-wifi --ssid {} --os {}", ssid, os_mode);
+
+    let child = Command::new(&binary)
+        .current_dir(rust_dir)
+        .args([
+            "--skip-wifi",
+            "--ssid", &ssid,
+            "--password", &password,
+            "--os", &os_mode.to_string(),
+        ])
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn streamer: {}", e))?;
+
+    *child_guard = Some(child);
     Ok(true)
+}
+
+fn find_streamer_binary() -> Option<std::path::PathBuf> {
+    // Try multiple locations relative to the running executable
+    let candidates = [
+        // Development: relative to the project root
+        std::path::PathBuf::from("../../Rust/target/release/epson-streamer"),
+        std::path::PathBuf::from("../Rust/target/release/epson-streamer"),
+        std::path::PathBuf::from("Rust/target/release/epson-streamer"),
+        // Relative to the executable location
+        std::env::current_exe().ok().and_then(|p| {
+            p.parent()?.parent()?.parent()?.parent()
+                .map(|root| root.join("Rust/target/release/epson-streamer"))
+        }).unwrap_or_default(),
+    ];
+
+    for path in &candidates {
+        if path.exists() {
+            return Some(path.clone());
+        }
+    }
+
+    // Try finding via PATH
+    if let Ok(output) = Command::new("which").arg("epson-streamer").output() {
+        if output.status.success() {
+            let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !path_str.is_empty() {
+                return Some(std::path::PathBuf::from(path_str));
+            }
+        }
+    }
+
+    None
 }
 
 #[tauri::command]
 async fn stop_casting(state: tauri::State<'_, AppState>) -> Result<bool, String> {
-    let mut streamer_guard = state.streamer.lock().await;
-    if let Some(streamer) = streamer_guard.take() {
-        streamer.stop();
+    let mut child_guard = state.child_process.lock().await;
+    if let Some(mut child) = child_guard.take() {
+        let _ = child.kill();
+        let _ = child.wait();
+        println!("[+] Streamer process killed");
     }
     Ok(true)
 }
@@ -527,7 +590,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
-            streamer: Arc::new(Mutex::new(None)),
+            child_process: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
@@ -540,3 +603,4 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
