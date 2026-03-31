@@ -1,12 +1,1 @@
-# Epson Projector Saved Passwords
-# Format: SSID = PASSWORD
-# One entry per line. Lines starting with # are comments.
-#
-# First time: enter the password when prompted.
-# It auto-saves here for instant connect next time!
-#
-# Example:
-# MyProjector-xYz123abc456 = mypassword123
-
 RESEARCHLAB-fE8DSypQz51AR2Q = A4D73CCDAF45
-A325-fC8DSypQye1AKdd = A4D73CCDAF28
