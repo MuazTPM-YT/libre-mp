@@ -1,40 +1,92 @@
+use std::process::Command;
 use turbojpeg::{Compressor, Image, PixelFormat, Subsamp};
 
 use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
 
-// ─── Cross-platform screen capture via xcap ─────────────────────────────────
+// ─── Wayland (grim) Capture ───────────────────────────────────────────────
 
-use xcap::Monitor;
+pub fn capture_wayland() -> Option<Vec<u8>> {
+    let output = Command::new("grim")
+        .args(["-c", "-t", "ppm", "-"])
+        .output()
+        .ok()?;
 
-/// Capture screen, return RGB pixels resized to STREAM_W × STREAM_H.
-/// Uses the native xcap crate to support Windows, macOS, X11, and Wayland.
-pub fn capture_screen() -> Option<Vec<u8>> {
-    let monitors = Monitor::all().ok()?;
-    if monitors.is_empty() {
+    if !output.status.success() {
         return None;
     }
 
-    // Capture the primary monitor (or the first available)
-    let img = monitors[0].capture_image().ok()?;
+    let (w, h, data_start) = parse_ppm_header(&output.stdout)?;
+    let expected = (w as usize) * (h as usize) * 3;
+    let rgb_data = &output.stdout[data_start..];
 
-    // Resize the image to exactly match the EasyMP stream dimensions
-    let resized = image::imageops::resize(
-        &img,
-        STREAM_W,
-        STREAM_H,
-        image::imageops::FilterType::Nearest,
-    );
-
-    // Convert RgbaImage to raw RGB buffer
-    let mut rgb = Vec::with_capacity((STREAM_W * STREAM_H * 3) as usize);
-    for pixel in resized.pixels() {
-        // Drop the Alpha channel
-        rgb.push(pixel[0]);
-        rgb.push(pixel[1]);
-        rgb.push(pixel[2]);
+    if rgb_data.len() < expected {
+        return None;
     }
 
-    Some(rgb)
+    Some(resize_nearest(rgb_data, w, h, STREAM_W, STREAM_H))
+}
+
+fn parse_ppm_header(data: &[u8]) -> Option<(u32, u32, usize)> {
+    if data.len() < 7 || data[0] != b'P' || data[1] != b'6' {
+        return None;
+    }
+    let mut pos = 3;
+    while pos < data.len() && data[pos] == b'#' {
+        while pos < data.len() && data[pos] != b'\n' { pos += 1; }
+        pos += 1;
+    }
+    let w_start = pos;
+    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
+    let w: u32 = std::str::from_utf8(&data[w_start..pos]).ok()?.parse().ok()?;
+    pos += 1;
+    let h_start = pos;
+    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
+    let h: u32 = std::str::from_utf8(&data[h_start..pos]).ok()?.parse().ok()?;
+    pos += 1;
+    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
+    pos += 1;
+    Some((w, h, pos))
+}
+
+fn resize_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
+    let mut dst = vec![0u8; (dw * dh * 3) as usize];
+    let sw_usize = sw as usize;
+    for y in 0..dh {
+        let sy = ((y as u64 * sh as u64) / dh as u64) as usize;
+        let dst_row = (y as usize) * (dw as usize) * 3;
+        let src_row = sy * sw_usize * 3;
+        for x in 0..dw {
+            let sx = ((x as u64 * sw as u64) / dw as u64) as usize;
+            let si = src_row + sx * 3;
+            let di = dst_row + (x as usize) * 3;
+            dst[di] = src[si];
+            dst[di + 1] = src[si + 1];
+            dst[di + 2] = src[si + 2];
+        }
+    }
+    dst
+}
+
+// ─── High-Performance BGRA Resizer ─────────────────────────────────────────
+
+pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
+    let mut dst = vec![0u8; (dw * dh * 3) as usize];
+    let sw_usize = sw as usize;
+    for y in 0..dh {
+        let sy = ((y as u64 * sh as u64) / dh as u64) as usize;
+        let dst_row = (y as usize) * (dw as usize) * 3;
+        let src_row = sy * sw_usize * 4; // 4 bytes per pixel for BGRA
+        for x in 0..dw {
+            let sx = ((x as u64 * sw as u64) / dw as u64) as usize;
+            let si = src_row + sx * 4;
+            let di = dst_row + (x as usize) * 3;
+            // BGRA -> RGB
+            dst[di]     = src[si + 2]; // R
+            dst[di + 1] = src[si + 1]; // G
+            dst[di + 2] = src[si];     // B
+        }
+    }
+    dst
 }
 
 fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {

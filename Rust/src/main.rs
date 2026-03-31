@@ -1,6 +1,7 @@
 use std::io::{self, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use scrap::{Capturer, Display};
 
 mod hex;
 mod wifi;
@@ -20,6 +21,19 @@ fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
     let orig_uuid = wifi::wifi_connect();
+
+    let os_mode = {
+        eprintln!("\n[*] Select your Operating System / Display Environment:");
+        eprintln!("    [1] Windows (Native DXGI)");
+        eprintln!("    [2] MacOS (Native CoreGraphics)");
+        eprintln!("    [3] Ubuntu / X11 (Native XShm)");
+        eprintln!("    [4] Arch Linux / Wayland (grim wlroots)");
+        eprint!("    Selection [1-4] (default 3): ");
+        io::stderr().flush().ok();
+        let mut os_sel = String::new();
+        io::stdin().read_line(&mut os_sel).unwrap_or(0);
+        os_sel.trim().parse::<u8>().unwrap_or(3)
+    };
 
     // Ctrl+C: set flag immediately (cross-platform via ctrlc crate)
     let running = Arc::new(AtomicBool::new(true));
@@ -67,7 +81,14 @@ fn main() {
             }
         };
 
-        let reason = stream_loop(&mut client, &mut tpl, &running);
+        let mut opt_capturer = if os_mode != 4 {
+            let d = Display::primary().expect("No primary display found. Make sure you have a graphical session.");
+            Some(Capturer::new(d).expect("Couldn't begin screen capture."))
+        } else {
+            None
+        };
+
+        let reason = stream_loop(&mut client, &mut tpl, &mut opt_capturer, &running, os_mode);
         if !running.load(Ordering::Relaxed) {
             eprintln!("\n[*] Ctrl+C received, shutting down...");
             break;
@@ -84,7 +105,9 @@ fn main() {
 fn stream_loop(
     client: &mut protocol::EpsonClient,
     tpl: &mut template::Template,
+    opt_capturer: &mut Option<Capturer>,
     running: &AtomicBool,
+    os_mode: u8,
 ) -> String {
     let mut frame_idx = 0u64;
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
@@ -96,12 +119,37 @@ fn stream_loop(
     while running.load(Ordering::Relaxed) {
         let t0 = Instant::now();
 
-        // 1. Capture
-        let screen = match capture::capture_screen() {
-            Some(s) => s,
-            None => {
-                std::thread::sleep(Duration::from_millis(50));
-                continue;
+        // 1. Capture (0-copy direct from GPU/OS, or grim)
+        let screen = if let Some(capturer) = opt_capturer.as_mut() {
+            let w = capturer.width() as u32;
+            let h = capturer.height() as u32;
+            loop {
+                match capturer.frame() {
+                    Ok(frame) => {
+                        break capture::resize_bgra_to_rgb(
+                            &frame,
+                            w,
+                            h,
+                            STREAM_W,
+                            STREAM_H,
+                        );
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        if !running.load(Ordering::Relaxed) {
+                            return "Ctrl+C".to_string();
+                        }
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                    Err(e) => return format!("Capture Error: {e}"),
+                }
+            }
+        } else {
+            match capture::capture_wayland() {
+                Some(s) => s,
+                None => {
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
             }
         };
         let t_capture = t0.elapsed();
@@ -150,24 +198,36 @@ fn stream_loop(
             last_keepalive = Instant::now();
         }
 
+        // 7. Frame rate limiter
+        let elapsed = t0.elapsed();
+        if elapsed < frame_budget {
+            std::thread::sleep(frame_budget - elapsed);
+        }
+
         frame_idx += 1;
         if frame_idx <= 5 || frame_idx % 100 == 0 {
-            let fps = 1000.0 / t_send.as_millis().max(1) as f64;
+            let total_time_ms = t0.elapsed().as_millis().max(1) as f64;
+            let fps = 1000.0 / total_time_ms;
+            
+            // Wayland black screen detector! 
+            // If the buffer is completely pitch black (0 bytes), it guarantees standard OS security is blocking it!
+            let non_zero_pixels = screen.iter().take(10000).filter(|&&b| b > 0).count();
+
             eprintln!(
                 "  Frame {}: cap={:.0}ms enc={:.0}ms send={:.0}ms total={:.0}ms ({:.1}fps)",
                 frame_idx,
                 t_capture.as_millis(),
                 (t_encode - t_capture).as_millis(),
                 (t_send - t_encode).as_millis(),
-                t_send.as_millis(),
+                total_time_ms,
                 fps,
             );
-        }
 
-        // 7. Frame rate limiter
-        let elapsed = t0.elapsed();
-        if elapsed < frame_budget {
-            std::thread::sleep(frame_budget - elapsed);
+            if non_zero_pixels == 0 && os_mode == 3 {
+                eprintln!("\n[!] CRITICAL WARNING: Entire screen capture is completely BLACK.");
+                eprintln!("    -> Are you running Ubuntu on Wayland? Traditional GPU grabbers cannot see Wayland windows!");
+                eprintln!("    -> SOLUTION: Restart the streamer and select Option [4], OR log out and use 'Ubuntu on Xorg'!\n");
+            }
         }
     }
 
