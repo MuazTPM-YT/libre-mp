@@ -20,7 +20,7 @@ const TARGET_FPS: u64 = 24;
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
-    let orig_uuid = wifi::wifi_connect();
+    let (orig_uuid, ssid, password) = wifi::wifi_connect();
 
     let os_mode = {
         eprintln!("\n[*] Select your Operating System / Display Environment:");
@@ -68,7 +68,7 @@ fn main() {
 
     // Auto-reconnect loop — runs until Ctrl+C
     while running.load(Ordering::Relaxed) {
-        let mut client = match protocol::EpsonClient::connect() {
+        let mut client = match protocol::EpsonClient::connect(&password, &ssid) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("[-] Connection failed: {e}");

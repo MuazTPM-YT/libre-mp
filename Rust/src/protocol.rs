@@ -57,10 +57,14 @@ fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
-fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr) -> Vec<u8> {
+fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) -> Vec<u8> {
     let my = ip_bytes(my_ip);
     let proj = ip_bytes(proj_ip);
-    let mac = hex::decode("a4d73ccdaf45").unwrap();
+    let mac = hex::decode(&password.replace([':', '-'], "").to_lowercase()).unwrap();
+
+    // Extract projector name from SSID (e.g. "RESEARCHLAB-xxx" → "RESEARCHLAB")
+    let proj_name = ssid.split('-').next().unwrap_or(ssid);
+    let name_len = proj_name.len() as u32;
 
     let mut p = Vec::with_capacity(264);
     p.extend_from_slice(b"EEMP0100");
@@ -75,15 +79,22 @@ fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr) -> Vec<u8> {
         &hex::decode("a600000005000000380000000200000004000000").unwrap(),
     );
     p.extend_from_slice(&my);
+    // Split the hex blob: everything before the length field, then dynamic length, then rest
     p.extend_from_slice(
-        &hex::decode("0c00000004000000000000000100000004000000500043000b00000004000000000000001c00000000000000040000003600000001000000030000002a000000").unwrap(),
+        &hex::decode("0c0000000400000000000000010000000400000050004300").unwrap(),
+    );
+    // Dynamic length descriptor (was hardcoded 0x0B = 11 for "RESEARCHLAB")
+    p.extend_from_slice(&name_len.to_le_bytes());
+    p.extend_from_slice(
+        &hex::decode("04000000000000001c00000000000000040000003600000001000000030000002a000000").unwrap(),
     );
     p.extend_from_slice(&mac);
     p.extend_from_slice(&proj);
-    // "RESEARCHLAB" + null padding to 32 bytes
+    // Projector name from SSID prefix, padded to 32 bytes
     let mut ssid_buf = [0u8; 32];
-    let ssid = b"RESEARCHLAB";
-    ssid_buf[..ssid.len()].copy_from_slice(ssid);
+    let name_bytes = proj_name.as_bytes();
+    let copy_len = name_bytes.len().min(32);
+    ssid_buf[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
     p.extend_from_slice(&ssid_buf);
     p.extend_from_slice(
         &hex::decode("0f00000004000000320000000d000000040000000200000026000000080000000010000000100000").unwrap(),
@@ -166,7 +177,7 @@ pub struct EpsonClient {
 }
 
 impl EpsonClient {
-    pub fn connect() -> io::Result<Self> {
+    pub fn connect(password: &str, ssid: &str) -> io::Result<Self> {
         let my_ip = get_local_ip();
         let proj_ip: Ipv4Addr = PROJECTOR_IP.parse().unwrap();
         eprintln!("[*] Local IP: {my_ip}, Projector: {proj_ip}");
@@ -198,7 +209,7 @@ impl EpsonClient {
         s_auth.set_nodelay(true)?;
         s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
         enable_tcp_keepalive(&s_auth);
-        s_auth.write_all(&auth_payload(my_ip, proj_ip))?;
+        s_auth.write_all(&auth_payload(my_ip, proj_ip, password, ssid))?;
 
         // Python: single recv(1024) for auth response
         let auth_resp = recv_one(&mut s_auth, Duration::from_secs(5));
