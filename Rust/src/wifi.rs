@@ -1,25 +1,7 @@
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::process::Command;
-use std::collections::HashMap;
 
-// ─── Shared: password logic ──────────────────────────────────────────────────
 
-fn load_projector_passwords() -> HashMap<String, String> {
-    let mut passwords = HashMap::new();
-    for path in ["projectors.txt", "../projectors.txt", "Rust/projectors.txt"] {
-        if let Ok(file) = std::fs::File::open(path) {
-            for line in std::io::BufReader::new(file).lines().flatten() {
-                let t = line.trim();
-                if t.is_empty() || t.starts_with('#') { continue; }
-                if let Some((ssid, pw)) = t.split_once('=') {
-                    passwords.insert(ssid.trim().to_string(), pw.trim().to_string());
-                }
-            }
-            break;
-        }
-    }
-    passwords
-}
 
 
 /// Detect if an SSID belongs to an Epson projector.
@@ -463,50 +445,21 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // SHARED: wifi_connect (same flow on all platforms)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-pub fn wifi_connect() -> Option<String> {
+pub fn wifi_connect() -> (Option<String>, String, String) {
     let current = get_current_connection_id();
     show_current_network();
-
-    let saved = load_projector_passwords();
-    if !saved.is_empty() {
-        eprintln!("[*] Loaded {} saved projector(s) from projectors.txt", saved.len());
-    }
 
     eprintln!("Scanning for Wi-Fi networks... Please wait.\n");
     let networks = scan_networks();
 
     let idx = match interactive_select(&networks) {
         Some(i) => i,
-        None => return current,
+        None => return (current, String::new(), String::new()),
     };
 
     let selected = &networks[idx];
     eprintln!();
-
-    if let Some(pw) = saved.get(&selected.ssid) {
-        eprintln!("[*] Found in projectors.txt! Using saved Wi-Fi password.");
-        if connect_to_network(selected, pw) {
-            eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
-            return current;
-        }
-        eprintln!("[-] Saved Wi-Fi password failed.");
-    }
-
-    // Ask user for password
-    if is_epson_projector(&selected.ssid) {
-        eprintln!("[*] Epson projector detected: '{}'", selected.ssid);
-        let derived_pw = selected.bssid.replace(":", "").to_uppercase();
-        eprintln!("[*] Auto-deriving Wi-Fi password from MAC address...");
-        
-        if connect_to_network(selected, &derived_pw) {
-            eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
-            return current;
-        } else {
-            eprintln!("[-] Auto-connect failed. You must enter the Wi-Fi password manually.");
-        }
-    } else {
-        eprintln!("[*] Selected network: '{}'", selected.ssid);
-    }
+    eprintln!("[*] Selected network: '{}'", selected.ssid);
 
     eprint!("    Wi-Fi Password (WPA2): ");
     io::stderr().flush().ok();
@@ -521,31 +474,9 @@ pub fn wifi_connect() -> Option<String> {
 
     if connect_to_network(selected, &password) {
         eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
-        if is_epson_projector(&selected.ssid) && !saved.contains_key(&selected.ssid) {
-            save_projector_password(&selected.ssid, &password);
-        }
-        return current;
+        return (current, selected.ssid.clone(), password);
     }
 
     eprintln!("[-] Failed to connect to '{}'", selected.ssid);
     std::process::exit(1);
-}
-
-fn save_projector_password(ssid: &str, password: &str) {
-    use std::io::Write as _;
-    for path in ["projectors.txt", "../projectors.txt", "Rust/projectors.txt"] {
-        let file = if std::path::Path::new(path).exists() {
-            std::fs::OpenOptions::new().append(true).open(path)
-        } else if path == "projectors.txt" {
-            std::fs::OpenOptions::new().create(true).write(true).open(path)
-        } else {
-            continue;
-        };
-
-        if let Ok(mut f) = file {
-            let _ = writeln!(f, "{} = {}", ssid, password);
-            eprintln!("[+] Saved Wi-Fi password to {} for instant connection next time!", path);
-            return;
-        }
-    }
 }
