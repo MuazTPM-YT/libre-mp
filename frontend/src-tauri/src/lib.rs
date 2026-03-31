@@ -42,6 +42,7 @@ lazy_static! {
     static ref AUTH_RE: Regex = Regex::new(r"Authentication\s+:\s+([^\r\n]+)").unwrap();
 }
 
+/// Scans for available Wi-Fi networks using OS-native tools (nmcli/netsh).
 #[tauri::command]
 async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
     if !cfg!(target_os = "windows") {
@@ -210,6 +211,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 
 }
 
+/// Discovers local Epson projectors using UDP broadcast probes.
 #[tauri::command]
 async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
     use tokio::net::UdpSocket;
@@ -321,6 +323,7 @@ fn try_extract_ascii_name(data: &[u8]) -> Option<String> {
 }
 
 
+/// Connects to a specific Wi-Fi network using OS-native tools.
 #[tauri::command]
 async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool, String> {
     println!("Connecting to network: {} (password provided: {})", ssid, password.is_some());
@@ -490,6 +493,7 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
     }
 }
 
+/// Retrieves the current Wi-Fi connection status (Stubbed implementation).
 #[tauri::command]
 async fn get_connection_status() -> Result<ConnectionStatus, String> {
     Ok(ConnectionStatus {
@@ -500,6 +504,7 @@ async fn get_connection_status() -> Result<ConnectionStatus, String> {
 }
 
 
+/// Spawns the Rust Epson streamer process to begin casting.
 #[tauri::command]
 async fn start_casting_async(ssid: String, password: String, os_mode: u32, state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut child_guard = state.child_process.lock().await;
@@ -541,6 +546,7 @@ async fn start_casting_async(ssid: String, password: String, os_mode: u32, state
     Ok(true)
 }
 
+/// Locates the `epson-streamer` executable binary.
 fn find_streamer_binary() -> Option<std::path::PathBuf> {
     // Try multiple locations relative to the running executable
     let candidates = [
@@ -574,6 +580,7 @@ fn find_streamer_binary() -> Option<std::path::PathBuf> {
     None
 }
 
+/// Kills the active streaming process to stop casting.
 #[tauri::command]
 async fn stop_casting(state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut child_guard = state.child_process.lock().await;
@@ -585,6 +592,7 @@ async fn stop_casting(state: tauri::State<'_, AppState>) -> Result<bool, String>
     Ok(true)
 }
 
+/// Initializes and starts the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()

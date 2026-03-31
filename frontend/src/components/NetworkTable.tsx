@@ -25,6 +25,7 @@ interface NetworkTableProps {
 const signalLevel = (s: number) => s > 80 ? 5 : s > 60 ? 4 : s > 40 ? 3 : s > 20 ? 2 : 1;
 const signalColor = (s: number) => s > 60 ? 'high' : s > 30 ? 'mid' : 'low';
 
+/** Table component listing available Wi-Fi networks and projectors */
 export function NetworkTable({
   networks,
   connectedSSID,

@@ -8,6 +8,7 @@ interface StatusBannerProps {
   onDismissError: () => void;
 }
 
+/** Banner for displaying connection status and error messages */
 export function StatusBanner({
   connectedSSID,
   connectingSSID,
@@ -19,7 +20,7 @@ export function StatusBanner({
   if (connectedSSID && !connectionError) {
     return null;
   }
-  
+
   // If not idle and not connected, show the banner
   if (!connectingSSID && !connectionError) {
     return null;

@@ -7,6 +7,7 @@ interface Props {
   setMode: (mode: 'quick' | 'advanced') => void;
 }
 
+/** Modal for selecting the connection mode between quick and advanced */
 export function ConnectionModeModal({ isOpen, onClose, mode, setMode }: Props) {
   if (!isOpen) return null;
 
@@ -58,7 +59,7 @@ export function ConnectionModeModal({ isOpen, onClose, mode, setMode }: Props) {
           <label className="check-row">
             <input type="checkbox" />
             <span>Set the selected Connection Mode as the default mode for future connections.
-            (Do not display this window again.)</span>
+              (Do not display this window again.)</span>
           </label>
         </div>
 

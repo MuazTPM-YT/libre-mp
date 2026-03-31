@@ -10,6 +10,7 @@ interface TopHeaderProps {
   isScanning: boolean;
 }
 
+/** Header component for search, refresh, and settings controls */
 export function TopHeader({
   searchQuery,
   onSearchChange,
@@ -46,9 +47,9 @@ export function TopHeader({
           <button className="icon-btn-rounded" onClick={onOpenSettings} title="Settings">
             <Settings size={20} />
           </button>
-          <button 
-            className="theme-toggle" 
-            onClick={onToggleTheme} 
+          <button
+            className="theme-toggle"
+            onClick={onToggleTheme}
             title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
           >
             {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}

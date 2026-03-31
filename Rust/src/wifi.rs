@@ -70,6 +70,7 @@ fn interactive_select(networks: &[WifiNetwork]) -> Option<usize> {
 // LINUX (nmcli)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Scans for available Wi-Fi networks using `nmcli` on Linux.
 #[cfg(target_os = "linux")]
 fn scan_networks() -> Vec<WifiNetwork> {
     use std::time::Duration;
@@ -115,6 +116,7 @@ fn scan_networks() -> Vec<WifiNetwork> {
     networks
 }
 
+/// Connects to the specified Wi-Fi network using `nmcli` on Linux.
 #[cfg(target_os = "linux")]
 fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
     let _ = Command::new("nmcli")
@@ -131,6 +133,7 @@ fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
 }
 
 
+/// Retrieves the active Wi-Fi connection UUID using nmcli on Linux.
 #[cfg(target_os = "linux")]
 fn get_current_connection_id() -> Option<String> {
     Command::new("nmcli")
@@ -142,6 +145,7 @@ fn get_current_connection_id() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// Displays the currently connected Wi-Fi network to the user on Linux.
 #[cfg(target_os = "linux")]
 fn show_current_network() {
     if let Ok(output) = Command::new("nmcli")
@@ -154,6 +158,7 @@ fn show_current_network() {
     }
 }
 
+/// Restores the original Wi-Fi connection disconnected during projector setup on Linux.
 #[cfg(target_os = "linux")]
 pub fn wifi_restore(orig_uuid: Option<String>) {
     if let Some(uuid) = orig_uuid {
@@ -171,6 +176,7 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // macOS (networksetup / airport)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Scans for available Wi-Fi networks using the `airport` utility on macOS.
 #[cfg(target_os = "macos")]
 fn scan_networks() -> Vec<WifiNetwork> {
     // macOS airport scan
@@ -229,6 +235,7 @@ fn scan_networks() -> Vec<WifiNetwork> {
     networks
 }
 
+/// Extracts a MAC address pattern from a line of text on macOS scan output.
 #[cfg(target_os = "macos")]
 fn find_mac_in_line(line: &str) -> Option<String> {
     // Find a MAC address pattern xx:xx:xx:xx:xx:xx in the line
@@ -247,6 +254,7 @@ fn find_mac_in_line(line: &str) -> Option<String> {
     None
 }
 
+/// Connects to the specified Wi-Fi network using the `networksetup` utility on macOS.
 #[cfg(target_os = "macos")]
 fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
     eprintln!("Attempting to connect to '{}'...", net.ssid);
@@ -259,6 +267,7 @@ fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
 }
 
 
+/// Retrieves the active Wi-Fi connection SSID using `networksetup` on macOS.
 #[cfg(target_os = "macos")]
 fn get_current_connection_id() -> Option<String> {
     Command::new("networksetup")
@@ -273,6 +282,7 @@ fn get_current_connection_id() -> Option<String> {
         .filter(|s| !s.is_empty())
 }
 
+/// Displays the currently connected Wi-Fi network to the user on macOS.
 #[cfg(target_os = "macos")]
 fn show_current_network() {
     if let Some(name) = get_current_connection_id() {
@@ -280,6 +290,7 @@ fn show_current_network() {
     }
 }
 
+/// Restores the original Wi-Fi connection disconnected during projector setup on macOS.
 #[cfg(target_os = "macos")]
 pub fn wifi_restore(orig_uuid: Option<String>) {
     if let Some(ssid) = orig_uuid {
@@ -297,6 +308,7 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // WINDOWS (netsh wlan)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Scans for available Wi-Fi networks using `netsh wlan` on Windows.
 #[cfg(target_os = "windows")]
 fn scan_networks() -> Vec<WifiNetwork> {
     let output = Command::new("netsh")
@@ -358,6 +370,7 @@ fn scan_networks() -> Vec<WifiNetwork> {
     networks
 }
 
+/// Connects to the specified Wi-Fi network using a temporary XML profile on Windows.
 #[cfg(target_os = "windows")]
 fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
     eprintln!("Attempting to connect to '{}'...", net.ssid);
@@ -398,6 +411,7 @@ fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
 }
 
 
+/// Retrieves the active Wi-Fi connection SSID using `netsh wlan` on Windows.
 #[cfg(target_os = "windows")]
 fn get_current_connection_id() -> Option<String> {
     Command::new("netsh")
@@ -421,6 +435,7 @@ fn get_current_connection_id() -> Option<String> {
         })
 }
 
+/// Displays the currently connected Wi-Fi network to the user on Windows.
 #[cfg(target_os = "windows")]
 fn show_current_network() {
     if let Some(name) = get_current_connection_id() {
@@ -428,6 +443,7 @@ fn show_current_network() {
     }
 }
 
+/// Restores the original Wi-Fi connection disconnected during projector setup on Windows.
 #[cfg(target_os = "windows")]
 pub fn wifi_restore(orig_uuid: Option<String>) {
     if let Some(ssid) = orig_uuid {
@@ -445,6 +461,7 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // SHARED: wifi_connect (same flow on all platforms)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Interactive flow to scan, select, and connect to a projector Wi-Fi network.
 pub fn wifi_connect() -> (Option<String>, String, String, String) {
     let current = get_current_connection_id();
     show_current_network();

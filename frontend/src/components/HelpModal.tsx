@@ -5,6 +5,7 @@ interface Props {
   onClose: () => void;
 }
 
+/** Modal displaying troubleshooting and usage instructions */
 export function HelpModal({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 

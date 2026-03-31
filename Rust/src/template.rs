@@ -24,6 +24,7 @@ pub struct Template {
 }
 
 impl Template {
+    /// Loads and parses the binary template file to locate JPEG injection slots.
     pub fn load(path: &str) -> io::Result<Self> {
         let buf = std::fs::read(path)?;
         let mut slots = Vec::new();
@@ -133,6 +134,7 @@ impl Template {
         })
     }
 
+    /// Injects a fully padded JPEG frame into the specified template slot.
     pub fn swap(&mut self, idx: usize, padded_jpeg: &[u8]) {
         let slot = &self.slots[idx];
         debug_assert_eq!(padded_jpeg.len(), slot.size);
@@ -140,6 +142,7 @@ impl Template {
     }
 }
 
+/// Searches for the end-of-image (FFD9) JPEG marker within a buffer.
 fn find_ffd9(buf: &[u8], start: usize) -> usize {
     let mut i = start;
     while i + 1 < buf.len() {
@@ -151,6 +154,7 @@ fn find_ffd9(buf: &[u8], start: usize) -> usize {
     0
 }
 
+/// Pads a generated JPEG to perfectly match the size required by the template slot by injecting COM markers.
 pub fn pad_jpeg(jpeg: &[u8], target_size: usize) -> Vec<u8> {
     if jpeg.len() >= target_size {
         // Truncate: replace last 2 bytes with FFD9
