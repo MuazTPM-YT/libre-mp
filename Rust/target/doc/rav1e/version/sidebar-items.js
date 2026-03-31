@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["full","hash","long","major","minor","patch","short"]};

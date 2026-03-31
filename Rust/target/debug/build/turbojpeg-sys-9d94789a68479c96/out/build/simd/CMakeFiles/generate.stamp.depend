@@ -1,0 +1,19 @@
+# CMake generation dependency list for this directory.
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeASMCompiler.cmake.in
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeASMInformation.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeASM_NASMInformation.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeCompilerIdDetection.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeDetermineASMCompiler.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeDetermineASM_NASMCompiler.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeDetermineCompiler.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeDetermineCompilerId.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeFindBinUtils.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeTestASMCompiler.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/CMakeTestASM_NASMCompiler.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/Internal/CMakeASMLinkerInformation.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/Internal/CMakeASM_NASMLinkerInformation.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/Internal/CMakeInspectASMLinker.cmake
+C:/Program Files/CMake/share/cmake-4.3/Modules/Internal/CMakeInspectASM_NASMLinker.cmake
+C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/CMakeLists.txt
+C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/CMakeFiles/4.3.1/CMakeASM_NASMCompiler.cmake
+C:\Program Files\CMake\share\cmake-4.3\Templates\MSBuild\nasm.props.in

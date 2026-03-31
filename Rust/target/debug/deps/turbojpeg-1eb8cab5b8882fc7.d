@@ -1,0 +1,12 @@
+C:\Users\User\Documents\libre-mp\Rust\target\debug\deps\turbojpeg-1eb8cab5b8882fc7.d: C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\lib.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\buf.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\common.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\compress.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\decompress.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\handle.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\image_internal.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\transform.rs
+
+C:\Users\User\Documents\libre-mp\Rust\target\debug\deps\libturbojpeg-1eb8cab5b8882fc7.rmeta: C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\lib.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\buf.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\common.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\compress.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\decompress.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\handle.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\image_internal.rs C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\transform.rs
+
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\lib.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\buf.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\common.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\compress.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\decompress.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\handle.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\image_internal.rs:
+C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-1.4.0\src\transform.rs:

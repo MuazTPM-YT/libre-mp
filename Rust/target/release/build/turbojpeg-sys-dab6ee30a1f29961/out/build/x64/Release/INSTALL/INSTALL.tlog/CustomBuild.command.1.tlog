@@ -1,0 +1,10 @@
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\RELEASE\BUILD\TURBOJPEG-SYS-DAB6EE30A1F29961\OUT\BUILD\CMAKEFILES\9EF3E192CEAE3E0A15D4971E1788E2F8\INSTALL_FORCE.RULE
+setlocal
+cd .
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

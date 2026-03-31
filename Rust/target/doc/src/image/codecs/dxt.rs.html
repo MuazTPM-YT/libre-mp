@@ -1,0 +1,351 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\image-0.25.10\src\codecs\dxt.rs`."><title>dxt.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="image" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">image\codecs/</div>dxt.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//!  Decoding of DXT (S3TC) compression
+<a href=#2 id=2 data-nosnippet>2</a>//!
+<a href=#3 id=3 data-nosnippet>3</a>//!  DXT is an image format that supports lossy compression
+<a href=#4 id=4 data-nosnippet>4</a>//!
+<a href=#5 id=5 data-nosnippet>5</a>//!  # Related Links
+<a href=#6 id=6 data-nosnippet>6</a>//!  * &lt;https://www.khronos.org/registry/OpenGL/extensions/EXT/EXT_texture_compression_s3tc.txt&gt; - Description of the DXT compression OpenGL extensions.
+<a href=#7 id=7 data-nosnippet>7</a>//!
+<a href=#8 id=8 data-nosnippet>8</a>//!  Note: this module only implements bare DXT encoding/decoding, it does not parse formats that can contain DXT files like .dds
+<a href=#9 id=9 data-nosnippet>9</a>
+<a href=#10 id=10 data-nosnippet>10</a></span><span class="kw">use </span>std::io::{<span class="self">self</span>, Read};
+<a href=#11 id=11 data-nosnippet>11</a>
+<a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span><span class="kw">crate</span>::color::ColorType;
+<a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span><span class="kw">crate</span>::error::{ImageError, ImageResult, ParameterError, ParameterErrorKind};
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span><span class="kw">crate</span>::io::ReadExt;
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span><span class="kw">crate</span>::ImageDecoder;
+<a href=#16 id=16 data-nosnippet>16</a>
+<a href=#17 id=17 data-nosnippet>17</a><span class="doccomment">/// What version of DXT compression are we using?
+<a href=#18 id=18 data-nosnippet>18</a>/// Note that DXT2 and DXT4 are left away as they're
+<a href=#19 id=19 data-nosnippet>19</a>/// just DXT3 and DXT5 with premultiplied alpha
+<a href=#20 id=20 data-nosnippet>20</a></span><span class="attr">#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+<a href=#21 id=21 data-nosnippet>21</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>DxtVariant {
+<a href=#22 id=22 data-nosnippet>22</a>    <span class="doccomment">/// The DXT1 format. 48 bytes of RGB data in a 4x4 pixel square is
+<a href=#23 id=23 data-nosnippet>23</a>    /// compressed into an 8 byte block of DXT1 data
+<a href=#24 id=24 data-nosnippet>24</a>    </span>DXT1,
+<a href=#25 id=25 data-nosnippet>25</a>    <span class="doccomment">/// The DXT3 format. 64 bytes of RGBA data in a 4x4 pixel square is
+<a href=#26 id=26 data-nosnippet>26</a>    /// compressed into a 16 byte block of DXT3 data
+<a href=#27 id=27 data-nosnippet>27</a>    </span>DXT3,
+<a href=#28 id=28 data-nosnippet>28</a>    <span class="doccomment">/// The DXT5 format. 64 bytes of RGBA data in a 4x4 pixel square is
+<a href=#29 id=29 data-nosnippet>29</a>    /// compressed into a 16 byte block of DXT5 data
+<a href=#30 id=30 data-nosnippet>30</a>    </span>DXT5,
+<a href=#31 id=31 data-nosnippet>31</a>}
+<a href=#32 id=32 data-nosnippet>32</a>
+<a href=#33 id=33 data-nosnippet>33</a><span class="kw">impl </span>DxtVariant {
+<a href=#34 id=34 data-nosnippet>34</a>    <span class="doccomment">/// Returns the amount of bytes of raw image data
+<a href=#35 id=35 data-nosnippet>35</a>    /// that is encoded in a single DXTn block
+<a href=#36 id=36 data-nosnippet>36</a>    </span><span class="kw">fn </span>decoded_bytes_per_block(<span class="self">self</span>) -&gt; usize {
+<a href=#37 id=37 data-nosnippet>37</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#38 id=38 data-nosnippet>38</a>            DxtVariant::DXT1 =&gt; <span class="number">48</span>,
+<a href=#39 id=39 data-nosnippet>39</a>            DxtVariant::DXT3 | DxtVariant::DXT5 =&gt; <span class="number">64</span>,
+<a href=#40 id=40 data-nosnippet>40</a>        }
+<a href=#41 id=41 data-nosnippet>41</a>    }
+<a href=#42 id=42 data-nosnippet>42</a>
+<a href=#43 id=43 data-nosnippet>43</a>    <span class="doccomment">/// Returns the amount of bytes per block of encoded DXTn data
+<a href=#44 id=44 data-nosnippet>44</a>    </span><span class="kw">fn </span>encoded_bytes_per_block(<span class="self">self</span>) -&gt; usize {
+<a href=#45 id=45 data-nosnippet>45</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#46 id=46 data-nosnippet>46</a>            DxtVariant::DXT1 =&gt; <span class="number">8</span>,
+<a href=#47 id=47 data-nosnippet>47</a>            DxtVariant::DXT3 | DxtVariant::DXT5 =&gt; <span class="number">16</span>,
+<a href=#48 id=48 data-nosnippet>48</a>        }
+<a href=#49 id=49 data-nosnippet>49</a>    }
+<a href=#50 id=50 data-nosnippet>50</a>
+<a href=#51 id=51 data-nosnippet>51</a>    <span class="doccomment">/// Returns the color type that is stored in this DXT variant
+<a href=#52 id=52 data-nosnippet>52</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>color_type(<span class="self">self</span>) -&gt; ColorType {
+<a href=#53 id=53 data-nosnippet>53</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#54 id=54 data-nosnippet>54</a>            DxtVariant::DXT1 =&gt; ColorType::Rgb8,
+<a href=#55 id=55 data-nosnippet>55</a>            DxtVariant::DXT3 | DxtVariant::DXT5 =&gt; ColorType::Rgba8,
+<a href=#56 id=56 data-nosnippet>56</a>        }
+<a href=#57 id=57 data-nosnippet>57</a>    }
+<a href=#58 id=58 data-nosnippet>58</a>}
+<a href=#59 id=59 data-nosnippet>59</a>
+<a href=#60 id=60 data-nosnippet>60</a><span class="doccomment">/// DXT decoder
+<a href=#61 id=61 data-nosnippet>61</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>DxtDecoder&lt;R: Read&gt; {
+<a href=#62 id=62 data-nosnippet>62</a>    inner: R,
+<a href=#63 id=63 data-nosnippet>63</a>    width_blocks: u32,
+<a href=#64 id=64 data-nosnippet>64</a>    height_blocks: u32,
+<a href=#65 id=65 data-nosnippet>65</a>    variant: DxtVariant,
+<a href=#66 id=66 data-nosnippet>66</a>    row: u32,
+<a href=#67 id=67 data-nosnippet>67</a>}
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a><span class="kw">impl</span>&lt;R: Read&gt; DxtDecoder&lt;R&gt; {
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Create a new DXT decoder that decodes from the stream ```r```.
+<a href=#71 id=71 data-nosnippet>71</a>    /// As DXT is often stored as raw buffers with the width/height
+<a href=#72 id=72 data-nosnippet>72</a>    /// somewhere else the width and height of the image need
+<a href=#73 id=73 data-nosnippet>73</a>    /// to be passed in ```width``` and ```height```, as well as the
+<a href=#74 id=74 data-nosnippet>74</a>    /// DXT variant in ```variant```.
+<a href=#75 id=75 data-nosnippet>75</a>    /// width and height are required to be powers of 2 and at least 4.
+<a href=#76 id=76 data-nosnippet>76</a>    /// otherwise an error will be returned
+<a href=#77 id=77 data-nosnippet>77</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+<a href=#78 id=78 data-nosnippet>78</a>        r: R,
+<a href=#79 id=79 data-nosnippet>79</a>        width: u32,
+<a href=#80 id=80 data-nosnippet>80</a>        height: u32,
+<a href=#81 id=81 data-nosnippet>81</a>        variant: DxtVariant,
+<a href=#82 id=82 data-nosnippet>82</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;DxtDecoder&lt;R&gt;, ImageError&gt; {
+<a href=#83 id=83 data-nosnippet>83</a>        <span class="kw">if </span>!width.is_multiple_of(<span class="number">4</span>) || !height.is_multiple_of(<span class="number">4</span>) {
+<a href=#84 id=84 data-nosnippet>84</a>            <span class="comment">// TODO: this is actually a bit of a weird case. We could return `DecodingError` but
+<a href=#85 id=85 data-nosnippet>85</a>            // it's not really the format that is wrong However, the encoder should surely return
+<a href=#86 id=86 data-nosnippet>86</a>            // `EncodingError` so it would be the logical choice for symmetry.
+<a href=#87 id=87 data-nosnippet>87</a>            </span><span class="kw">return </span><span class="prelude-val">Err</span>(ImageError::Parameter(ParameterError::from_kind(
+<a href=#88 id=88 data-nosnippet>88</a>                ParameterErrorKind::DimensionMismatch,
+<a href=#89 id=89 data-nosnippet>89</a>            )));
+<a href=#90 id=90 data-nosnippet>90</a>        }
+<a href=#91 id=91 data-nosnippet>91</a>        <span class="kw">let </span>width_blocks = width / <span class="number">4</span>;
+<a href=#92 id=92 data-nosnippet>92</a>        <span class="kw">let </span>height_blocks = height / <span class="number">4</span>;
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="prelude-val">Ok</span>(DxtDecoder {
+<a href=#94 id=94 data-nosnippet>94</a>            inner: r,
+<a href=#95 id=95 data-nosnippet>95</a>            width_blocks,
+<a href=#96 id=96 data-nosnippet>96</a>            height_blocks,
+<a href=#97 id=97 data-nosnippet>97</a>            variant,
+<a href=#98 id=98 data-nosnippet>98</a>            row: <span class="number">0</span>,
+<a href=#99 id=99 data-nosnippet>99</a>        })
+<a href=#100 id=100 data-nosnippet>100</a>    }
+<a href=#101 id=101 data-nosnippet>101</a>
+<a href=#102 id=102 data-nosnippet>102</a>    <span class="kw">fn </span>scanline_bytes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u64 {
+<a href=#103 id=103 data-nosnippet>103</a>        <span class="self">self</span>.variant.decoded_bytes_per_block() <span class="kw">as </span>u64 * u64::from(<span class="self">self</span>.width_blocks)
+<a href=#104 id=104 data-nosnippet>104</a>    }
+<a href=#105 id=105 data-nosnippet>105</a>
+<a href=#106 id=106 data-nosnippet>106</a>    <span class="kw">fn </span>read_scanline(<span class="kw-2">&amp;mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; io::Result&lt;usize&gt; {
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="macro">assert_eq!</span>(
+<a href=#108 id=108 data-nosnippet>108</a>            u64::try_from(buf.len()),
+<a href=#109 id=109 data-nosnippet>109</a>            <span class="prelude-val">Ok</span>(
+<a href=#110 id=110 data-nosnippet>110</a>                <span class="attr">#[allow(deprecated)]
+<a href=#111 id=111 data-nosnippet>111</a>                </span><span class="self">self</span>.scanline_bytes()
+<a href=#112 id=112 data-nosnippet>112</a>            )
+<a href=#113 id=113 data-nosnippet>113</a>        );
+<a href=#114 id=114 data-nosnippet>114</a>
+<a href=#115 id=115 data-nosnippet>115</a>        <span class="kw">let </span>len = <span class="self">self</span>.variant.encoded_bytes_per_block() * <span class="self">self</span>.width_blocks <span class="kw">as </span>usize;
+<a href=#116 id=116 data-nosnippet>116</a>        <span class="kw">let </span><span class="kw-2">mut </span>src = Vec::new();
+<a href=#117 id=117 data-nosnippet>117</a>        <span class="self">self</span>.inner.read_exact_vec(<span class="kw-2">&amp;mut </span>src, len)<span class="question-mark">?</span>;
+<a href=#118 id=118 data-nosnippet>118</a>
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">match </span><span class="self">self</span>.variant {
+<a href=#120 id=120 data-nosnippet>120</a>            DxtVariant::DXT1 =&gt; decode_dxt1_row(<span class="kw-2">&amp;</span>src, buf),
+<a href=#121 id=121 data-nosnippet>121</a>            DxtVariant::DXT3 =&gt; decode_dxt3_row(<span class="kw-2">&amp;</span>src, buf),
+<a href=#122 id=122 data-nosnippet>122</a>            DxtVariant::DXT5 =&gt; decode_dxt5_row(<span class="kw-2">&amp;</span>src, buf),
+<a href=#123 id=123 data-nosnippet>123</a>        }
+<a href=#124 id=124 data-nosnippet>124</a>        <span class="self">self</span>.row += <span class="number">1</span>;
+<a href=#125 id=125 data-nosnippet>125</a>        <span class="prelude-val">Ok</span>(buf.len())
+<a href=#126 id=126 data-nosnippet>126</a>    }
+<a href=#127 id=127 data-nosnippet>127</a>}
+<a href=#128 id=128 data-nosnippet>128</a>
+<a href=#129 id=129 data-nosnippet>129</a><span class="comment">// Note that, due to the way that DXT compression works, a scanline is considered to consist out of
+<a href=#130 id=130 data-nosnippet>130</a>// 4 lines of pixels.
+<a href=#131 id=131 data-nosnippet>131</a></span><span class="kw">impl</span>&lt;R: Read&gt; ImageDecoder <span class="kw">for </span>DxtDecoder&lt;R&gt; {
+<a href=#132 id=132 data-nosnippet>132</a>    <span class="kw">fn </span>dimensions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (u32, u32) {
+<a href=#133 id=133 data-nosnippet>133</a>        (<span class="self">self</span>.width_blocks * <span class="number">4</span>, <span class="self">self</span>.height_blocks * <span class="number">4</span>)
+<a href=#134 id=134 data-nosnippet>134</a>    }
+<a href=#135 id=135 data-nosnippet>135</a>
+<a href=#136 id=136 data-nosnippet>136</a>    <span class="kw">fn </span>color_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ColorType {
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.variant.color_type()
+<a href=#138 id=138 data-nosnippet>138</a>    }
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="kw">fn </span>read_image(<span class="kw-2">mut </span><span class="self">self</span>, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; ImageResult&lt;()&gt; {
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="macro">assert_eq!</span>(u64::try_from(buf.len()), <span class="prelude-val">Ok</span>(<span class="self">self</span>.total_bytes()));
+<a href=#142 id=142 data-nosnippet>142</a>
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="attr">#[allow(deprecated)]
+<a href=#144 id=144 data-nosnippet>144</a>        </span><span class="kw">for </span>chunk <span class="kw">in </span>buf.chunks_mut(<span class="self">self</span>.scanline_bytes().max(<span class="number">1</span>) <span class="kw">as </span>usize) {
+<a href=#145 id=145 data-nosnippet>145</a>            <span class="self">self</span>.read_scanline(chunk)<span class="question-mark">?</span>;
+<a href=#146 id=146 data-nosnippet>146</a>        }
+<a href=#147 id=147 data-nosnippet>147</a>        <span class="prelude-val">Ok</span>(())
+<a href=#148 id=148 data-nosnippet>148</a>    }
+<a href=#149 id=149 data-nosnippet>149</a>
+<a href=#150 id=150 data-nosnippet>150</a>    <span class="kw">fn </span>read_image_boxed(<span class="self">self</span>: Box&lt;<span class="self">Self</span>&gt;, buf: <span class="kw-2">&amp;mut </span>[u8]) -&gt; ImageResult&lt;()&gt; {
+<a href=#151 id=151 data-nosnippet>151</a>        (<span class="kw-2">*</span><span class="self">self</span>).read_image(buf)
+<a href=#152 id=152 data-nosnippet>152</a>    }
+<a href=#153 id=153 data-nosnippet>153</a>}
+<a href=#154 id=154 data-nosnippet>154</a>
+<a href=#155 id=155 data-nosnippet>155</a><span class="doccomment">/**
+<a href=#156 id=156 data-nosnippet>156</a> * Actual encoding/decoding logic below.
+<a href=#157 id=157 data-nosnippet>157</a> */
+<a href=#158 id=158 data-nosnippet>158</a></span><span class="kw">type </span>Rgb = [u8; <span class="number">3</span>];
+<a href=#159 id=159 data-nosnippet>159</a>
+<a href=#160 id=160 data-nosnippet>160</a><span class="doccomment">/// decodes a 5-bit R, 6-bit G, 5-bit B 16-bit packed color value into 8-bit RGB
+<a href=#161 id=161 data-nosnippet>161</a>/// mapping is done so min/max range values are preserved. So for 5-bit
+<a href=#162 id=162 data-nosnippet>162</a>/// values 0x00 -&gt; 0x00 and 0x1F -&gt; 0xFF
+<a href=#163 id=163 data-nosnippet>163</a></span><span class="kw">fn </span>enc565_decode(value: u16) -&gt; Rgb {
+<a href=#164 id=164 data-nosnippet>164</a>    <span class="kw">let </span>red = (value &gt;&gt; <span class="number">11</span>) &amp; <span class="number">0x1F</span>;
+<a href=#165 id=165 data-nosnippet>165</a>    <span class="kw">let </span>green = (value &gt;&gt; <span class="number">5</span>) &amp; <span class="number">0x3F</span>;
+<a href=#166 id=166 data-nosnippet>166</a>    <span class="kw">let </span>blue = (value) &amp; <span class="number">0x1F</span>;
+<a href=#167 id=167 data-nosnippet>167</a>    [
+<a href=#168 id=168 data-nosnippet>168</a>        (red * <span class="number">0xFF </span>/ <span class="number">0x1F</span>) <span class="kw">as </span>u8,
+<a href=#169 id=169 data-nosnippet>169</a>        (green * <span class="number">0xFF </span>/ <span class="number">0x3F</span>) <span class="kw">as </span>u8,
+<a href=#170 id=170 data-nosnippet>170</a>        (blue * <span class="number">0xFF </span>/ <span class="number">0x1F</span>) <span class="kw">as </span>u8,
+<a href=#171 id=171 data-nosnippet>171</a>    ]
+<a href=#172 id=172 data-nosnippet>172</a>}
+<a href=#173 id=173 data-nosnippet>173</a>
+<a href=#174 id=174 data-nosnippet>174</a><span class="comment">/*
+<a href=#175 id=175 data-nosnippet>175</a> * Functions for decoding DXT compression
+<a href=#176 id=176 data-nosnippet>176</a> */
+<a href=#177 id=177 data-nosnippet>177</a>
+<a href=#178 id=178 data-nosnippet>178</a></span><span class="doccomment">/// Constructs the DXT5 alpha lookup table from the two alpha entries
+<a href=#179 id=179 data-nosnippet>179</a>/// if alpha0 &gt; alpha1, constructs a table of [a0, a1, 6 linearly interpolated values from a0 to a1]
+<a href=#180 id=180 data-nosnippet>180</a>/// if alpha0 &lt;= alpha1, constructs a table of [a0, a1, 4 linearly interpolated values from a0 to a1, 0, 0xFF]
+<a href=#181 id=181 data-nosnippet>181</a></span><span class="kw">fn </span>alpha_table_dxt5(alpha0: u8, alpha1: u8) -&gt; [u8; <span class="number">8</span>] {
+<a href=#182 id=182 data-nosnippet>182</a>    <span class="kw">let </span><span class="kw-2">mut </span>table = [alpha0, alpha1, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0xFF</span>];
+<a href=#183 id=183 data-nosnippet>183</a>    <span class="kw">if </span>alpha0 &gt; alpha1 {
+<a href=#184 id=184 data-nosnippet>184</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">2</span>..<span class="number">8u16 </span>{
+<a href=#185 id=185 data-nosnippet>185</a>            table[i <span class="kw">as </span>usize] =
+<a href=#186 id=186 data-nosnippet>186</a>                (((<span class="number">8 </span>- i) * u16::from(alpha0) + (i - <span class="number">1</span>) * u16::from(alpha1)) / <span class="number">7</span>) <span class="kw">as </span>u8;
+<a href=#187 id=187 data-nosnippet>187</a>        }
+<a href=#188 id=188 data-nosnippet>188</a>    } <span class="kw">else </span>{
+<a href=#189 id=189 data-nosnippet>189</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">2</span>..<span class="number">6u16 </span>{
+<a href=#190 id=190 data-nosnippet>190</a>            table[i <span class="kw">as </span>usize] =
+<a href=#191 id=191 data-nosnippet>191</a>                (((<span class="number">6 </span>- i) * u16::from(alpha0) + (i - <span class="number">1</span>) * u16::from(alpha1)) / <span class="number">5</span>) <span class="kw">as </span>u8;
+<a href=#192 id=192 data-nosnippet>192</a>        }
+<a href=#193 id=193 data-nosnippet>193</a>    }
+<a href=#194 id=194 data-nosnippet>194</a>    table
+<a href=#195 id=195 data-nosnippet>195</a>}
+<a href=#196 id=196 data-nosnippet>196</a>
+<a href=#197 id=197 data-nosnippet>197</a><span class="doccomment">/// decodes an 8-byte dxt color block into the RGB channels of a 16xRGB or 16xRGBA block.
+<a href=#198 id=198 data-nosnippet>198</a>/// source should have a length of 8, dest a length of 48 (RGB) or 64 (RGBA)
+<a href=#199 id=199 data-nosnippet>199</a></span><span class="attr">#[allow(clippy::needless_range_loop)] </span><span class="comment">// False positive, the 0..3 loop is not an enumerate
+<a href=#200 id=200 data-nosnippet>200</a></span><span class="kw">fn </span>decode_dxt_colors(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8], is_dxt1: bool) {
+<a href=#201 id=201 data-nosnippet>201</a>    <span class="comment">// sanity checks, also enable the compiler to elide all following bound checks
+<a href=#202 id=202 data-nosnippet>202</a>    </span><span class="macro">assert!</span>(source.len() == <span class="number">8 </span>&amp;&amp; (dest.len() == <span class="number">48 </span>|| dest.len() == <span class="number">64</span>));
+<a href=#203 id=203 data-nosnippet>203</a>    <span class="comment">// calculate pitch to store RGB values in dest (3 for RGB, 4 for RGBA)
+<a href=#204 id=204 data-nosnippet>204</a>    </span><span class="kw">let </span>pitch = dest.len() / <span class="number">16</span>;
+<a href=#205 id=205 data-nosnippet>205</a>
+<a href=#206 id=206 data-nosnippet>206</a>    <span class="comment">// extract color data
+<a href=#207 id=207 data-nosnippet>207</a>    </span><span class="kw">let </span>color0 = u16::from(source[<span class="number">0</span>]) | (u16::from(source[<span class="number">1</span>]) &lt;&lt; <span class="number">8</span>);
+<a href=#208 id=208 data-nosnippet>208</a>    <span class="kw">let </span>color1 = u16::from(source[<span class="number">2</span>]) | (u16::from(source[<span class="number">3</span>]) &lt;&lt; <span class="number">8</span>);
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">let </span>color_table = u32::from(source[<span class="number">4</span>])
+<a href=#210 id=210 data-nosnippet>210</a>        | (u32::from(source[<span class="number">5</span>]) &lt;&lt; <span class="number">8</span>)
+<a href=#211 id=211 data-nosnippet>211</a>        | (u32::from(source[<span class="number">6</span>]) &lt;&lt; <span class="number">16</span>)
+<a href=#212 id=212 data-nosnippet>212</a>        | (u32::from(source[<span class="number">7</span>]) &lt;&lt; <span class="number">24</span>);
+<a href=#213 id=213 data-nosnippet>213</a>    <span class="comment">// let color_table = source[4..8].iter().rev().fold(0, |t, &amp;b| (t &lt;&lt; 8) | b as u32);
+<a href=#214 id=214 data-nosnippet>214</a>
+<a href=#215 id=215 data-nosnippet>215</a>    // decode the colors to rgb format
+<a href=#216 id=216 data-nosnippet>216</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>colors = [[<span class="number">0</span>; <span class="number">3</span>]; <span class="number">4</span>];
+<a href=#217 id=217 data-nosnippet>217</a>    colors[<span class="number">0</span>] = enc565_decode(color0);
+<a href=#218 id=218 data-nosnippet>218</a>    colors[<span class="number">1</span>] = enc565_decode(color1);
+<a href=#219 id=219 data-nosnippet>219</a>
+<a href=#220 id=220 data-nosnippet>220</a>    <span class="comment">// determine color interpolation method
+<a href=#221 id=221 data-nosnippet>221</a>    </span><span class="kw">if </span>color0 &gt; color1 || !is_dxt1 {
+<a href=#222 id=222 data-nosnippet>222</a>        <span class="comment">// linearly interpolate the other two color table entries
+<a href=#223 id=223 data-nosnippet>223</a>        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">3 </span>{
+<a href=#224 id=224 data-nosnippet>224</a>            colors[<span class="number">2</span>][i] = ((u16::from(colors[<span class="number">0</span>][i]) * <span class="number">2 </span>+ u16::from(colors[<span class="number">1</span>][i]) + <span class="number">1</span>) / <span class="number">3</span>) <span class="kw">as </span>u8;
+<a href=#225 id=225 data-nosnippet>225</a>            colors[<span class="number">3</span>][i] = ((u16::from(colors[<span class="number">0</span>][i]) + u16::from(colors[<span class="number">1</span>][i]) * <span class="number">2 </span>+ <span class="number">1</span>) / <span class="number">3</span>) <span class="kw">as </span>u8;
+<a href=#226 id=226 data-nosnippet>226</a>        }
+<a href=#227 id=227 data-nosnippet>227</a>    } <span class="kw">else </span>{
+<a href=#228 id=228 data-nosnippet>228</a>        <span class="comment">// linearly interpolate one other entry, keep the other at 0
+<a href=#229 id=229 data-nosnippet>229</a>        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">3 </span>{
+<a href=#230 id=230 data-nosnippet>230</a>            colors[<span class="number">2</span>][i] = (u16::from(colors[<span class="number">0</span>][i]) + u16::from(colors[<span class="number">1</span>][i])).div_ceil(<span class="number">2</span>) <span class="kw">as </span>u8;
+<a href=#231 id=231 data-nosnippet>231</a>        }
+<a href=#232 id=232 data-nosnippet>232</a>    }
+<a href=#233 id=233 data-nosnippet>233</a>
+<a href=#234 id=234 data-nosnippet>234</a>    <span class="comment">// serialize the result. Every color is determined by looking up
+<a href=#235 id=235 data-nosnippet>235</a>    // two bits in color_table which identify which color to actually pick from the 4 possible colors
+<a href=#236 id=236 data-nosnippet>236</a>    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
+<a href=#237 id=237 data-nosnippet>237</a>        dest[i * pitch..i * pitch + <span class="number">3</span>]
+<a href=#238 id=238 data-nosnippet>238</a>            .copy_from_slice(<span class="kw-2">&amp;</span>colors[(color_table &gt;&gt; (i * <span class="number">2</span>)) <span class="kw">as </span>usize &amp; <span class="number">3</span>]);
+<a href=#239 id=239 data-nosnippet>239</a>    }
+<a href=#240 id=240 data-nosnippet>240</a>}
+<a href=#241 id=241 data-nosnippet>241</a>
+<a href=#242 id=242 data-nosnippet>242</a><span class="doccomment">/// Decodes a 16-byte bock of dxt5 data to a 16xRGBA block
+<a href=#243 id=243 data-nosnippet>243</a></span><span class="kw">fn </span>decode_dxt5_block(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#244 id=244 data-nosnippet>244</a>    <span class="macro">assert!</span>(source.len() == <span class="number">16 </span>&amp;&amp; dest.len() == <span class="number">64</span>);
+<a href=#245 id=245 data-nosnippet>245</a>
+<a href=#246 id=246 data-nosnippet>246</a>    <span class="comment">// extract alpha index table (stored as little endian 64-bit value)
+<a href=#247 id=247 data-nosnippet>247</a>    </span><span class="kw">let </span>alpha_table = source[<span class="number">2</span>..<span class="number">8</span>]
+<a href=#248 id=248 data-nosnippet>248</a>        .iter()
+<a href=#249 id=249 data-nosnippet>249</a>        .rev()
+<a href=#250 id=250 data-nosnippet>250</a>        .fold(<span class="number">0</span>, |t, <span class="kw-2">&amp;</span>b| (t &lt;&lt; <span class="number">8</span>) | u64::from(b));
+<a href=#251 id=251 data-nosnippet>251</a>
+<a href=#252 id=252 data-nosnippet>252</a>    <span class="comment">// alpha level decode
+<a href=#253 id=253 data-nosnippet>253</a>    </span><span class="kw">let </span>alphas = alpha_table_dxt5(source[<span class="number">0</span>], source[<span class="number">1</span>]);
+<a href=#254 id=254 data-nosnippet>254</a>
+<a href=#255 id=255 data-nosnippet>255</a>    <span class="comment">// serialize alpha
+<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
+<a href=#257 id=257 data-nosnippet>257</a>        dest[i * <span class="number">4 </span>+ <span class="number">3</span>] = alphas[(alpha_table &gt;&gt; (i * <span class="number">3</span>)) <span class="kw">as </span>usize &amp; <span class="number">7</span>];
+<a href=#258 id=258 data-nosnippet>258</a>    }
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>    <span class="comment">// handle colors
+<a href=#261 id=261 data-nosnippet>261</a>    </span>decode_dxt_colors(<span class="kw-2">&amp;</span>source[<span class="number">8</span>..<span class="number">16</span>], dest, <span class="bool-val">false</span>);
+<a href=#262 id=262 data-nosnippet>262</a>}
+<a href=#263 id=263 data-nosnippet>263</a>
+<a href=#264 id=264 data-nosnippet>264</a><span class="doccomment">/// Decodes a 16-byte bock of dxt3 data to a 16xRGBA block
+<a href=#265 id=265 data-nosnippet>265</a></span><span class="kw">fn </span>decode_dxt3_block(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#266 id=266 data-nosnippet>266</a>    <span class="macro">assert!</span>(source.len() == <span class="number">16 </span>&amp;&amp; dest.len() == <span class="number">64</span>);
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="comment">// extract alpha index table (stored as little endian 64-bit value)
+<a href=#269 id=269 data-nosnippet>269</a>    </span><span class="kw">let </span>alpha_table = source[<span class="number">0</span>..<span class="number">8</span>]
+<a href=#270 id=270 data-nosnippet>270</a>        .iter()
+<a href=#271 id=271 data-nosnippet>271</a>        .rev()
+<a href=#272 id=272 data-nosnippet>272</a>        .fold(<span class="number">0</span>, |t, <span class="kw-2">&amp;</span>b| (t &lt;&lt; <span class="number">8</span>) | u64::from(b));
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>    <span class="comment">// serialize alpha (stored as 4-bit values)
+<a href=#275 id=275 data-nosnippet>275</a>    </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..<span class="number">16 </span>{
+<a href=#276 id=276 data-nosnippet>276</a>        dest[i * <span class="number">4 </span>+ <span class="number">3</span>] = ((alpha_table &gt;&gt; (i * <span class="number">4</span>)) <span class="kw">as </span>u8 &amp; <span class="number">0xF</span>) * <span class="number">0x11</span>;
+<a href=#277 id=277 data-nosnippet>277</a>    }
+<a href=#278 id=278 data-nosnippet>278</a>
+<a href=#279 id=279 data-nosnippet>279</a>    <span class="comment">// handle colors
+<a href=#280 id=280 data-nosnippet>280</a>    </span>decode_dxt_colors(<span class="kw-2">&amp;</span>source[<span class="number">8</span>..<span class="number">16</span>], dest, <span class="bool-val">false</span>);
+<a href=#281 id=281 data-nosnippet>281</a>}
+<a href=#282 id=282 data-nosnippet>282</a>
+<a href=#283 id=283 data-nosnippet>283</a><span class="doccomment">/// Decodes a 8-byte bock of dxt5 data to a 16xRGB block
+<a href=#284 id=284 data-nosnippet>284</a></span><span class="kw">fn </span>decode_dxt1_block(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="macro">assert!</span>(source.len() == <span class="number">8 </span>&amp;&amp; dest.len() == <span class="number">48</span>);
+<a href=#286 id=286 data-nosnippet>286</a>    decode_dxt_colors(source, dest, <span class="bool-val">true</span>);
+<a href=#287 id=287 data-nosnippet>287</a>}
+<a href=#288 id=288 data-nosnippet>288</a>
+<a href=#289 id=289 data-nosnippet>289</a><span class="doccomment">/// Decode a row of DXT1 data to four rows of RGB data.
+<a href=#290 id=290 data-nosnippet>290</a>/// `source.len()` should be a multiple of 8, otherwise this panics.
+<a href=#291 id=291 data-nosnippet>291</a></span><span class="kw">fn </span>decode_dxt1_row(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="macro">assert!</span>(source.len().is_multiple_of(<span class="number">8</span>));
+<a href=#293 id=293 data-nosnippet>293</a>    <span class="kw">let </span>block_count = source.len() / <span class="number">8</span>;
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="macro">assert!</span>(dest.len() &gt;= block_count * <span class="number">48</span>);
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="comment">// contains the 16 decoded pixels per block
+<a href=#297 id=297 data-nosnippet>297</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>decoded_block = [<span class="number">0u8</span>; <span class="number">48</span>];
+<a href=#298 id=298 data-nosnippet>298</a>
+<a href=#299 id=299 data-nosnippet>299</a>    <span class="kw">for </span>(x, encoded_block) <span class="kw">in </span>source.chunks(<span class="number">8</span>).enumerate() {
+<a href=#300 id=300 data-nosnippet>300</a>        decode_dxt1_block(encoded_block, <span class="kw-2">&amp;mut </span>decoded_block);
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="comment">// copy the values from the decoded block to linewise RGB layout
+<a href=#303 id=303 data-nosnippet>303</a>        </span><span class="kw">for </span>line <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
+<a href=#304 id=304 data-nosnippet>304</a>            <span class="kw">let </span>offset = (block_count * line + x) * <span class="number">12</span>;
+<a href=#305 id=305 data-nosnippet>305</a>            dest[offset..offset + <span class="number">12</span>].copy_from_slice(<span class="kw-2">&amp;</span>decoded_block[line * <span class="number">12</span>..(line + <span class="number">1</span>) * <span class="number">12</span>]);
+<a href=#306 id=306 data-nosnippet>306</a>        }
+<a href=#307 id=307 data-nosnippet>307</a>    }
+<a href=#308 id=308 data-nosnippet>308</a>}
+<a href=#309 id=309 data-nosnippet>309</a>
+<a href=#310 id=310 data-nosnippet>310</a><span class="doccomment">/// Decode a row of DXT3 data to four rows of RGBA data.
+<a href=#311 id=311 data-nosnippet>311</a>/// `source.len()` should be a multiple of 16, otherwise this panics.
+<a href=#312 id=312 data-nosnippet>312</a></span><span class="kw">fn </span>decode_dxt3_row(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#313 id=313 data-nosnippet>313</a>    <span class="macro">assert!</span>(source.len().is_multiple_of(<span class="number">16</span>));
+<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">let </span>block_count = source.len() / <span class="number">16</span>;
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="macro">assert!</span>(dest.len() &gt;= block_count * <span class="number">64</span>);
+<a href=#316 id=316 data-nosnippet>316</a>
+<a href=#317 id=317 data-nosnippet>317</a>    <span class="comment">// contains the 16 decoded pixels per block
+<a href=#318 id=318 data-nosnippet>318</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>decoded_block = [<span class="number">0u8</span>; <span class="number">64</span>];
+<a href=#319 id=319 data-nosnippet>319</a>
+<a href=#320 id=320 data-nosnippet>320</a>    <span class="kw">for </span>(x, encoded_block) <span class="kw">in </span>source.chunks(<span class="number">16</span>).enumerate() {
+<a href=#321 id=321 data-nosnippet>321</a>        decode_dxt3_block(encoded_block, <span class="kw-2">&amp;mut </span>decoded_block);
+<a href=#322 id=322 data-nosnippet>322</a>
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="comment">// copy the values from the decoded block to linewise RGB layout
+<a href=#324 id=324 data-nosnippet>324</a>        </span><span class="kw">for </span>line <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
+<a href=#325 id=325 data-nosnippet>325</a>            <span class="kw">let </span>offset = (block_count * line + x) * <span class="number">16</span>;
+<a href=#326 id=326 data-nosnippet>326</a>            dest[offset..offset + <span class="number">16</span>].copy_from_slice(<span class="kw-2">&amp;</span>decoded_block[line * <span class="number">16</span>..(line + <span class="number">1</span>) * <span class="number">16</span>]);
+<a href=#327 id=327 data-nosnippet>327</a>        }
+<a href=#328 id=328 data-nosnippet>328</a>    }
+<a href=#329 id=329 data-nosnippet>329</a>}
+<a href=#330 id=330 data-nosnippet>330</a>
+<a href=#331 id=331 data-nosnippet>331</a><span class="doccomment">/// Decode a row of DXT5 data to four rows of RGBA data.
+<a href=#332 id=332 data-nosnippet>332</a>/// `source.len()` should be a multiple of 16, otherwise this panics.
+<a href=#333 id=333 data-nosnippet>333</a></span><span class="kw">fn </span>decode_dxt5_row(source: <span class="kw-2">&amp;</span>[u8], dest: <span class="kw-2">&amp;mut </span>[u8]) {
+<a href=#334 id=334 data-nosnippet>334</a>    <span class="macro">assert!</span>(source.len().is_multiple_of(<span class="number">16</span>));
+<a href=#335 id=335 data-nosnippet>335</a>    <span class="kw">let </span>block_count = source.len() / <span class="number">16</span>;
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="macro">assert!</span>(dest.len() &gt;= block_count * <span class="number">64</span>);
+<a href=#337 id=337 data-nosnippet>337</a>
+<a href=#338 id=338 data-nosnippet>338</a>    <span class="comment">// contains the 16 decoded pixels per block
+<a href=#339 id=339 data-nosnippet>339</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>decoded_block = [<span class="number">0u8</span>; <span class="number">64</span>];
+<a href=#340 id=340 data-nosnippet>340</a>
+<a href=#341 id=341 data-nosnippet>341</a>    <span class="kw">for </span>(x, encoded_block) <span class="kw">in </span>source.chunks(<span class="number">16</span>).enumerate() {
+<a href=#342 id=342 data-nosnippet>342</a>        decode_dxt5_block(encoded_block, <span class="kw-2">&amp;mut </span>decoded_block);
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a>        <span class="comment">// copy the values from the decoded block to linewise RGB layout
+<a href=#345 id=345 data-nosnippet>345</a>        </span><span class="kw">for </span>line <span class="kw">in </span><span class="number">0</span>..<span class="number">4 </span>{
+<a href=#346 id=346 data-nosnippet>346</a>            <span class="kw">let </span>offset = (block_count * line + x) * <span class="number">16</span>;
+<a href=#347 id=347 data-nosnippet>347</a>            dest[offset..offset + <span class="number">16</span>].copy_from_slice(<span class="kw-2">&amp;</span>decoded_block[line * <span class="number">16</span>..(line + <span class="number">1</span>) * <span class="number">16</span>]);
+<a href=#348 id=348 data-nosnippet>348</a>        }
+<a href=#349 id=349 data-nosnippet>349</a>    }
+<a href=#350 id=350 data-nosnippet>350</a>}
+</code></pre></div></section></main></body></html>

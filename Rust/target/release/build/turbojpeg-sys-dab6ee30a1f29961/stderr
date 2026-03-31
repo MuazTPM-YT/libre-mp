@@ -1,0 +1,11 @@
+running: "cmake" "C:\\Users\\User\\.cargo\\registry\\src\\index.crates.io-1949cf8c6b5b557f\\turbojpeg-sys-1.1.1\\libjpeg-turbo" "-B" "C:\\Users\\User\\Documents\\libre-mp\\Rust\\target\\release\\build\\turbojpeg-sys-dab6ee30a1f29961\\out\\build" "-G" "Visual Studio 17 2022" "-Thost=x64" "-Ax64" "-DCMAKE_INSTALL_DEFAULT_LIBDIR=lib" "-DCMAKE_INSTALL_PREFIX=C:\\Users\\User\\Documents\\libre-mp\\Rust\\target\\release\\build\\turbojpeg-sys-dab6ee30a1f29961\\out" "-DCMAKE_C_FLAGS= -nologo -MD -Brepro -W0" "-DCMAKE_C_FLAGS_RELEASE= -nologo -MD -Brepro -W0" "-DCMAKE_CXX_FLAGS= -nologo -MD -Brepro -W0" "-DCMAKE_CXX_FLAGS_RELEASE= -nologo -MD -Brepro -W0" "-DCMAKE_ASM_FLAGS= -nologo -MD -Brepro -W0" "-DCMAKE_ASM_FLAGS_RELEASE= -nologo -MD -Brepro -W0" "-DCMAKE_BUILD_TYPE=Release" "-DENABLE_SHARED=0" "-DENABLE_STATIC=1" "-DREQUIRE_SIMD=ON"
+CMake Warning:
+  Manually-specified variables were not used by the project:
+
+    CMAKE_ASM_FLAGS
+    CMAKE_ASM_FLAGS_RELEASE
+    CMAKE_CXX_FLAGS
+    CMAKE_CXX_FLAGS_RELEASE
+
+
+running: "cmake" "--build" "C:\\Users\\User\\Documents\\libre-mp\\Rust\\target\\release\\build\\turbojpeg-sys-dab6ee30a1f29961\\out\\build" "--target" "install" "--config" "Release" "--parallel" "32"

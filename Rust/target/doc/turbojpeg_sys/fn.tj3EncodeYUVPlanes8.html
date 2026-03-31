@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Encode an 8-bit-per-sample packed-pixel RGB or grayscale image into separate 8-bit-per-sample Y, U (Cb), and V (Cr) image planes.  This function performs color conversion (which is accelerated in the libjpeg-turbo implementation) but does not execute any of the other steps in the JPEG compression process."><title>tj3EncodeYUVPlanes8 in turbojpeg_sys - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="turbojpeg_sys" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">tj3EncodeYUVPlanes8</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../turbojpeg_sys/index.html">turbojpeg_<wbr>sys</a><span class="version">1.1.1</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">turbojpeg_sys</a></div><h1>Function <span class="fn">tj3EncodeYUV<wbr>Planes8</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/turbojpeg_sys/Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out/bindings.rs.html#1597-1606">Source</a> </span></div><pre class="rust item-decl"><code>pub unsafe extern &quot;C&quot; fn tj3EncodeYUVPlanes8(
+    handle: <a class="type" href="type.tjhandle.html" title="type turbojpeg_sys::tjhandle">tjhandle</a>,
+    srcBuf: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*const </a><a class="type" href="../libc/primitives/type.c_uchar.html" title="type libc::primitives::c_uchar">c_uchar</a>,
+    width: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    pitch: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    height: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    pixelFormat: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    dstPlanes: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="type" href="../libc/primitives/type.c_uchar.html" title="type libc::primitives::c_uchar">c_uchar</a>,
+    strides: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+) -&gt; <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Encode an 8-bit-per-sample packed-pixel RGB or grayscale image into separate
+8-bit-per-sample Y, U (Cb), and V (Cr) image planes.  This function performs
+color conversion (which is accelerated in the libjpeg-turbo implementation)
+but does not execute any of the other steps in the JPEG compression process.</p>
+<p>@param handle handle to a TurboJPEG instance that has been initialized for
+compression</p>
+<p>@param srcBuf pointer to a buffer containing a packed-pixel RGB or grayscale
+source image to be encoded.  This buffer should normally be <code>pitch * height</code>
+bytes in size.  However, you can also use this parameter to encode from a
+specific region of a larger buffer.</p>
+<p>@param width width (in pixels) of the source image</p>
+<p>@param pitch bytes per row in the source image.  Normally this should be
+<tt>width * #tjPixelSize[pixelFormat]</tt>, if the image is unpadded.
+(Setting this parameter to 0 is the equivalent of setting it to
+<tt>width * #tjPixelSize[pixelFormat]</tt>.)  However, you can also use this
+parameter to specify the row alignment/padding of the source image, to skip
+rows, or to encode from a specific region of a larger packed-pixel image.</p>
+<p>@param height height (in pixels) of the source image</p>
+<p>@param pixelFormat pixel format of the source image (see @ref TJPF
+“Pixel formats”.)</p>
+<p>@param dstPlanes an array of pointers to Y, U (Cb), and V (Cr) image planes
+(or just a Y plane, if generating a grayscale image) that will receive the
+encoded image.  These planes can be contiguous or non-contiguous in memory.
+Use #tj3YUVPlaneSize() to determine the appropriate size for each plane
+based on the image width, height, strides, and level of chrominance
+subsampling (see #TJPARAM_SUBSAMP.)  Refer to @ref YUVnotes
+“YUV Image Format Notes” for more details.</p>
+<p>@param strides an array of integers, each specifying the number of bytes per
+row in the corresponding plane of the YUV image.  Setting the stride for any
+plane to 0 is the same as setting it to the plane width (see @ref YUVnotes
+“YUV Image Format Notes”.)  If <code>strides</code> is NULL, then the strides for all
+planes will be set to their respective plane widths.  You can adjust the
+strides in order to add an arbitrary amount of row padding to each plane or
+to encode an RGB or grayscale image into a subregion of a larger planar YUV
+image.</p>
+<p>@return 0 if successful, or -1 if an error occurred (see #tj3GetErrorStr()
+and #tj3GetErrorCode().)</p>
+</div></details></section></div></main></body></html>

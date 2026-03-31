@@ -1,0 +1,10 @@
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\BBFD3D14F8550D76C73A0C5E2E8758F2\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo -BC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/libjpeg-turbo.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

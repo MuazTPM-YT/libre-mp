@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\CMakeFiles\9ef3e192ceae3e0a15d4971e1788e2f8\uninstall.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\CMakeFiles\uninstall" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{0690DE4E-5BCD-3A89-B2BA-6EE41F489270}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

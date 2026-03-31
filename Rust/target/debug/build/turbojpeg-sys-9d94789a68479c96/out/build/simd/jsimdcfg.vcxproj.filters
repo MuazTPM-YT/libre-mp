@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\CMakeFiles\c5e3c8c9277225cb0db62dc686dc81db\jsimdcfg.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+    <CustomBuild Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\simd\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\simd\CMakeFiles\jsimdcfg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{72913CAF-D6E5-3C4A-95FD-6B678D906D1E}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

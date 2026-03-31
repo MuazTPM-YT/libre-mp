@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Compression"],"mod":["colortype","compression"],"struct":["DirectoryEncoder","DirectoryOffset","Ifd","Ifd8","ImageEncoder","Rational","SRational","TiffEncoder","TiffKindBig","TiffKindStandard"],"trait":["TiffKind","TiffValue"],"type":["DeflateLevel","Predictor"]};

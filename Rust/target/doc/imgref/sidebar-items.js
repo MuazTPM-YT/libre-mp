@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["Img","PixelsIter","PixelsIterMut","PixelsRefIter","RowsIter","RowsIterMut"],"trait":["ImgExt","ImgExtMut"],"type":["ImgRef","ImgRefMut","ImgVec"]};

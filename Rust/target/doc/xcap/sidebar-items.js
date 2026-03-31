@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["XCapError"],"struct":["Frame","Monitor","VideoRecorder","Window"],"type":["XCapResult"]};

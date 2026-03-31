@@ -1,0 +1,408 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcapistd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jccolor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcdiffct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jclossls.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcmainct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcprepct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcsample.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdapistd.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdcolor.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jddiffct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdlossls.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdmainct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdpostct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdsample.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jutils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jccoefct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcdctmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdcoefct.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jddctmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdmerge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jfdctfst.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jfdctint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jidctflt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jidctfst.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jidctint.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jidctred.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jquant1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jquant2.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcapimin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jchuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcicc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcinit.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jclhuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcmarker.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcmaster.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcomapi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcparam.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcphuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jctrans.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdapimin.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdatadst.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdatasrc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdhuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdicc.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdinput.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdlhuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdmarker.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdmaster.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdphuff.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdtrans.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jerror.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jfdctflt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jmemmgr.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jmemnobs.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jpeg_nbits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jaricom.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jcarith.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\src\jdarith.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\libjpeg-turbo\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\simd.dir\$(Configuration)\jsimd.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jsimdcpu.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jfdctflt-sse.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jccolor-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jcgray-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jchuff-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jcphuff-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jcsample-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdcolor-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdmerge-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdsample-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jfdctfst-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jfdctint-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jidctflt-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jidctfst-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jidctint-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jidctred-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jquantf-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jquanti-sse2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jccolor-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jcgray-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jcsample-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdcolor-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdmerge-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jdsample-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jfdctint-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jidctint-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\simd\$(Configuration)\jquanti-avx2.asm.obj">
+      <Filter>Object Files</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcapistd.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jccolor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcdiffct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jclossls.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcmainct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcprepct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcsample.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdapistd.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdcolor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jddiffct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdlossls.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdmainct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdpostct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdsample.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jutils.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jccoefct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jcdctmgr.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdcoefct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jddctmgr.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jdmerge.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jfdctfst.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jfdctint.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jidctflt.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jidctfst.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jidctint.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jidctred.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jquant1.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg12-static.dir\$(Configuration)\jquant2.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jcapistd.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jccolor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jcdiffct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jclossls.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jcmainct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jcprepct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jcsample.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdapistd.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdcolor.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jddiffct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdlossls.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdmainct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdpostct.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jdsample.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+    <Object Include="C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\jpeg16-static.dir\$(Configuration)\jutils.obj">
+      <Filter>Object Libraries</Filter>
+    </Object>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Object Files">
+      <UniqueIdentifier>{7CF41545-EB17-3B9A-88BD-5B5A0D1E91D0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Object Libraries">
+      <UniqueIdentifier>{40F53636-E09D-3EEC-ADC6-07D5D7ACA3BD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{AE6F531A-8376-3AB3-B14C-0D423CD1260D}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

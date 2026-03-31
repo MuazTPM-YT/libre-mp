@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Implement `std::fmt::Display`, `std::str::FromStr` and `variants()`."><title>ArgEnum in arg_enum_proc_macro - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="arg_enum_proc_macro" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc derive"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">ArgEnum</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../arg_enum_proc_macro/index.html">arg_<wbr>enum_<wbr>proc_<wbr>macro</a><span class="version">0.3.4</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">arg_enum_proc_macro</a></div><h1>Derive Macro <span class="derive">ArgEnum</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/arg_enum_proc_macro/lib.rs.html#93-280">Source</a> </span></div><pre class="rust item-decl"><code>#[derive(ArgEnum)]
+{
+    <span class="comment">// Attributes available to this derive:</span>
+    #[arg_enum]
+}
+</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Implement <a href="https://doc.rust-lang.org/1.94.1/core/fmt/trait.Display.html" title="trait core::fmt::Display"><code>std::fmt::Display</code></a>, <a href="https://doc.rust-lang.org/1.94.1/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr"><code>std::str::FromStr</code></a> and <code>variants()</code>.</p>
+<p>The invocation:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>arg_enum_proc_macro::ArgEnum;
+
+<span class="attr">#[derive(ArgEnum)]
+</span><span class="kw">enum </span>Foo {
+    A,
+    <span class="doccomment">/// Describe B
+    </span><span class="attr">#[arg_enum(alias = <span class="string">"Bar"</span>)]
+    </span>B,
+    <span class="doccomment">/// Describe C
+    /// Multiline
+    </span><span class="attr">#[arg_enum(name = <span class="string">"Baz"</span>)]
+    </span>C,
+}</code></pre></div>
+<p>produces:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">enum </span>Foo {
+    A,
+    B,
+    C
+}
+<span class="kw">impl </span>::std::str::FromStr <span class="kw">for </span>Foo {
+    <span class="kw">type </span><span class="prelude-val">Err </span>= String;
+
+    <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; ::std::result::Result&lt;<span class="self">Self</span>,<span class="self">Self</span>::Err&gt; {
+        <span class="kw">match </span>s {
+            <span class="string">"A" </span>| <span class="kw">_ if </span>s.eq_ignore_ascii_case(<span class="string">"A"</span>) =&gt; <span class="prelude-val">Ok</span>(Foo::A),
+            <span class="string">"B" </span>| <span class="kw">_ if </span>s.eq_ignore_ascii_case(<span class="string">"B"</span>) =&gt; <span class="prelude-val">Ok</span>(Foo::B),
+            <span class="string">"Bar" </span>| <span class="kw">_ if </span>s.eq_ignore_ascii_case(<span class="string">"Bar"</span>) =&gt; <span class="prelude-val">Ok</span>(Foo::B),
+            <span class="string">"Baz" </span>| <span class="kw">_ if </span>s.eq_ignore_ascii_case(<span class="string">"Baz"</span>) =&gt; <span class="prelude-val">Ok</span>(Foo::C),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>({
+                <span class="kw">let </span>v = <span class="macro">vec!</span>[ <span class="string">"A"</span>, <span class="string">"B"</span>, <span class="string">"Bar"</span>, <span class="string">"Baz" </span>];
+                <span class="macro">format!</span>(<span class="string">"valid values: {}"</span>, v.join(<span class="string">" ,"</span>))
+            }),
+        }
+    }
+}
+<span class="kw">impl </span>::std::fmt::Display <span class="kw">for </span>Foo {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>::std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; ::std::fmt::Result {
+        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+            Foo::A =&gt; <span class="macro">write!</span>(f, <span class="string">"A"</span>),
+            Foo::B =&gt; <span class="macro">write!</span>(f, <span class="string">"B"</span>),
+            Foo::C =&gt; <span class="macro">write!</span>(f, <span class="string">"C"</span>),
+        }
+    }
+}
+
+<span class="kw">impl </span>Foo {
+    <span class="doccomment">/// Returns an array of valid values which can be converted into this enum.
+    </span><span class="attr">#[allow(dead_code)]
+    </span><span class="kw">pub fn </span>variants() -&gt; [<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str; <span class="number">4</span>] {
+        [ <span class="string">"A"</span>, <span class="string">"B"</span>, <span class="string">"Bar"</span>, <span class="string">"Baz"</span>, ]
+    }
+    <span class="attr">#[allow(dead_code)]
+    </span><span class="kw">pub fn </span>descriptions() -&gt; [(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>[<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str], <span class="kw-2">&amp;</span><span class="lifetime">'static </span>[<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str]) ;<span class="number">3</span>] {
+        [(<span class="kw-2">&amp;</span>[<span class="string">"A"</span>], <span class="kw-2">&amp;</span>[]),
+         (<span class="kw-2">&amp;</span>[<span class="string">"B"</span>, <span class="string">"Bar"</span>], <span class="kw-2">&amp;</span>[<span class="string">" Describe B"</span>]),
+         (<span class="kw-2">&amp;</span>[<span class="string">"Baz"</span>], <span class="kw-2">&amp;</span>[<span class="string">" Describe C"</span>, <span class="string">" Multiline"</span>]),]
+    }
+}</code></pre></div></div></details></section></div></main></body></html>

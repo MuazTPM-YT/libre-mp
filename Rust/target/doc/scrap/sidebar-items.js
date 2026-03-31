@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["dxgi"],"struct":["Capturer","Display","Frame"]};

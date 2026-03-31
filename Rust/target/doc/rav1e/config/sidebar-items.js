@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["NUM_UV_COEFFS","NUM_UV_POINTS","NUM_Y_COEFFS","NUM_Y_POINTS"],"enum":["CpuFeatureLevel","InvalidConfig","PredictionModesSetting","RateControlError","TransferFunction"],"struct":["Config","EncoderConfig","GrainTableSegment","NoiseGenArgs","RateControlConfig","RateControlSummary","SpeedSettings"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CpuFeatureLevel","SceneDetectionSpeed"],"fn":["detect_scene_changes","new_detector"],"mod":["decoder"],"struct":["DetectionOptions","DetectionResults","SceneChangeDetector","Y4mDecoder"],"type":["Rational32"]};

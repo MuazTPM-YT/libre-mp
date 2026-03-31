@@ -1,0 +1,10 @@
+prefix=C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out
+exec_prefix=C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out
+libdir=C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib
+includedir=C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include
+
+Name: libjpeg
+Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
+Version: 3.1.0
+Libs: -L${libdir} -ljpeg
+Cflags: -I${includedir}

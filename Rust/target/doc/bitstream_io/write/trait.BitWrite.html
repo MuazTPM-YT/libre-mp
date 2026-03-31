@@ -1,0 +1,644 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A trait for anything that can write a variable number of potentially un-aligned values to an output stream"><title>BitWrite in bitstream_io::write - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bitstream_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">BitWrite</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../bitstream_io/index.html">bitstream_<wbr>io</a><span class="version">4.9.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">BitWrite</a></h2><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.byte_aligned" title="byte_aligned">byte_aligned</a></li><li><a href="#tymethod.write_as_from" title="write_as_from">write_as_from</a></li><li><a href="#tymethod.write_from" title="write_from">write_from</a></li><li><a href="#tymethod.write_signed_counted" title="write_signed_counted">write_signed_counted</a></li><li><a href="#tymethod.write_unsigned_counted" title="write_unsigned_counted">write_unsigned_counted</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.build" title="build">build</a></li><li><a href="#method.build_using" title="build_using">build_using</a></li><li><a href="#method.build_with" title="build_with">build_with</a></li><li><a href="#method.by_ref" title="by_ref">by_ref</a></li><li><a href="#method.byte_align" title="byte_align">byte_align</a></li><li><a href="#method.pad" title="pad">pad</a></li><li><a href="#method.write" title="write">write</a></li><li><a href="#method.write_bit" title="write_bit">write_bit</a></li><li><a href="#method.write_bytes" title="write_bytes">write_bytes</a></li><li><a href="#method.write_checked" title="write_checked">write_checked</a></li><li><a href="#method.write_const" title="write_const">write_const</a></li><li><a href="#method.write_count" title="write_count">write_count</a></li><li><a href="#method.write_counted" title="write_counted">write_counted</a></li><li><a href="#method.write_huffman" title="write_huffman">write_huffman</a></li><li><a href="#method.write_signed" title="write_signed">write_signed</a></li><li><a href="#method.write_signed_var" title="write_signed_var">write_signed_var</a></li><li><a href="#method.write_signed_vbr" title="write_signed_vbr">write_signed_vbr</a></li><li><a href="#method.write_unary" title="write_unary">write_unary</a></li><li><a href="#method.write_unsigned" title="write_unsigned">write_unsigned</a></li><li><a href="#method.write_unsigned_var" title="write_unsigned_var">write_unsigned_var</a></li><li><a href="#method.write_unsigned_vbr" title="write_unsigned_vbr">write_unsigned_vbr</a></li><li><a href="#method.write_var" title="write_var">write_var</a></li><li><a href="#method.write_vbr" title="write_vbr">write_vbr</a></li></ul><h3><a href="#foreign-impls">Implementations on Foreign Types</a></h3><ul class="block"><li><a href="#impl-BitWrite-for-%26mut+W" title="&#38;mut W">&#38;mut W</a></li></ul><h3><a href="#dyn-compatibility">Dyn Compatibility</a></h3><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In bitstream_<wbr>io::<wbr>write</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">bitstream_io</a>::<wbr><a href="index.html">write</a></div><h1>Trait <span class="trait">BitWrite</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/bitstream_io/write.rs.html#142-1081">Source</a> </span></div><pre class="rust item-decl"><code>pub trait BitWrite {
+<details class="toggle type-contents-toggle"><summary class="hideme"><span>Show 28 methods</span></summary>    // Required methods
+    fn <a href="#tymethod.write_unsigned_counted" class="fn">write_unsigned_counted</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(
+        &amp;mut self,
+        bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;BITS&gt;,
+        value: U,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a></span>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_signed_counted" class="fn">write_signed_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(
+        &amp;mut self,
+        bits: impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/convert/trait.TryInto.html" title="trait core::convert::TryInto">TryInto</a>&lt;<a class="struct" href="../struct.SignedBitCount.html" title="struct bitstream_io::SignedBitCount">SignedBitCount</a>&lt;MAX&gt;&gt;,
+        value: S,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a></span>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_from" class="fn">write_from</a>&lt;V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a></span>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.write_as_from" class="fn">write_as_from</a>&lt;F, V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where F: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>,
+             V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a></span>;
+<span class="item-spacer"></span>    fn <a href="#tymethod.byte_aligned" class="fn">byte_aligned</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a>;
+
+    // Provided methods
+    fn <a href="#method.write_bit" class="fn">write_bit</a>(&amp;mut self, bit: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write" class="fn">write</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(&amp;mut self, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_var" class="fn">write_var</a>&lt;I&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_unsigned" class="fn">write_unsigned</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(&amp;mut self, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_unsigned_var" class="fn">write_unsigned_var</a>&lt;U&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_signed" class="fn">write_signed</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(&amp;mut self, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_signed_var" class="fn">write_signed_var</a>&lt;S&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_count" class="fn">write_count</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self, _: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_counted" class="fn">write_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(
+        &amp;mut self,
+        bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;,
+        value: I,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a> + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_const" class="fn">write_const</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, const VALUE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.pad" class="fn">pad</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_bytes" class="fn">write_bytes</a>(&amp;mut self, buf: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>]) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_unary" class="fn">write_unary</a>&lt;const STOP_BIT: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>&gt;(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_checked" class="fn">write_checked</a>&lt;C: <a class="trait" href="../trait.Checkable.html" title="trait bitstream_io::Checkable">Checkable</a>&gt;(&amp;mut self, value: C) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.build" class="fn">build</a>&lt;T: <a class="trait" href="trait.ToBitStream.html" title="trait bitstream_io::write::ToBitStream">ToBitStream</a>&gt;(&amp;mut self, build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStream.html#associatedtype.Error" title="type bitstream_io::write::ToBitStream::Error">Error</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.build_with" class="fn">build_with</a>&lt;'a, T: <a class="trait" href="trait.ToBitStreamWith.html" title="trait bitstream_io::write::ToBitStreamWith">ToBitStreamWith</a>&lt;'a&gt;&gt;(
+        &amp;mut self,
+        build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>,
+        context: &amp;T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Context" title="type bitstream_io::write::ToBitStreamWith::Context">Context</a>,
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Error" title="type bitstream_io::write::ToBitStreamWith::Error">Error</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.build_using" class="fn">build_using</a>&lt;T: <a class="trait" href="trait.ToBitStreamUsing.html" title="trait bitstream_io::write::ToBitStreamUsing">ToBitStreamUsing</a>&gt;(
+        &amp;mut self,
+        build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>,
+        context: T::<a class="associatedtype" href="trait.ToBitStreamUsing.html#associatedtype.Context" title="type bitstream_io::write::ToBitStreamUsing::Context">Context</a>,
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStreamUsing.html#associatedtype.Error" title="type bitstream_io::write::ToBitStreamUsing::Error">Error</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.byte_align" class="fn">byte_align</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_huffman" class="fn">write_huffman</a>&lt;T&gt;(&amp;mut self, value: T::<a class="associatedtype" href="../huffman/trait.ToBits.html#associatedtype.Symbol" title="type bitstream_io::huffman::ToBits::Symbol">Symbol</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;
+       <span class="where">where T: <a class="trait" href="../huffman/trait.ToBits.html" title="trait bitstream_io::huffman::ToBits">ToBits</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_unsigned_vbr" class="fn">write_unsigned_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>&gt;(
+        &amp;mut self,
+        value: U,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_signed_vbr" class="fn">write_signed_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>&gt;(
+        &amp;mut self,
+        value: I,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.write_vbr" class="fn">write_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I: <a class="trait" href="../trait.VBRInteger.html" title="trait bitstream_io::VBRInteger">VBRInteger</a>&gt;(
+        &amp;mut self,
+        value: I,
+    ) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt; { ... }
+<span class="item-spacer"></span>    fn <a href="#method.by_ref" class="fn">by_ref</a>(&amp;mut self) -&gt; &amp;mut Self { ... }
+</details>}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A trait for anything that can write a variable number of
+potentially un-aligned values to an output stream</p>
+</div></details><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.write_unsigned_counted" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#600-606">Source</a><h4 class="code-header">fn <a href="#tymethod.write_unsigned_counted" class="fn">write_unsigned_counted</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(
+    &amp;mut self,
+    bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;BITS&gt;,
+    value: U,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes a signed value to the stream with
+the given number of bits.</p>
+<h5 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian, BitCount};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing 4 bits with a maximum of 8 will fit into a u8
+// so we only need check the value fits into 4 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_counted::&lt;<span class="number">4</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b1111</span>).is_ok());
+<span class="macro">assert!</span>(w.write_unsigned_counted::&lt;<span class="number">4</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b1111 </span>+ <span class="number">1</span>).is_err());
+<span class="comment">// writing 4 bits with a maximum of 64 might not fit into a u8
+// so need to verify this at runtime
+</span><span class="macro">assert!</span>(w.write_unsigned_counted::&lt;<span class="number">64</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b0000</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1111_0000</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_signed_counted" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#631-637">Source</a><h4 class="code-header">fn <a href="#tymethod.write_signed_counted" class="fn">write_signed_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(
+    &amp;mut self,
+    bits: impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/convert/trait.TryInto.html" title="trait core::convert::TryInto">TryInto</a>&lt;<a class="struct" href="../struct.SignedBitCount.html" title="struct bitstream_io::SignedBitCount">SignedBitCount</a>&lt;MAX&gt;&gt;,
+    value: S,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes an unsigned value to the stream with
+the given number of bits.</p>
+<h5 id="errors-1"><a class="doc-anchor" href="#errors-1">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian, BitCount};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing 4 bits with a maximum of 8 will fit into an i8
+// so we only need check the value fits into 4 bits
+</span><span class="macro">assert!</span>(w.write_signed_counted::&lt;<span class="number">4</span>, i8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b0111</span>).is_ok());
+<span class="macro">assert!</span>(w.write_signed_counted::&lt;<span class="number">4</span>, i8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b0111 </span>+ <span class="number">1</span>).is_err());
+<span class="comment">// writing 4 bits with a maximum of 64 might not fit into a i8
+// so need to verify this at runtime
+</span><span class="macro">assert!</span>(w.write_signed_counted::&lt;<span class="number">64</span>, i8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b0000</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b0111_0000</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_from" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#713-715">Source</a><h4 class="code-header">fn <a href="#tymethod.write_from" class="fn">write_from</a>&lt;V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a>,</div></h4></section></summary><div class="docblock"><p>Writes whole value to the stream whose size in bits
+is equal to its type’s size.</p>
+<h5 id="errors-2"><a class="doc-anchor" href="#errors-2">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="examples-2"><a class="doc-anchor" href="#examples-2">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_from::&lt;u32&gt;(<span class="number">0x12_34_56_78</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0x12</span>, <span class="number">0x34</span>, <span class="number">0x56</span>, <span class="number">0x78</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_from::&lt;[u8; <span class="number">4</span>]&gt;([<span class="number">0x12</span>, <span class="number">0x34</span>, <span class="number">0x56</span>, <span class="number">0x78</span>]).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0x12</span>, <span class="number">0x34</span>, <span class="number">0x56</span>, <span class="number">0x78</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.write_as_from" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#733-736">Source</a><h4 class="code-header">fn <a href="#tymethod.write_as_from" class="fn">write_as_from</a>&lt;F, V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    F: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>,
+    V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a>,</div></h4></section></summary><div class="docblock"><p>Writes whole value to the stream whose size in bits
+is equal to its type’s size in an endianness that may
+be different from the stream’s endianness.</p>
+<h5 id="errors-3"><a class="doc-anchor" href="#errors-3">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="examples-3"><a class="doc-anchor" href="#examples-3">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian, LittleEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_as_from::&lt;LittleEndian, u32&gt;(<span class="number">0x12_34_56_78</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0x78</span>, <span class="number">0x56</span>, <span class="number">0x34</span>, <span class="number">0x12</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="tymethod.byte_aligned" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#908">Source</a><h4 class="code-header">fn <a href="#tymethod.byte_aligned" class="fn">byte_aligned</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Returns true if the stream is aligned at a whole byte.</p>
+<h5 id="example"><a class="doc-anchor" href="#example">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::{Write, sink};
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(sink(), BigEndian);
+<span class="macro">assert_eq!</span>(writer.byte_aligned(), <span class="bool-val">true</span>);
+writer.write_var(<span class="number">1</span>, <span class="number">0u8</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.byte_aligned(), <span class="bool-val">false</span>);
+writer.write_var(<span class="number">7</span>, <span class="number">0u8</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.byte_aligned(), <span class="bool-val">true</span>);</code></pre></div></div></details></div><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.write_bit" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#181-183">Source</a><h4 class="code-header">fn <a href="#method.write_bit" class="fn">write_bit</a>(&amp;mut self, bit: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes a single bit to the stream.
+<code>true</code> indicates 1, <code>false</code> indicates 0</p>
+<h5 id="errors-4"><a class="doc-anchor" href="#errors-4">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="examples-4"><a class="doc-anchor" href="#examples-4">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w  = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1000_1110</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, LittleEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w  = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">false</span>).is_ok());
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1000_1110</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#223-228">Source</a><h4 class="code-header">fn <a href="#method.write" class="fn">write</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(&amp;mut self, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a>,</div></h4></section></summary><div class="docblock"><p>Writes a signed or unsigned value to the stream using the given
+const number of bits.</p>
+<h5 id="errors-5"><a class="doc-anchor" href="#errors-5">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.
+A compile-time error occurs if the given number of bits
+is larger than the output type.</p>
+<h5 id="examples-5"><a class="doc-anchor" href="#examples-5">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing unsigned value is ok
+</span><span class="macro">assert!</span>(w.write::&lt;<span class="number">4</span>, u8&gt;(<span class="number">1</span>).is_ok());
+<span class="comment">// writing signed value is ok
+</span><span class="macro">assert!</span>(w.write::&lt;<span class="number">4</span>, i8&gt;(-<span class="number">1</span>).is_ok());
+<span class="comment">// writing an array of bits is ok too
+</span><span class="macro">assert!</span>(w.write::&lt;<span class="number">1</span>, [bool; <span class="number">4</span>]&gt;([<span class="bool-val">true</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="bool-val">true</span>]).is_ok());
+<span class="comment">// writing an array of any Integer type is ok
+</span><span class="macro">assert!</span>(w.write::&lt;<span class="number">2</span>, [u8; <span class="number">2</span>]&gt;([<span class="number">0b11</span>, <span class="number">0b00</span>]).is_ok());
+<span class="comment">// trying to write a value larger than 4 bits in 4 bits is an error
+</span><span class="macro">assert!</span>(w.write::&lt;<span class="number">4</span>, u8&gt;(u8::MAX).is_err());
+
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b0001_1111</span>, <span class="number">0b1011_11_00</span>]);</code></pre></div>
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// trying to write 9 bits from a u8 is a compile-time error
+</span>w.write::&lt;<span class="number">9</span>, u8&gt;(<span class="number">1</span>);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_var" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#263-268">Source</a><h4 class="code-header">fn <a href="#method.write_var" class="fn">write_var</a>&lt;I&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a>,</div></h4></section></summary><div class="docblock"><p>Writes a signed or unsigned value to the stream using the given
+number of bits.</p>
+<h5 id="errors-6"><a class="doc-anchor" href="#errors-6">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the input type is too small
+to hold the given number of bits.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples-6"><a class="doc-anchor" href="#examples-6">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing unsigned value is ok
+</span><span class="macro">assert!</span>(w.write_var::&lt;u8&gt;(<span class="number">4</span>, <span class="number">1</span>).is_ok());
+<span class="comment">// writing signed value is also ok
+</span><span class="macro">assert!</span>(w.write_var::&lt;i8&gt;(<span class="number">4</span>, -<span class="number">1</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b0001_1111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing a value larger than 4 bits in 4 bits is a runtime error
+</span><span class="macro">assert!</span>(w.write_var::&lt;u8&gt;(<span class="number">4</span>, u8::MAX).is_err());
+<span class="comment">// writing 9 bits from a u8 is also a runtime error
+</span><span class="macro">assert!</span>(w.write_var::&lt;u8&gt;(<span class="number">9</span>, <span class="number">0</span>).is_err());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_unsigned" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#321-326">Source</a><h4 class="code-header">fn <a href="#method.write_unsigned" class="fn">write_unsigned</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(&amp;mut self, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes an unsigned value to the stream using the given
+const number of bits.</p>
+<h5 id="errors-7"><a class="doc-anchor" href="#errors-7">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.
+A compile-time error occurs if the given number of bits
+is larger than the output type.</p>
+<h5 id="examples-7"><a class="doc-anchor" href="#examples-7">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+writer.write_unsigned::&lt;<span class="number">1</span>, u8&gt;(<span class="number">0b1</span>).unwrap();
+writer.write_unsigned::&lt;<span class="number">2</span>, u8&gt;(<span class="number">0b01</span>).unwrap();
+writer.write_unsigned::&lt;<span class="number">5</span>, u8&gt;(<span class="number">0b10111</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b1_01_10111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+writer.write_unsigned::&lt;<span class="number">1</span>, u8&gt;(<span class="number">0b1</span>).unwrap();
+writer.write_unsigned::&lt;<span class="number">2</span>, u8&gt;(<span class="number">0b11</span>).unwrap();
+writer.write_unsigned::&lt;<span class="number">5</span>, u8&gt;(<span class="number">0b10110</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110_11_1</span>]);</code></pre></div>
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// trying to write 9 bits from a u8 is a compile-time error
+</span>writer.write_unsigned::&lt;<span class="number">9</span>, u8&gt;(<span class="number">1</span>);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::{Write, sink};
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(sink(), BigEndian);
+<span class="macro">assert!</span>(w.write_unsigned::&lt;<span class="number">1</span>, u8&gt;(<span class="number">2</span>).is_err());    <span class="comment">// can't write   2 in 1 bit
+</span><span class="macro">assert!</span>(w.write_unsigned::&lt;<span class="number">2</span>, u8&gt;(<span class="number">4</span>).is_err());    <span class="comment">// can't write   4 in 2 bits
+</span><span class="macro">assert!</span>(w.write_unsigned::&lt;<span class="number">3</span>, u8&gt;(<span class="number">8</span>).is_err());    <span class="comment">// can't write   8 in 3 bits
+</span><span class="macro">assert!</span>(w.write_unsigned::&lt;<span class="number">4</span>, u8&gt;(<span class="number">16</span>).is_err());   <span class="comment">// can't write  16 in 4 bits</span></code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_unsigned_var" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#375-380">Source</a><h4 class="code-header">fn <a href="#method.write_unsigned_var" class="fn">write_unsigned_var</a>&lt;U&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes an unsigned value to the stream using the given
+number of bits.</p>
+<h5 id="errors-8"><a class="doc-anchor" href="#errors-8">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the input type is too small
+to hold the given number of bits.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples-8"><a class="doc-anchor" href="#examples-8">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">1</span>, <span class="number">0b1</span>).unwrap();
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">2</span>, <span class="number">0b01</span>).unwrap();
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">5</span>, <span class="number">0b10111</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b1_01_10111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">1</span>, <span class="number">0b1</span>).unwrap();
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">2</span>, <span class="number">0b11</span>).unwrap();
+writer.write_unsigned_var::&lt;u8&gt;(<span class="number">5</span>, <span class="number">0b10110</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110_11_1</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::{Write, sink};
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(sink(), BigEndian);
+<span class="macro">assert!</span>(w.write_unsigned_var::&lt;u8&gt;(<span class="number">9</span>, <span class="number">0</span>).is_err());    <span class="comment">// can't write  u8 in 9 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u16&gt;(<span class="number">17</span>, <span class="number">0</span>).is_err());  <span class="comment">// can't write u16 in 17 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u32&gt;(<span class="number">33</span>, <span class="number">0</span>).is_err());  <span class="comment">// can't write u32 in 33 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u64&gt;(<span class="number">65</span>, <span class="number">0</span>).is_err());  <span class="comment">// can't write u64 in 65 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u8&gt;(<span class="number">1</span>, <span class="number">2</span>).is_err());    <span class="comment">// can't write   2 in 1 bit
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u8&gt;(<span class="number">2</span>, <span class="number">4</span>).is_err());    <span class="comment">// can't write   4 in 2 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u8&gt;(<span class="number">3</span>, <span class="number">8</span>).is_err());    <span class="comment">// can't write   8 in 3 bits
+</span><span class="macro">assert!</span>(w.write_unsigned_var::&lt;u8&gt;(<span class="number">4</span>, <span class="number">16</span>).is_err());   <span class="comment">// can't write  16 in 4 bits</span></code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_signed" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#429-434">Source</a><h4 class="code-header">fn <a href="#method.write_signed" class="fn">write_signed</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(&amp;mut self, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes a twos-complement signed value to the stream
+with the given const number of bits.</p>
+<h5 id="errors-9"><a class="doc-anchor" href="#errors-9">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.
+A compile-time error occurs if the number of bits is 0,
+since one bit is always needed for the sign.
+A compile-time error occurs if the given number of bits
+is larger than the output type.</p>
+<h5 id="examples-9"><a class="doc-anchor" href="#examples-9">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+writer.write_signed::&lt;<span class="number">4</span>, i8&gt;(-<span class="number">5</span>).unwrap();
+writer.write_signed::&lt;<span class="number">4</span>, i8&gt;(<span class="number">7</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+writer.write_signed::&lt;<span class="number">4</span>, i8&gt;(<span class="number">7</span>).unwrap();
+writer.write_signed::&lt;<span class="number">4</span>, i8&gt;(-<span class="number">5</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+<span class="comment">// writing a value too large for 4 bits in 4 bits is a runtime error
+</span><span class="macro">assert!</span>(writer.write_signed::&lt;<span class="number">4</span>, i8&gt;(i8::MAX).is_err());</code></pre></div>
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+<span class="comment">// writing 9 bits from an i8 is a compile-time error
+</span><span class="macro">assert!</span>(writer.write_signed::&lt;<span class="number">9</span>, i8&gt;(<span class="number">1</span>).is_err());</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_signed_var" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#468-473">Source</a><h4 class="code-header">fn <a href="#method.write_signed_var" class="fn">write_signed_var</a>&lt;S&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section></summary><div class="docblock"><p>Writes a twos-complement signed value to the stream
+with the given number of bits.</p>
+<h5 id="errors-10"><a class="doc-anchor" href="#errors-10">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the input type is too small
+to hold the given number of bits.
+Returns an error if the number of bits is 0,
+since one bit is always needed for the sign.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples-10"><a class="doc-anchor" href="#examples-10">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+writer.write_signed_var(<span class="number">4</span>, -<span class="number">5</span>).unwrap();
+writer.write_signed_var(<span class="number">4</span>, <span class="number">7</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], LittleEndian);
+writer.write_signed_var(<span class="number">4</span>, <span class="number">7</span>).unwrap();
+writer.write_signed_var(<span class="number">4</span>, -<span class="number">5</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10110111</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_count" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#530-545">Source</a><h4 class="code-header">fn <a href="#method.write_count" class="fn">write_count</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self, _: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes the given bit count to the stream
+with the necessary maximum number of bits.</p>
+<p>For example, if the maximum bit count is 15 - or <code>0b1111</code> -
+writes the bit count to the stream as a 4-bit unsigned value
+which can be used in subsequent writes.</p>
+<p>Note that <code>MAX</code> must be greater than 0.
+Unlike the bit reader, the bit count need not be an exact
+power of two when writing.  Any bits higher than the
+bit count can reach are simply left 0.</p>
+<h5 id="errors-11"><a class="doc-anchor" href="#errors-11">§</a>Errors</h5>
+<p>Passes along an I/O error from the underlying stream.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="kw">let </span>count = <span class="number">4</span>;
+w.write::&lt;<span class="number">3</span>, u32&gt;(count).unwrap();
+<span class="comment">// may need to verify count is not larger than u8 at runtime
+</span>w.write_var::&lt;u8&gt;(count, <span class="number">0b1111</span>).unwrap();
+w.byte_align().unwrap();
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b100_11110</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite, BitCount};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// a bit count of 4, with a maximum of 7 (0b111)
+</span><span class="kw">let </span>count: BitCount&lt;<span class="number">0b111</span>&gt; = BitCount::new::&lt;<span class="number">4</span>&gt;();
+w.write_count(count).unwrap();
+<span class="comment">// maximum size of count is known to be 7 bits at compile-time
+// so no need to check that 7 bits is larger than a u8 at runtime
+</span>w.write_counted::&lt;<span class="number">0b111</span>, u8&gt;(count, <span class="number">0b1111</span>).unwrap();
+w.byte_align().unwrap();
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b100_11110</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite, BitCount};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// a bit count of 4, with a maximum of 6 (0b110)
+</span><span class="kw">let </span>count: BitCount&lt;<span class="number">0b110</span>&gt; = BitCount::new::&lt;<span class="number">4</span>&gt;();
+w.write_count(count).unwrap();
+w.write_counted::&lt;<span class="number">0b110</span>, u8&gt;(count, <span class="number">0b1111</span>).unwrap();
+w.byte_align().unwrap();
+<span class="comment">// bit count is written in 3 bits
+// while actual value is written in 4 bits
+</span><span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b100_11110</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_counted" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#570-575">Source</a><h4 class="code-header">fn <a href="#method.write_counted" class="fn">write_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(
+    &amp;mut self,
+    bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;,
+    value: I,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a> + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Writes a signed or unsigned value to the stream with
+the given number of bits.</p>
+<h5 id="errors-12"><a class="doc-anchor" href="#errors-12">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+Returns an error if the value is too large
+to fit the given number of bits.</p>
+<h5 id="examples-11"><a class="doc-anchor" href="#examples-11">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian, BitCount};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// writing 4 bits with a maximum of 8 will fit into a u8
+// so we only need check the value fits into 4 bits
+</span><span class="macro">assert!</span>(w.write_counted::&lt;<span class="number">4</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b1111</span>).is_ok());
+<span class="macro">assert!</span>(w.write_counted::&lt;<span class="number">4</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b1111 </span>+ <span class="number">1</span>).is_err());
+<span class="comment">// writing 4 bits with a maximum of 64 might not fit into a u8
+// so need to verify this at runtime
+</span><span class="macro">assert!</span>(w.write_counted::&lt;<span class="number">64</span>, u8&gt;(BitCount::new::&lt;<span class="number">4</span>&gt;(), <span class="number">0b0000</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1111_0000</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_const" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#679-688">Source</a><h4 class="code-header">fn <a href="#method.write_const" class="fn">write_const</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, const VALUE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes the given constant value to the stream with
+the given number of bits.</p>
+<p>Due to current limitations of constant parameters,
+this is limited to <code>u32</code> values.</p>
+<h5 id="errors-13"><a class="doc-anchor" href="#errors-13">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.
+A compile-time error occurs if the number of bits is larger
+than 32 or if the value is too large too fit the
+requested number of bits.</p>
+<h5 id="examples-12"><a class="doc-anchor" href="#examples-12">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_const::&lt;<span class="number">4</span>, <span class="number">0b1000</span>&gt;().is_ok());
+<span class="macro">assert!</span>(w.write_const::&lt;<span class="number">4</span>, <span class="number">0b1011</span>&gt;().is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1000_1011</span>]);</code></pre></div>
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// trying to write a 5 bit value in 4 bits is a compile-time error
+</span>w.write_const::&lt;<span class="number">4</span>, <span class="number">0b11111</span>&gt;();</code></pre></div>
+<div class="example-wrap compile_fail"><a href="#" class="tooltip" title="This example deliberately fails to compile">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// trying to write a 33 bit value is also a compile-time error
+</span>w.write_const::&lt;<span class="number">33</span>, <span class="number">1</span>&gt;();</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.pad" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#754-765">Source</a><h4 class="code-header">fn <a href="#method.pad" class="fn">pad</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Pads the stream by writing 0 over the given number of bits.</p>
+<h5 id="errors-14"><a class="doc-anchor" href="#errors-14">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">let </span><span class="kw-2">mut </span>w = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="macro">assert!</span>(w.write_bit(<span class="bool-val">true</span>).is_ok());
+<span class="macro">assert!</span>(w.pad(<span class="number">7</span>).is_ok());
+<span class="macro">assert_eq!</span>(w.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0b1_0000000</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_bytes" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#786-788">Source</a><h4 class="code-header">fn <a href="#method.write_bytes" class="fn">write_bytes</a>(&amp;mut self, buf: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>]) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes the entirety of a byte buffer to the stream.</p>
+<h5 id="errors-15"><a class="doc-anchor" href="#errors-15">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-2"><a class="doc-anchor" href="#example-2">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_var(<span class="number">8</span>, <span class="number">0x66u8</span>).unwrap();
+writer.write_var(<span class="number">8</span>, <span class="number">0x6Fu8</span>).unwrap();
+writer.write_var(<span class="number">8</span>, <span class="number">0x6Fu8</span>).unwrap();
+writer.write_bytes(<span class="string">b"bar"</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), <span class="string">b"foobar"</span>);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_unary" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#838-864">Source</a><h4 class="code-header">fn <a href="#method.write_unary" class="fn">write_unary</a>&lt;const STOP_BIT: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>&gt;(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes <code>value</code> number of non <code>STOP_BIT</code> bits to the stream
+and then writes a <code>STOP_BIT</code>.  This field is variably-sized.
+<code>STOP_BIT</code> must be 0 or 1.</p>
+<h5 id="errors-16"><a class="doc-anchor" href="#errors-16">§</a>Errors</h5>
+<p>Passes along any I/O error from the underyling stream.</p>
+<h5 id="examples-13"><a class="doc-anchor" href="#examples-13">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">0</span>).unwrap();
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">3</span>).unwrap();
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">10</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b01110111</span>, <span class="number">0b11111110</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), LittleEndian);
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">0</span>).unwrap();
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">3</span>).unwrap();
+writer.write_unary::&lt;<span class="number">0</span>&gt;(<span class="number">10</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b11101110</span>, <span class="number">0b01111111</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">0</span>).unwrap();
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">3</span>).unwrap();
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">10</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10001000</span>, <span class="number">0b00000001</span>]);</code></pre></div>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{LittleEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), LittleEndian);
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">0</span>).unwrap();
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">3</span>).unwrap();
+writer.write_unary::&lt;<span class="number">1</span>&gt;(<span class="number">10</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b00010001</span>, <span class="number">0b10000000</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_checked" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#867-870">Source</a><h4 class="code-header">fn <a href="#method.write_checked" class="fn">write_checked</a>&lt;C: <a class="trait" href="../trait.Checkable.html" title="trait bitstream_io::Checkable">Checkable</a>&gt;(&amp;mut self, value: C) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes checked value that is known to fit a given number of bits</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.build" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#873-875">Source</a><h4 class="code-header">fn <a href="#method.build" class="fn">build</a>&lt;T: <a class="trait" href="trait.ToBitStream.html" title="trait bitstream_io::write::ToBitStream">ToBitStream</a>&gt;(&amp;mut self, build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStream.html#associatedtype.Error" title="type bitstream_io::write::ToBitStream::Error">Error</a>&gt;</h4></section></summary><div class="docblock"><p>Builds and writes complex type</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.build_with" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#878-884">Source</a><h4 class="code-header">fn <a href="#method.build_with" class="fn">build_with</a>&lt;'a, T: <a class="trait" href="trait.ToBitStreamWith.html" title="trait bitstream_io::write::ToBitStreamWith">ToBitStreamWith</a>&lt;'a&gt;&gt;(
+    &amp;mut self,
+    build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>,
+    context: &amp;T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Context" title="type bitstream_io::write::ToBitStreamWith::Context">Context</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Error" title="type bitstream_io::write::ToBitStreamWith::Error">Error</a>&gt;</h4></section></summary><div class="docblock"><p>Builds and writes complex type with context</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.build_using" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#887-893">Source</a><h4 class="code-header">fn <a href="#method.build_using" class="fn">build_using</a>&lt;T: <a class="trait" href="trait.ToBitStreamUsing.html" title="trait bitstream_io::write::ToBitStreamUsing">ToBitStreamUsing</a>&gt;(
+    &amp;mut self,
+    build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>,
+    context: T::<a class="associatedtype" href="trait.ToBitStreamUsing.html#associatedtype.Context" title="type bitstream_io::write::ToBitStreamUsing::Context">Context</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStreamUsing.html#associatedtype.Error" title="type bitstream_io::write::ToBitStreamUsing::Error">Error</a>&gt;</h4></section></summary><div class="docblock"><p>Builds and writes complex type with owned context</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.byte_align" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#927-932">Source</a><h4 class="code-header">fn <a href="#method.byte_align" class="fn">byte_align</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Pads the stream with 0 bits until it is aligned at a whole byte.
+Does nothing if the stream is already aligned.</p>
+<h5 id="errors-17"><a class="doc-anchor" href="#errors-17">§</a>Errors</h5>
+<p>Passes along any I/O error from the underyling stream.</p>
+<h5 id="example-3"><a class="doc-anchor" href="#example-3">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_var(<span class="number">1</span>, <span class="number">0u8</span>).unwrap();
+writer.byte_align().unwrap();
+writer.write_var(<span class="number">8</span>, <span class="number">0xFFu8</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0x00</span>, <span class="number">0xFF</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_huffman" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#958-963">Source</a><h4 class="code-header">fn <a href="#method.write_huffman" class="fn">write_huffman</a>&lt;T&gt;(&amp;mut self, value: T::<a class="associatedtype" href="../huffman/trait.ToBits.html#associatedtype.Symbol" title="type bitstream_io::huffman::ToBits::Symbol">Symbol</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    T: <a class="trait" href="../huffman/trait.ToBits.html" title="trait bitstream_io::huffman::ToBits">ToBits</a>,</div></h4></section></summary><div class="docblock"><p>Given a symbol, writes its representation to the output stream as bits.
+Generates no output if the symbol isn’t defined in the Huffman tree.</p>
+<h5 id="errors-18"><a class="doc-anchor" href="#errors-18">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-4"><a class="doc-anchor" href="#example-4">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">use </span>bitstream_io::define_huffman_tree;
+
+<span class="macro">define_huffman_tree!</span>(TreeName : char = [<span class="string">'a'</span>, [<span class="string">'b'</span>, [<span class="string">'c'</span>, <span class="string">'d'</span>]]]);
+<span class="comment">// 'a' is 0
+// 'b' is 1 -&gt; 0
+// 'c' is 1 -&gt; 1 -&gt; 0
+// 'd' is 1 -&gt; 1 -&gt; 1
+
+</span><span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+writer.write_huffman::&lt;TreeName&gt;(<span class="string">'b'</span>).unwrap();
+writer.write_huffman::&lt;TreeName&gt;(<span class="string">'c'</span>).unwrap();
+writer.write_huffman::&lt;TreeName&gt;(<span class="string">'d'</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b10_110_111</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_unsigned_vbr" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#984-1005">Source</a><h4 class="code-header">fn <a href="#method.write_unsigned_vbr" class="fn">write_unsigned_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>&gt;(
+    &amp;mut self,
+    value: U,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes a number using a variable using a variable width integer.
+This optimises the case when the number is small.</p>
+<p>Given a 4-bit VBR field, any 3-bit value (0 through 7) is encoded directly, with the high bit set to zero.
+Values larger than N-1 bits emit their bits in a series of N-1 bit chunks, where all but the last set the high bit.</p>
+<h5 id="errors-19"><a class="doc-anchor" href="#errors-19">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-5"><a class="doc-anchor" href="#example-5">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_unsigned_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(<span class="number">7u32</span>);
+writer.write_unsigned_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(<span class="number">100u32</span>);
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b0111_1100</span>, <span class="number">0b1100_0001</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_signed_vbr" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1029-1035">Source</a><h4 class="code-header">fn <a href="#method.write_signed_vbr" class="fn">write_signed_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>&gt;(
+    &amp;mut self,
+    value: I,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes a number using a variable using a variable width integer.
+This optimises the case when the number is small.</p>
+<p>The integer is mapped to an unsigned value using zigzag encoding.
+For an integer X:</p>
+<ul>
+<li>if X &gt;= 0 -&gt; 2X</li>
+<li>else -&gt; -2X + 1</li>
+</ul>
+<h5 id="errors-20"><a class="doc-anchor" href="#errors-20">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-6"><a class="doc-anchor" href="#example-6">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_signed_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(<span class="number">3</span>);
+writer.write_signed_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(-<span class="number">50</span>);
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b0110_1011</span>, <span class="number">0b1100_0001</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.write_vbr" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1053-1055">Source</a><h4 class="code-header">fn <a href="#method.write_vbr" class="fn">write_vbr</a>&lt;const FIELD_SIZE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I: <a class="trait" href="../trait.VBRInteger.html" title="trait bitstream_io::VBRInteger">VBRInteger</a>&gt;(
+    &amp;mut self,
+    value: I,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section></summary><div class="docblock"><p>Writes a signed or unsigned variable width integer to the stream</p>
+<h5 id="errors-21"><a class="doc-anchor" href="#errors-21">§</a>Errors</h5>
+<p>Passes along any I/O error from the underlying stream.</p>
+<h5 id="example-7"><a class="doc-anchor" href="#example-7">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Write;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitWriter, BitWrite};
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(Vec::new(), BigEndian);
+writer.write_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(<span class="number">6u32</span>);
+writer.write_vbr::&lt;<span class="number">4</span>,<span class="kw">_</span>&gt;(-<span class="number">50i32</span>);
+<span class="macro">assert_eq!</span>(writer.into_writer(), [<span class="number">0b0110_1011</span>, <span class="number">0b1100_0001</span>]);</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.by_ref" class="method"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1078-1080">Source</a><h4 class="code-header">fn <a href="#method.by_ref" class="fn">by_ref</a>(&amp;mut self) -&gt; &amp;mut Self</h4></section></summary><div class="docblock"><p>Creates a “by reference” adaptor for this <code>BitWrite</code></p>
+<p>The returned adapter also implements <code>BitWrite</code>
+and will borrow the current reader.</p>
+<h5 id="example-8"><a class="doc-anchor" href="#example-8">§</a>Example</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bitstream_io::{BitWriter, BitWrite, BigEndian};
+
+<span class="kw">fn </span>build&lt;W: BitWrite&gt;(w: W) {
+    <span class="comment">// perform some building
+</span>}
+
+<span class="kw">let </span><span class="kw-2">mut </span>writer = BitWriter::endian(<span class="macro">vec!</span>[], BigEndian);
+<span class="comment">// performing building by reference
+</span>build(writer.by_ref());
+<span class="comment">// original owned writer still available
+</span>writer.write::&lt;<span class="number">8</span>, u8&gt;(<span class="number">0</span>).unwrap();
+<span class="macro">assert_eq!</span>(writer.into_writer(), <span class="kw-2">&amp;</span>[<span class="number">0</span>]);</code></pre></div></div></details></div><h2 id="dyn-compatibility" class="section-header">Dyn Compatibility<a href="#dyn-compatibility" class="anchor">§</a></h2><div class="dyn-compatibility-info"><p>This trait is <b>not</b> <a href="https://doc.rust-lang.org/1.94.1/reference/items/traits.html#dyn-compatibility">dyn compatible</a>.</p><p><i>In older versions of Rust, dyn compatibility was called "object safety", so this trait is not object safe.</i></p></div><h2 id="foreign-impls" class="section-header">Implementations on Foreign Types<a href="#foreign-impls" class="anchor">§</a></h2><details class="toggle implementors-toggle"><summary><section id="impl-BitWrite-for-%26mut+W" class="impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1083-1247">Source</a><a href="#impl-BitWrite-for-%26mut+W" class="anchor">§</a><h3 class="code-header">impl&lt;W: <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt; <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> for <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;mut W</a></h3></section></summary><div class="impl-items"><section id="method.write_bit-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1085-1087">Source</a><a href="#method.write_bit-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_bit" class="fn">write_bit</a>(&amp;mut self, bit: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1090-1095">Source</a><a href="#method.write-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write" class="fn">write</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(&amp;mut self, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a>,</div></h4></section><section id="method.write_const-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1098-1100">Source</a><a href="#method.write_const-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_const" class="fn">write_const</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, const VALUE: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_var-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1103-1108">Source</a><a href="#method.write_var-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_var" class="fn">write_var</a>&lt;I&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: I) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a>,</div></h4></section><section id="method.write_unsigned-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1111-1116">Source</a><a href="#method.write_unsigned-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_unsigned" class="fn">write_unsigned</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(&amp;mut self, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section><section id="method.write_unsigned_var-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1119-1124">Source</a><a href="#method.write_unsigned_var-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_unsigned_var" class="fn">write_unsigned_var</a>&lt;U&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: U) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section><section id="method.write_signed-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1127-1132">Source</a><a href="#method.write_signed-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_signed" class="fn">write_signed</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(&amp;mut self, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section><section id="method.write_signed_var-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1135-1140">Source</a><a href="#method.write_signed_var-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_signed_var" class="fn">write_signed_var</a>&lt;S&gt;(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, value: S) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section><section id="method.write_count-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1143-1145">Source</a><a href="#method.write_count-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_count" class="fn">write_count</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>&gt;(&amp;mut self, count: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_counted-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1148-1153">Source</a><a href="#method.write_counted-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_counted" class="fn">write_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, I&gt;(
+    &amp;mut self,
+    bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;MAX&gt;,
+    value: I,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    I: <a class="trait" href="../trait.Integer.html" title="trait bitstream_io::Integer">Integer</a> + <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section><section id="method.write_unsigned_counted" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1156-1165">Source</a><a href="#method.write_unsigned_counted" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.write_unsigned_counted" class="fn">write_unsigned_counted</a>&lt;const BITS: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, U&gt;(
+    &amp;mut self,
+    bits: <a class="struct" href="../struct.BitCount.html" title="struct bitstream_io::BitCount">BitCount</a>&lt;BITS&gt;,
+    value: U,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    U: <a class="trait" href="../trait.UnsignedInteger.html" title="trait bitstream_io::UnsignedInteger">UnsignedInteger</a>,</div></h4></section><section id="method.write_signed_counted" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1168-1177">Source</a><a href="#method.write_signed_counted" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.write_signed_counted" class="fn">write_signed_counted</a>&lt;const MAX: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>, S&gt;(
+    &amp;mut self,
+    bits: impl <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/convert/trait.TryInto.html" title="trait core::convert::TryInto">TryInto</a>&lt;<a class="struct" href="../struct.SignedBitCount.html" title="struct bitstream_io::SignedBitCount">SignedBitCount</a>&lt;MAX&gt;&gt;,
+    value: S,
+) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    S: <a class="trait" href="../trait.SignedInteger.html" title="trait bitstream_io::SignedInteger">SignedInteger</a>,</div></h4></section><section id="method.write_from" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1180-1185">Source</a><a href="#method.write_from" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.write_from" class="fn">write_from</a>&lt;V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a>,</div></h4></section><section id="method.write_as_from" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1188-1194">Source</a><a href="#method.write_as_from" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.write_as_from" class="fn">write_as_from</a>&lt;F, V&gt;(&amp;mut self, value: V) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    F: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>,
+    V: <a class="trait" href="../trait.Primitive.html" title="trait bitstream_io::Primitive">Primitive</a>,</div></h4></section><section id="method.pad-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1197-1199">Source</a><a href="#method.pad-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.pad" class="fn">pad</a>(&amp;mut self, bits: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_bytes-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1202-1204">Source</a><a href="#method.write_bytes-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_bytes" class="fn">write_bytes</a>(&amp;mut self, buf: &amp;[<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>]) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_unary-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1207-1209">Source</a><a href="#method.write_unary-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_unary" class="fn">write_unary</a>&lt;const STOP_BIT: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u8.html">u8</a>&gt;(&amp;mut self, value: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.u32.html">u32</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_checked-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1212-1214">Source</a><a href="#method.write_checked-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_checked" class="fn">write_checked</a>&lt;C: <a class="trait" href="../trait.Checkable.html" title="trait bitstream_io::Checkable">Checkable</a>&gt;(&amp;mut self, value: C) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.build-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1217-1219">Source</a><a href="#method.build-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.build" class="fn">build</a>&lt;T: <a class="trait" href="trait.ToBitStream.html" title="trait bitstream_io::write::ToBitStream">ToBitStream</a>&gt;(&amp;mut self, build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStream.html#associatedtype.Error" title="type bitstream_io::write::ToBitStream::Error">Error</a>&gt;</h4></section><section id="method.build_with-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1222-1228">Source</a><a href="#method.build_with-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.build_with" class="fn">build_with</a>&lt;'a, T: <a class="trait" href="trait.ToBitStreamWith.html" title="trait bitstream_io::write::ToBitStreamWith">ToBitStreamWith</a>&lt;'a&gt;&gt;(
+    &amp;mut self,
+    build: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;T</a>,
+    context: &amp;T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Context" title="type bitstream_io::write::ToBitStreamWith::Context">Context</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>, T::<a class="associatedtype" href="trait.ToBitStreamWith.html#associatedtype.Error" title="type bitstream_io::write::ToBitStreamWith::Error">Error</a>&gt;</h4></section><section id="method.byte_aligned" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1231-1233">Source</a><a href="#method.byte_aligned" class="anchor">§</a><h4 class="code-header">fn <a href="#tymethod.byte_aligned" class="fn">byte_aligned</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.bool.html">bool</a></h4></section><section id="method.byte_align-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1236-1238">Source</a><a href="#method.byte_align-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.byte_align" class="fn">byte_align</a>(&amp;mut self) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;</h4></section><section id="method.write_huffman-1" class="method trait-impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1241-1246">Source</a><a href="#method.write_huffman-1" class="anchor">§</a><h4 class="code-header">fn <a href="#method.write_huffman" class="fn">write_huffman</a>&lt;T&gt;(&amp;mut self, value: T::<a class="associatedtype" href="../huffman/trait.ToBits.html#associatedtype.Symbol" title="type bitstream_io::huffman::ToBits::Symbol">Symbol</a>) -&gt; <a class="type" href="https://doc.rust-lang.org/1.94.1/std/io/error/type.Result.html" title="type std::io::error::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.unit.html">()</a>&gt;<div class="where">where
+    T: <a class="trait" href="../huffman/trait.ToBits.html" title="trait bitstream_io::huffman::ToBits">ToBits</a>,</div></h4></section></div></details><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><div class="negative-marker"></div><section id="impl-BitWrite-for-BitCounter%3CN,+E%3E" class="impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#2129-2219">Source</a><a href="#impl-BitWrite-for-BitCounter%3CN,+E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;N, E&gt; <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> for <a class="struct" href="struct.BitCounter.html" title="struct bitstream_io::write::BitCounter">BitCounter</a>&lt;N, E&gt;<div class="where">where
+    E: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>,
+    N: <a class="trait" href="trait.Counter.html" title="trait bitstream_io::write::Counter">Counter</a>,</div></h3></section><section id="impl-BitWrite-for-BitRecorder%3CN,+E%3E" class="impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#2329-2496">Source</a><a href="#impl-BitWrite-for-BitRecorder%3CN,+E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;N, E&gt; <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> for <a class="struct" href="struct.BitRecorder.html" title="struct bitstream_io::write::BitRecorder">BitRecorder</a>&lt;N, E&gt;<div class="where">where
+    E: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>,
+    N: <a class="trait" href="trait.Counter.html" title="trait bitstream_io::write::Counter">Counter</a>,</div></h3></section><section id="impl-BitWrite-for-BitsWritten%3CN%3E" class="impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1867-2078">Source</a><a href="#impl-BitWrite-for-BitsWritten%3CN%3E" class="anchor">§</a><h3 class="code-header">impl&lt;N: <a class="trait" href="trait.Counter.html" title="trait bitstream_io::write::Counter">Counter</a>&gt; <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> for <a class="struct" href="struct.BitsWritten.html" title="struct bitstream_io::write::BitsWritten">BitsWritten</a>&lt;N&gt;</h3></section><section id="impl-BitWrite-for-BitWriter%3CW,+E%3E" class="impl"><a class="src rightside" href="../../src/bitstream_io/write.rs.html#1629-1759">Source</a><a href="#impl-BitWrite-for-BitWriter%3CW,+E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;W: <a class="trait" href="https://doc.rust-lang.org/1.94.1/std/io/trait.Write.html" title="trait std::io::Write">Write</a>, E: <a class="trait" href="../trait.Endianness.html" title="trait bitstream_io::Endianness">Endianness</a>&gt; <a class="trait" href="trait.BitWrite.html" title="trait bitstream_io::write::BitWrite">BitWrite</a> for <a class="struct" href="struct.BitWriter.html" title="struct bitstream_io::write::BitWriter">BitWriter</a>&lt;W, E&gt;</h3></section></div><script src="../../trait.impl/bitstream_io/write/trait.BitWrite.js" async></script></section></div></main></body></html>

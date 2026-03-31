@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["Aligned"],"struct":["A1","A16","A2","A32","A4","A64","A8","Aligned"],"trait":["Alignment"]};

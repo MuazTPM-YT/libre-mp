@@ -1,0 +1,451 @@
+cargo:rerun-if-changed=build.rs
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_TURBOJPEG_STATIC
+X86_64_PC_WINDOWS_MSVC_TURBOJPEG_STATIC unset
+cargo:rerun-if-env-changed=TURBOJPEG_STATIC
+TURBOJPEG_STATIC unset
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_TURBOJPEG_DYNAMIC
+X86_64_PC_WINDOWS_MSVC_TURBOJPEG_DYNAMIC unset
+cargo:rerun-if-env-changed=TURBOJPEG_DYNAMIC
+TURBOJPEG_DYNAMIC unset
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_TURBOJPEG_SHARED
+X86_64_PC_WINDOWS_MSVC_TURBOJPEG_SHARED unset
+cargo:rerun-if-env-changed=TURBOJPEG_SHARED
+TURBOJPEG_SHARED unset
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_TURBOJPEG_SOURCE
+X86_64_PC_WINDOWS_MSVC_TURBOJPEG_SOURCE unset
+cargo:rerun-if-env-changed=TURBOJPEG_SOURCE
+TURBOJPEG_SOURCE unset
+Building turbojpeg from source
+CMAKE_TOOLCHAIN_FILE_x86_64-pc-windows-msvc = None
+CMAKE_TOOLCHAIN_FILE_x86_64_pc_windows_msvc = None
+HOST_CMAKE_TOOLCHAIN_FILE = None
+CMAKE_TOOLCHAIN_FILE = None
+CMAKE_GENERATOR_x86_64-pc-windows-msvc = None
+CMAKE_GENERATOR_x86_64_pc_windows_msvc = None
+HOST_CMAKE_GENERATOR = None
+CMAKE_GENERATOR = None
+CMAKE_PREFIX_PATH_x86_64-pc-windows-msvc = None
+CMAKE_PREFIX_PATH_x86_64_pc_windows_msvc = None
+HOST_CMAKE_PREFIX_PATH = None
+CMAKE_PREFIX_PATH = None
+CMAKE_x86_64-pc-windows-msvc = None
+CMAKE_x86_64_pc_windows_msvc = None
+HOST_CMAKE = None
+CMAKE = None
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+-- The C compiler identification is MSVC 19.44.35224.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- CMAKE_BUILD_TYPE = Debug
+-- VERSION = 3.1.0, BUILD = 20260331
+-- 64-bit build (x86_64)
+-- CMAKE_INSTALL_PREFIX = C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out
+-- CMAKE_INSTALL_BINDIR = bin (C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin)
+-- CMAKE_INSTALL_DATAROOTDIR = share (C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share)
+-- CMAKE_INSTALL_DOCDIR = share/doc/libjpeg-turbo (C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo)
+-- CMAKE_INSTALL_INCLUDEDIR = include (C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include)
+-- CMAKE_INSTALL_LIBDIR = lib (C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib)
+-- Shared libraries disabled (ENABLE_SHARED = 0)
+-- Static libraries enabled (ENABLE_STATIC = 1)
+-- Arithmetic decoding support enabled (WITH_ARITH_DEC = 1)
+-- Arithmetic encoding support enabled (WITH_ARITH_ENC = 1)
+-- TurboJPEG API library enabled (WITH_TURBOJPEG = 1)
+-- TurboJPEG Java wrapper disabled (WITH_JAVA = 0)
+-- Emulating libjpeg API/ABI v6.2 (WITH_JPEG7 = 0, WITH_JPEG8 = 0)
+-- libjpeg API shared library version = 62.4.0
+-- Visual C++ run-time library: MultiThreadedDebug (WITH_CRT_DLL = 0)
+-- Compiler flags =  -nologo -MD -Brepro -W0  -nologo -MD -Brepro -W0
+-- Linker flags = /machine:x64 /debug /INCREMENTAL
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of size_t
+-- Check size of size_t - done
+-- Check size of unsigned long
+-- Check size of unsigned long - done
+-- Looking for include file intrin.h
+-- Looking for include file intrin.h - found
+-- Performing Test INLINE_WORKS
+-- Performing Test INLINE_WORKS - Success
+-- INLINE = __forceinline (FORCE_INLINE = 1)
+-- Performing Test HAVE_THREAD_LOCAL
+-- Performing Test HAVE_THREAD_LOCAL - Success
+-- THREAD_LOCAL = __declspec(thread)
+-- CMAKE_EXECUTABLE_SUFFIX = .exe
+-- The ASM_NASM compiler identification is NASM
+-- Found assembler: C:/Users/User/AppData/Local/bin/NASM/nasm.exe
+-- CMAKE_ASM_NASM_COMPILER = C:/Users/User/AppData/Local/bin/NASM/nasm.exe
+-- CMAKE_ASM_NASM_OBJECT_FORMAT = win64
+-- CMAKE_ASM_NASM_FLAGS =  -DWIN64 -D__x86_64__ -g
+-- SIMD extensions: x86_64 (WITH_SIMD = 1)
+-- FLOATTEST8 = sse
+-- FLOATTEST12 = no-fp-contract
+-- Configuring done (15.7s)
+-- Generating done (0.5s)
+-- Build files have been written to: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build
+MSBuild version 17.14.40+3e7442088 for .NET Framework
+
+  1>Checking Build System
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  1>Generating Debug/jccolor-avx2.asm.obj
+  6>Generating Debug/jcphuff-sse2.asm.obj
+  5>Generating Debug/jchuff-sse2.asm.obj
+  rdppm.c
+  2>Generating Debug/jcgray-avx2.asm.obj
+  jcapistd.c
+  jccolor.c
+  7>Generating Debug/jcsample-avx2.asm.obj
+  jcdiffct.c
+  jclossls.c
+  jcmainct.c
+  rdcolmap.c
+  rdppm.c
+  rdppm.c
+  rdppm.c
+  jcprepct.c
+  jcapistd.c
+  wrgif.c
+  wrppm.c
+  jcsample.c
+  4>Generating Debug/jcgray-sse2.asm.obj
+  wrppm.c
+  jccolor.c
+  3>Generating Debug/jccolor-sse2.asm.obj
+  wrppm.c
+  Generating Code...
+  9>Generating Debug/jdcolor-avx2.asm.obj
+  jdapistd.c
+  Generating Code...
+  8>Generating Debug/jcsample-sse2.asm.obj
+  jcdiffct.c
+  Generating Code...
+  jdcolor.c
+  jclossls.c
+  jddiffct.c
+  jcmainct.c
+  jdlossls.c
+  jcprepct.c
+  11>Generating Debug/jdmerge-avx2.asm.obj
+  jdmainct.c
+  jcsample.c
+  jdpostct.c
+  jdapistd.c
+  jdsample.c
+  jdcolor.c
+  cjpeg12-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\cjpeg12-static.dir\Debug\cjpeg12-static.lib
+  jutils.c
+  jddiffct.c
+  Generating Code...
+  jdlossls.c
+  jdmainct.c
+  jdpostct.c
+  jdsample.c
+  10>Generating Debug/jdcolor-sse2.asm.obj
+  jutils.c
+  jccoefct.c
+  jcdctmgr.c
+  jdcoefct.c
+  jddctmgr.c
+  12>Generating Debug/jdmerge-sse2.asm.obj
+  jdmerge.c
+  Generating Code...
+  wrppm.c
+  13>Generating Debug/jdsample-avx2.asm.obj
+  cjpeg16-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\cjpeg16-static.dir\Debug\cjpeg16-static.lib
+  Compiling...
+  jfdctfst.c
+  jfdctint.c
+  turbojpeg16-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\turbojpeg16-static.dir\Debug\turbojpeg16-static.lib
+  turbojpeg12-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\turbojpeg12-static.dir\Debug\turbojpeg12-static.lib
+  jidctflt.c
+  djpeg12-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\djpeg12-static.dir\Debug\djpeg12-static.lib
+  25>Generating Debug/jquanti-avx2.asm.obj
+  jidctfst.c
+  jidctint.c
+  jidctred.c
+  23>Generating Debug/jidctred-sse2.asm.obj
+  jquant1.c
+  jquant2.c
+  jpeg16-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\jpeg16-static.dir\Debug\jpeg16-static.lib
+  Generating Code...
+  24>Generating Debug/jquantf-sse2.asm.obj
+  27>Generating Debug/jsimdcpu.asm.obj
+  21>Generating Debug/jidctint-avx2.asm.obj
+  22>Generating Debug/jidctint-sse2.asm.obj
+  djpeg16-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\djpeg16-static.dir\Debug\djpeg16-static.lib
+  20>Generating Debug/jidctfst-sse2.asm.obj
+  16>Generating Debug/jfdctfst-sse2.asm.obj
+  15>Generating Debug/jfdctflt-sse.asm.obj
+  jpeg12-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\jpeg12-static.dir\Debug\jpeg12-static.lib
+  26>Generating Debug/jquanti-sse2.asm.obj
+  18>Generating Debug/jfdctint-sse2.asm.obj
+  19>Generating Debug/jidctflt-sse2.asm.obj
+  14>Generating Debug/jdsample-sse2.asm.obj
+  17>Generating Debug/jfdctint-avx2.asm.obj
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/CMakeLists.txt
+  jsimd.c
+  simd.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\simd\simd.dir\Debug\simd.lib
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/src/md5/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/src/md5/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  md5sum.c
+  rdjpgcom.c
+  md5.c
+  md5hl.c
+  md5cmp.c
+  strtest.c
+  Generating Code...
+  md5.c
+  md5hl.c
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  wrjpgcom.c
+  Generating Code...
+  jcapistd.c
+  jccolor.c
+  jcdiffct.c
+  jclossls.c
+  jcmainct.c
+  jcprepct.c
+  jcsample.c
+  jdapistd.c
+  jdcolor.c
+  jddiffct.c
+  jdlossls.c
+  jdmainct.c
+  jdpostct.c
+  jdsample.c
+  rdjpgcom.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\rdjpgcom.exe
+  strtest.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\strtest.exe
+  wrjpgcom.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\wrjpgcom.exe
+  jutils.c
+  md5cmp.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\test\Debug\md5cmp.exe
+  md5sum.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\test\Debug\md5sum.exe
+  jccoefct.c
+  jcdctmgr.c
+  jdcoefct.c
+  jddctmgr.c
+  jcapistd.c
+  jdmerge.c
+  jccolor.c
+  Generating Code...
+  jcdiffct.c
+  jclossls.c
+  jcmainct.c
+  jcprepct.c
+  jcsample.c
+  Compiling...
+  jfdctfst.c
+  jdapistd.c
+  jfdctint.c
+  jdcolor.c
+  jidctflt.c
+  jddiffct.c
+  jidctfst.c
+  jdlossls.c
+  jidctint.c
+  jdmainct.c
+  jidctred.c
+  jdpostct.c
+  jquant1.c
+  jdsample.c
+  jquant2.c
+  jutils.c
+  jcapimin.c
+  jccoefct.c
+  jchuff.c
+  jcdctmgr.c
+  jdcoefct.c
+  jcicc.c
+  jddctmgr.c
+  jcinit.c
+  jdmerge.c
+  jclhuff.c
+  Generating Code...
+  jcmarker.c
+  jcmaster.c
+  jcomapi.c
+  jcparam.c
+  jcphuff.c
+  Compiling...
+  jfdctfst.c
+  jfdctint.c
+  jctrans.c
+  jidctflt.c
+  jdapimin.c
+  jidctfst.c
+  Generating Code...
+  jidctint.c
+  jidctred.c
+  jquant1.c
+  jquant2.c
+  jcapimin.c
+  jchuff.c
+  jcicc.c
+  jcinit.c
+  jclhuff.c
+  Compiling...
+  jdatadst.c
+  jcmarker.c
+  jdatasrc.c
+  jcmaster.c
+  jdhuff.c
+  jcomapi.c
+  jdicc.c
+  jcparam.c
+  jdinput.c
+  jcphuff.c
+  jdlhuff.c
+  jdmarker.c
+  jctrans.c
+  jdmaster.c
+  jdapimin.c
+  jdphuff.c
+  Generating Code...
+  jdtrans.c
+  jerror.c
+  jfdctflt.c
+  jmemmgr.c
+  jmemnobs.c
+  jpeg_nbits.c
+  jaricom.c
+  jcarith.c
+  jdarith.c
+  Generating Code...
+  Compiling...
+  jdatadst.c
+  jdatasrc.c
+  jdhuff.c
+  jdicc.c
+  jdinput.c
+  jdlhuff.c
+  jdmarker.c
+  jdmaster.c
+  jdphuff.c
+  jdtrans.c
+  jerror.c
+  jfdctflt.c
+  jpeg-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\jpeg-static.lib
+  jmemmgr.c
+  jmemnobs.c
+  jpeg_nbits.c
+  jaricom.c
+  jcarith.c
+  jdarith.c
+  turbojpeg.c
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  transupp.c
+  Generating Code...
+  cjpeg.c
+  example.c
+  jpegtran.c
+  djpeg.c
+  cdjpeg.c
+  cdjpeg.c
+  rdbmp.c
+  cdjpeg.c
+  rdswitch.c
+  rdcolmap.c
+  rdgif.c
+  Compiling...
+  jdatadst-tj.c
+  transupp.c
+  rdswitch.c
+  rdppm.c
+  jdatasrc-tj.c
+  wrbmp.c
+  rdswitch.c
+  Generating Code...
+  rdbmp.c
+  wrgif.c
+  rdtarga.c
+  rdppm.c
+  Generating Code...
+  wrppm.c
+  wrbmp.c
+  wrtarga.c
+  wrppm.c
+  Generating Code...
+  Generating Code...
+  example-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\example-static.exe
+  jpegtran-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\jpegtran-static.exe
+  turbojpeg-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\turbojpeg-static.lib
+  cjpeg-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\cjpeg-static.exe
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  djpeg-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\djpeg-static.exe
+  tjbench.c
+  tjunittest.c
+  tjutil.c
+  tjutil.c
+  md5.c
+  Generating Code...
+  md5hl.c
+  Generating Code...
+  tjbench-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\tjbench-static.exe
+  tjunittest-static.vcxproj -> C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\build\Debug\tjunittest-static.exe
+  Building Custom Rule C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/CMakeLists.txt
+  1>
+  -- Install configuration: "Debug"
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/turbojpeg-static.lib
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/tjbench.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include/turbojpeg.h
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/jpeg-static.lib
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/cjpeg.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/djpeg.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/jpegtran.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/rdjpgcom.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/bin/wrjpgcom.exe
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/README.ijg
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/README.md
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/example.c
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/tjcomp.c
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/tjdecomp.c
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/tjtran.c
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/libjpeg.txt
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/structure.txt
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/usage.txt
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/wizard.txt
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/share/doc/libjpeg-turbo/LICENSE.md
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/pkgconfig/libjpeg.pc
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/pkgconfig/libturbojpeg.pc
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/cmake/libjpeg-turbo/libjpeg-turboConfig.cmake
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/cmake/libjpeg-turbo/libjpeg-turboConfigVersion.cmake
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/cmake/libjpeg-turbo/libjpeg-turboTargets.cmake
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/lib/cmake/libjpeg-turbo/libjpeg-turboTargets-debug.cmake
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include/jconfig.h
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include/jerror.h
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include/jmorecfg.h
+  -- Installing: C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/include/jpeglib.h
+cargo:root=C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_CARGO_CFG_TARGET_ENV
+X86_64_PC_WINDOWS_MSVC_CARGO_CFG_TARGET_ENV unset
+cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ENV
+CARGO_CFG_TARGET_ENV = msvc
+cargo:rustc-link-search=native=C:\Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out\lib
+cargo:rustc-link-lib=static=turbojpeg-static
+cargo:rerun-if-env-changed=X86_64_PC_WINDOWS_MSVC_TURBOJPEG_BINDING
+X86_64_PC_WINDOWS_MSVC_TURBOJPEG_BINDING unset
+cargo:rerun-if-env-changed=TURBOJPEG_BINDING
+TURBOJPEG_BINDING unset
+Using pregenerated bindings
+cargo:rerun-if-changed=C:\Users\User\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\turbojpeg-sys-1.1.1\bindings.rs

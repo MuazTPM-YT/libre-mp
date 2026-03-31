@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["DEFAULT_GRAIN_SEED","NUM_UV_COEFFS","NUM_UV_POINTS","NUM_Y_COEFFS","NUM_Y_POINTS"],"enum":["TransferFunction"],"fn":["generate_photon_noise_params","parse_grain_table","write_grain_table"],"struct":["DiffGenerator","GrainTableSegment","NoiseGenArgs"],"type":["ScalingPoints"]};

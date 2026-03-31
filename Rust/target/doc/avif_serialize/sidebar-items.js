@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["serialize","serialize_to_vec"],"mod":["constants"],"struct":["Aviffy"]};

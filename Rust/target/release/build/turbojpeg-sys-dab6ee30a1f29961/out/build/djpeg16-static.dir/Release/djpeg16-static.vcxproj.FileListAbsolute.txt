@@ -1,0 +1,1 @@
+C:\Users\User\Documents\libre-mp\Rust\target\release\build\turbojpeg-sys-dab6ee30a1f29961\out\build\djpeg16-static.dir\Release\djpeg16-static.lib

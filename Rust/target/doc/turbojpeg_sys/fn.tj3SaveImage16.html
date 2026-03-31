@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Save a packed-pixel image with 13 to 16 bits of data precision per sample from memory to disk."><title>tj3SaveImage16 in turbojpeg_sys - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="turbojpeg_sys" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">tj3SaveImage16</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../turbojpeg_sys/index.html">turbojpeg_<wbr>sys</a><span class="version">1.1.1</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">turbojpeg_sys</a></div><h1>Function <span class="fn">tj3Save<wbr>Image16</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/turbojpeg_sys/Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out/bindings.rs.html#2425-2433">Source</a> </span></div><pre class="rust item-decl"><code>pub unsafe extern &quot;C&quot; fn tj3SaveImage16(
+    handle: <a class="type" href="type.tjhandle.html" title="type turbojpeg_sys::tjhandle">tjhandle</a>,
+    filename: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*const </a><a class="type" href="../libc/primitives/type.c_char.html" title="type libc::primitives::c_char">c_char</a>,
+    buffer: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*const </a><a class="type" href="../libc/primitives/type.c_ushort.html" title="type libc::primitives::c_ushort">c_ushort</a>,
+    width: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    pitch: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    height: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    pixelFormat: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+) -&gt; <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Save a packed-pixel image with 13 to 16 bits of data precision per sample
+from memory to disk.</p>
+<p>@param handle handle to a TurboJPEG instance</p>
+<p>@param filename name of a file to which to save the packed-pixel image,
+which will be stored in PBMPLUS (PPM/PGM) format.  The source data precision
+(from 13 to 16 bits per sample) can be specified using #TJPARAM_PRECISION
+and defaults to 16 if #TJPARAM_PRECISION is unset or out of range.</p>
+<p>@param buffer pointer to a buffer containing a packed-pixel RGB, grayscale,
+or CMYK image to be saved</p>
+<p>@param width width (in pixels) of the packed-pixel image</p>
+<p>@param pitch samples per row in the packed-pixel image.  Setting this
+parameter to 0 is the equivalent of setting it to
+<tt>width * #tjPixelSize[pixelFormat]</tt>.</p>
+<p>@param height height (in pixels) of the packed-pixel image</p>
+<p>@param pixelFormat pixel format of the packed-pixel image (see @ref TJPF
+“Pixel formats”.)  If this parameter is set to @ref TJPF_GRAY, then the
+image will be stored in PGM format.  Otherwise, the image will be stored in
+PPM format.  If this parameter is set to @ref TJPF_CMYK, then the CMYK
+pixels will be converted to RGB using a quick &amp; dirty algorithm that is
+suitable only for testing purposes.  (Proper conversion between CMYK and
+other formats requires a color management system.)</p>
+<p>@return 0 if successful, or -1 if an error occurred (see #tj3GetErrorStr().)</p>
+</div></details></section></div></main></body></html>

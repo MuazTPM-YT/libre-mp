@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"attr":["hawktracer","wasm_bindgen"],"derive":["Deserialize","Serialize"],"macro":["scoped_tracepoint"]};

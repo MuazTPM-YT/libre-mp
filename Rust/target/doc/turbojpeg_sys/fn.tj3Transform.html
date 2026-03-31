@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Losslessly transform a JPEG image into another JPEG image.  Lossless transforms work by moving the raw DCT coefficients from one JPEG image structure to another without altering the values of the coefficients.  While this is typically faster than decompressing the image, transforming it, and re-compressing it, lossless transforms are not free.  Each lossless transform requires reading and performing entropy decoding on all of the coefficients in the source image, regardless of the size of the destination image.  Thus, this function provides a means of generating multiple transformed images from the same source or applying multiple transformations simultaneously, in order to eliminate the need to read the source coefficients multiple times."><title>tj3Transform in turbojpeg_sys - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="turbojpeg_sys" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">tj3Transform</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../turbojpeg_sys/index.html">turbojpeg_<wbr>sys</a><span class="version">1.1.1</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">turbojpeg_sys</a></div><h1>Function <span class="fn">tj3Transform</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/turbojpeg_sys/Users\User\Documents\libre-mp\Rust\target\debug\build\turbojpeg-sys-9d94789a68479c96\out/bindings.rs.html#2135-2143">Source</a> </span></div><pre class="rust item-decl"><code>pub unsafe extern &quot;C&quot; fn tj3Transform(
+    handle: <a class="type" href="type.tjhandle.html" title="type turbojpeg_sys::tjhandle">tjhandle</a>,
+    jpegBuf: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*const </a><a class="type" href="../libc/primitives/type.c_uchar.html" title="type libc::primitives::c_uchar">c_uchar</a>,
+    jpegSize: <a class="type" href="type.size_t.html" title="type turbojpeg_sys::size_t">size_t</a>,
+    n: <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a>,
+    dstBufs: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="type" href="../libc/primitives/type.c_uchar.html" title="type libc::primitives::c_uchar">c_uchar</a>,
+    dstSizes: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*mut </a><a class="type" href="type.size_t.html" title="type turbojpeg_sys::size_t">size_t</a>,
+    transforms: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/core/primitive.pointer.html">*const </a><a class="struct" href="struct.tjtransform.html" title="struct turbojpeg_sys::tjtransform">tjtransform</a>,
+) -&gt; <a class="type" href="../libc/primitives/type.c_int.html" title="type libc::primitives::c_int">c_int</a></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Losslessly transform a JPEG image into another JPEG image.  Lossless
+transforms work by moving the raw DCT coefficients from one JPEG image
+structure to another without altering the values of the coefficients.  While
+this is typically faster than decompressing the image, transforming it, and
+re-compressing it, lossless transforms are not free.  Each lossless
+transform requires reading and performing entropy decoding on all of the
+coefficients in the source image, regardless of the size of the destination
+image.  Thus, this function provides a means of generating multiple
+transformed images from the same source or applying multiple transformations
+simultaneously, in order to eliminate the need to read the source
+coefficients multiple times.</p>
+<p>@param handle handle to a TurboJPEG instance that has been initialized for
+lossless transformation</p>
+<p>@param jpegBuf pointer to a byte buffer containing the JPEG source image to
+transform</p>
+<p>@param jpegSize size of the JPEG source image (in bytes)</p>
+<p>@param n the number of transformed JPEG images to generate</p>
+<p>@param dstBufs pointer to an array of n byte buffers.  <code>dstBufs[i]</code> will
+receive a JPEG image that has been transformed using the parameters in
+<code>transforms[i]</code>.  TurboJPEG has the ability to reallocate the JPEG
+destination buffer to accommodate the size of the transformed JPEG image.
+Thus, you can choose to:
+-# pre-allocate the JPEG destination buffer with an arbitrary size using
+#tj3Alloc() and let TurboJPEG grow the buffer as needed,
+-# set <code>dstBufs[i]</code> to NULL to tell TurboJPEG to allocate the buffer for
+you, or
+-# pre-allocate the buffer to a “worst case” size determined by calling
+#tj3TransformBufSize().  Under normal circumstances, this should ensure that
+the buffer never has to be re-allocated.  (Setting #TJPARAM_NOREALLOC
+guarantees that it won’t be.)  Note, however, that there are some rare cases
+(such as transforming images with a large amount of embedded Exif data) in
+which the transformed JPEG image will be larger than the worst-case size,
+and #TJPARAM_NOREALLOC cannot be used in those cases unless the embedded
+data is discarded using #TJXOPT_COPYNONE or #TJPARAM_SAVEMARKERS.
+.
+If you choose option 1 or 3, then <code>dstSizes[i]</code> should be set to the size of
+your pre-allocated buffer.  In any case, unless you have set
+#TJPARAM_NOREALLOC, you should always check <code>dstBufs[i]</code> upon return from
+this function, as it may have changed.</p>
+<p>@param dstSizes pointer to an array of n size_t variables that will receive
+the actual sizes (in bytes) of each transformed JPEG image.  If <code>dstBufs[i]</code>
+points to a pre-allocated buffer, then <code>dstSizes[i]</code> should be set to the
+size of the buffer.  Upon return, <code>dstSizes[i]</code> will contain the size of the
+transformed JPEG image (in bytes.)</p>
+<p>@param transforms pointer to an array of n #tjtransform structures, each of
+which specifies the transform parameters and/or cropping region for the
+corresponding transformed JPEG image.</p>
+<p>@return 0 if successful, or -1 if an error occurred (see #tj3GetErrorStr()
+and #tj3GetErrorCode().)</p>
+</div></details></section></div></main></body></html>

@@ -1,0 +1,288 @@
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCCOLOR-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jccolor-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jccolor-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCCOLOR-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jccolor-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jccolor-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCGRAY-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jcgray-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jcgray-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCGRAY-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jcgray-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jcgray-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCHUFF-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jchuff-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jchuff-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCPHUFF-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jcphuff-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jcphuff-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCSAMPLE-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jcsample-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jcsample-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JCSAMPLE-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jcsample-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jcsample-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDCOLOR-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdcolor-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdcolor-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDCOLOR-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdcolor-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdcolor-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDMERGE-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdmerge-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdmerge-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDMERGE-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdmerge-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdmerge-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDSAMPLE-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdsample-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdsample-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JDSAMPLE-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jdsample-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jdsample-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JFDCTFLT-SSE.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jfdctflt-sse.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jfdctflt-sse.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JFDCTFST-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jfdctfst-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jfdctfst-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JFDCTINT-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jfdctint-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jfdctint-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JFDCTINT-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jfdctint-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jfdctint-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JIDCTFLT-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jidctflt-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jidctflt-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JIDCTFST-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jidctfst-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jidctfst-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JIDCTINT-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jidctint-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jidctint-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JIDCTINT-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jidctint-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jidctint-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JIDCTRED-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jidctred-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jidctred-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JQUANTF-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jquantf-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jquantf-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JQUANTI-AVX2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jquanti-avx2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jquanti-avx2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JQUANTI-SSE2.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jquanti-sse2.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jquanti-sse2.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\CCF8455A51340CD1AAFDC8C76EA87232\JSIMDCPU.ASM.OBJ.RULE
+setlocal
+C:\Users\User\AppData\Local\bin\NASM\nasm.exe -fwin64 -DWIN64 -D__x86_64__ -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/nasm/" -I"C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/" C:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo/simd/x86_64/jsimdcpu.asm -oC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/Debug/jsimdcpu.asm.obj
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\DOCUMENTS\LIBRE-MP\RUST\TARGET\DEBUG\BUILD\TURBOJPEG-SYS-9D94789A68479C96\OUT\BUILD\CMAKEFILES\C5E3C8C9277225CB0DB62DC686DC81DB\SIMD-OBJS.RULE
+setlocal
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+^C:\USERS\USER\.CARGO\REGISTRY\SRC\INDEX.CRATES.IO-1949CF8C6B5B557F\TURBOJPEG-SYS-1.1.1\LIBJPEG-TURBO\SIMD\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/User/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/turbojpeg-sys-1.1.1/libjpeg-turbo -BC:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build --check-stamp-file C:/Users/User/Documents/libre-mp/Rust/target/debug/build/turbojpeg-sys-9d94789a68479c96/out/build/simd/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

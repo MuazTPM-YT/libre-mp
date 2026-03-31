@@ -1,0 +1,256 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Implemented by complex types that require some immutable context to parse themselves from a reader."><title>FromBitStreamWith in bitstream_io::read - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-77263533.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bitstream_io" data-themes="" data-resource-suffix="" data-rustdoc-version="1.94.1 (e408947bf 2026-03-25)" data-channel="1.94.1" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-b897f86f.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-7bab91a1.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-ffcac47a.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">FromBitStreamWith</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../bitstream_io/index.html">bitstream_<wbr>io</a><span class="version">4.9.0</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">From<wbr>BitStream<wbr>With</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li><li><a href="#example-with-lifetime-contrained-context" title="Example with lifetime-contrained `Context`">Example with lifetime-contrained <code>Context</code></a></li></ul><h3><a href="#required-associated-types">Required Associated Types</a></h3><ul class="block"><li><a href="#associatedtype.Context" title="Context">Context</a></li><li><a href="#associatedtype.Error" title="Error">Error</a></li></ul><h3><a href="#required-methods">Required Methods</a></h3><ul class="block"><li><a href="#tymethod.from_reader" title="from_reader">from_reader</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2><a href="index.html">In bitstream_<wbr>io::<wbr>read</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">bitstream_io</a>::<wbr><a href="index.html">read</a></div><h1>Trait <span class="trait">From<wbr>BitStream<wbr>With</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/bitstream_io/read.rs.html#2394-2408">Source</a> </span></div><pre class="rust item-decl"><code>pub trait FromBitStreamWith&lt;'a&gt; {
+    type <a href="#associatedtype.Context" class="associatedtype">Context</a>: 'a;
+    type <a href="#associatedtype.Error" class="associatedtype">Error</a>;
+
+    // Required method
+    fn <a href="#tymethod.from_reader" class="fn">from_reader</a>&lt;R: <a class="trait" href="trait.BitRead.html" title="trait bitstream_io::read::BitRead">BitRead</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+        r: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;mut R</a>,
+        context: &amp;Self::<a class="associatedtype" href="trait.FromBitStreamWith.html#associatedtype.Context" title="type bitstream_io::read::FromBitStreamWith::Context">Context</a>,
+    ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Self, Self::<a class="associatedtype" href="trait.FromBitStreamWith.html#associatedtype.Error" title="type bitstream_io::read::FromBitStreamWith::Error">Error</a>&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span>;
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Implemented by complex types that require some immutable context
+to parse themselves from a reader.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Read;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitRead, BitReader, FromBitStreamWith};
+
+<span class="attr">#[derive(Default)]
+</span><span class="kw">struct </span>Streaminfo {
+    minimum_block_size: u16,
+    maximum_block_size: u16,
+    minimum_frame_size: u32,
+    maximum_frame_size: u32,
+    sample_rate: u32,
+    channels: u8,
+    bits_per_sample: u8,
+    total_samples: u64,
+    md5: [u8; <span class="number">16</span>],
+}
+
+<span class="attr">#[derive(Debug, PartialEq, Eq)]
+</span><span class="kw">struct </span>FrameHeader {
+    variable_block_size: bool,
+    block_size: u32,
+    sample_rate: u32,
+    channel_assignment: u8,
+    sample_size: u8,
+    frame_number: u64,
+    crc8: u8,
+}
+
+<span class="kw">impl </span>FromBitStreamWith&lt;<span class="lifetime">'_</span>&gt; <span class="kw">for </span>FrameHeader {
+    <span class="kw">type </span>Context = Streaminfo;
+
+    <span class="kw">type </span>Error = FrameHeaderError;
+
+    <span class="kw">fn </span>from_reader&lt;R: BitRead + <span class="question-mark">?</span>Sized&gt;(
+        r: <span class="kw-2">&amp;mut </span>R,
+        streaminfo: <span class="kw-2">&amp;</span>Streaminfo,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">if </span>r.read::&lt;<span class="number">14</span>, u16&gt;()<span class="question-mark">? </span>!= <span class="number">0b11111111111110 </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidSync);
+        }
+
+        <span class="kw">if </span>r.read_bit()<span class="question-mark">? </span>!= <span class="bool-val">false </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidReservedBit);
+        }
+
+        <span class="kw">let </span>variable_block_size = r.read_bit()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>block_size_bits = r.read::&lt;<span class="number">4</span>, u8&gt;()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>sample_rate_bits = r.read::&lt;<span class="number">4</span>, u8&gt;()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>channel_assignment = r.read::&lt;<span class="number">4</span>, u8&gt;()<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>sample_size = <span class="kw">match </span>r.read::&lt;<span class="number">3</span>, u8&gt;()<span class="question-mark">? </span>{
+            <span class="number">0b000 </span>=&gt; streaminfo.bits_per_sample,
+            <span class="number">0b001 </span>=&gt; <span class="number">8</span>,
+            <span class="number">0b010 </span>=&gt; <span class="number">12</span>,
+            <span class="number">0b011 </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidSampleSize),
+            <span class="number">0b100 </span>=&gt; <span class="number">16</span>,
+            <span class="number">0b101 </span>=&gt; <span class="number">20</span>,
+            <span class="number">0b110 </span>=&gt; <span class="number">24</span>,
+            <span class="number">0b111 </span>=&gt; <span class="number">32</span>,
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        };
+
+        <span class="kw">if </span>r.read_bit()<span class="question-mark">? </span>!= <span class="bool-val">false </span>{
+            <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidReservedBit);
+        }
+
+        <span class="kw">let </span>frame_number = read_utf8(r)<span class="question-mark">?</span>;
+
+        <span class="prelude-val">Ok</span>(FrameHeader {
+            variable_block_size,
+            block_size: <span class="kw">match </span>block_size_bits {
+                <span class="number">0b0000 </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidBlockSize),
+                <span class="number">0b0001 </span>=&gt; <span class="number">192</span>,
+                n @ <span class="number">0b010</span>..=<span class="number">0b0101 </span>=&gt; <span class="number">576 </span>* (<span class="number">1 </span>&lt;&lt; (n - <span class="number">2</span>)),
+                <span class="number">0b0110 </span>=&gt; r.read::&lt;<span class="number">8</span>, u32&gt;()<span class="question-mark">? </span>+ <span class="number">1</span>,
+                <span class="number">0b0111 </span>=&gt; r.read::&lt;<span class="number">16</span>, u32&gt;()<span class="question-mark">? </span>+ <span class="number">1</span>,
+                n @ <span class="number">0b1000</span>..=<span class="number">0b1111 </span>=&gt; <span class="number">256 </span>* (<span class="number">1 </span>&lt;&lt; (n - <span class="number">8</span>)),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            },
+            sample_rate: <span class="kw">match </span>sample_rate_bits {
+                <span class="number">0b0000 </span>=&gt; streaminfo.sample_rate,
+                <span class="number">0b0001 </span>=&gt; <span class="number">88200</span>,
+                <span class="number">0b0010 </span>=&gt; <span class="number">176400</span>,
+                <span class="number">0b0011 </span>=&gt; <span class="number">192000</span>,
+                <span class="number">0b0100 </span>=&gt; <span class="number">8000</span>,
+                <span class="number">0b0101 </span>=&gt; <span class="number">16000</span>,
+                <span class="number">0b0110 </span>=&gt; <span class="number">22050</span>,
+                <span class="number">0b0111 </span>=&gt; <span class="number">24000</span>,
+                <span class="number">0b1000 </span>=&gt; <span class="number">32000</span>,
+                <span class="number">0b1001 </span>=&gt; <span class="number">44100</span>,
+                <span class="number">0b1010 </span>=&gt; <span class="number">48000</span>,
+                <span class="number">0b1011 </span>=&gt; <span class="number">96000</span>,
+                <span class="number">0b1100 </span>=&gt; r.read::&lt;<span class="number">8</span>, u32&gt;()<span class="question-mark">? </span>* <span class="number">1000</span>,
+                <span class="number">0b1101 </span>=&gt; r.read::&lt;<span class="number">16</span>, u32&gt;()<span class="question-mark">?</span>,
+                <span class="number">0b1110 </span>=&gt; r.read::&lt;<span class="number">16</span>, u32&gt;()<span class="question-mark">? </span>* <span class="number">10</span>,
+                <span class="number">0b1111 </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(FrameHeaderError::InvalidSampleRate),
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+            },
+            channel_assignment,
+            sample_size,
+            frame_number,
+            crc8: r.read::&lt;<span class="number">8</span>, <span class="kw">_</span>&gt;()<span class="question-mark">?
+        </span>})
+    }
+}
+
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">enum </span>FrameHeaderError {
+    Io(std::io::Error),
+    InvalidSync,
+    InvalidReservedBit,
+    InvalidSampleSize,
+    InvalidBlockSize,
+    InvalidSampleRate,
+}
+
+<span class="kw">impl </span>From&lt;std::io::Error&gt; <span class="kw">for </span>FrameHeaderError {
+    <span class="kw">fn </span>from(err: std::io::Error) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Io(err)
+    }
+}
+
+<span class="kw">fn </span>read_utf8&lt;R: BitRead + <span class="question-mark">?</span>Sized&gt;(r: <span class="kw-2">&amp;mut </span>R) -&gt; <span class="prelude-ty">Result</span>&lt;u64, std::io::Error&gt; {
+    r.read::&lt;<span class="number">8</span>, <span class="kw">_</span>&gt;()  <span class="comment">// left unimplimented in this example
+</span>}
+
+<span class="kw">let </span><span class="kw-2">mut </span>reader = BitReader::endian(<span class="string">b"\xFF\xF8\xC9\x18\x00\xC2"</span>.as_slice(), BigEndian);
+<span class="macro">assert_eq!</span>(
+    reader.parse_with::&lt;FrameHeader&gt;(<span class="kw-2">&amp;</span>Streaminfo::default()).unwrap(),
+    FrameHeader {
+        variable_block_size: <span class="bool-val">false</span>,
+        block_size: <span class="number">4096</span>,
+        sample_rate: <span class="number">44100</span>,
+        channel_assignment: <span class="number">1</span>,
+        sample_size: <span class="number">16</span>,
+        frame_number: <span class="number">0</span>,
+        crc8: <span class="number">0xC2</span>,
+    }
+);</code></pre></div><h2 id="example-with-lifetime-contrained-context"><a class="doc-anchor" href="#example-with-lifetime-contrained-context">§</a>Example with lifetime-contrained <code>Context</code></h2>
+<p>In some cases, the <code>Context</code> can depend on a reference to another <code>struct</code>.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::io::Read;
+<span class="kw">use </span>bitstream_io::{BigEndian, BitRead, BitReader, FromBitStreamWith};
+
+<span class="attr">#[derive(Default)]
+</span><span class="kw">struct </span>ModeParameters {
+    size_len: u8,
+    index_len: u8,
+    index_delta_len: u8,
+    <span class="comment">// ...
+</span>}
+
+<span class="kw">struct </span>AuHeaderParseContext&lt;<span class="lifetime">'a</span>&gt; {
+    params: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>ModeParameters,
+    base_index: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+}
+
+<span class="attr">#[derive(Debug, PartialEq, Eq)]
+</span><span class="kw">struct </span>AuHeader {
+    size: u32,
+    index: u32,
+    <span class="comment">// ...
+</span>}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; FromBitStreamWith&lt;<span class="lifetime">'a</span>&gt; <span class="kw">for </span>AuHeader {
+    <span class="kw">type </span>Context = AuHeaderParseContext&lt;<span class="lifetime">'a</span>&gt;;
+
+    <span class="kw">type </span>Error = AuHeaderError;
+
+    <span class="kw">fn </span>from_reader&lt;R: BitRead + <span class="question-mark">?</span>Sized&gt;(
+        r: <span class="kw-2">&amp;mut </span>R,
+        ctx: <span class="kw-2">&amp;</span>AuHeaderParseContext&lt;<span class="lifetime">'a</span>&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Error&gt; {
+        <span class="kw">let </span>size = r.read_var::&lt;u32&gt;(ctx.params.size_len <span class="kw">as </span>u32)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index = <span class="kw">match </span>ctx.base_index {
+            <span class="prelude-val">None </span>=&gt; r.read_var::&lt;u32&gt;(ctx.params.index_len <span class="kw">as </span>u32)<span class="question-mark">?</span>,
+            <span class="prelude-val">Some</span>(base_index) =&gt; {
+                base_index
+                + <span class="number">1
+                </span>+ r.read_var::&lt;u32&gt;(ctx.params.index_delta_len <span class="kw">as </span>u32)<span class="question-mark">?
+            </span>}
+        };
+
+        <span class="prelude-val">Ok</span>(AuHeader {
+            size,
+            index,
+            <span class="comment">// ...
+        </span>})
+    }
+}
+
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">enum </span>AuHeaderError {
+    Io(std::io::Error),
+}
+
+<span class="kw">impl </span>From&lt;std::io::Error&gt; <span class="kw">for </span>AuHeaderError {
+    <span class="kw">fn </span>from(err: std::io::Error) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Io(err)
+    }
+}
+
+<span class="kw">let </span><span class="kw-2">mut </span>reader = BitReader::endian(<span class="string">b"\xFF\xEA\xFF\x10"</span>.as_slice(), BigEndian);
+
+<span class="kw">let </span>mode_params = ModeParameters {
+    size_len: <span class="number">10</span>,
+    index_len: <span class="number">6</span>,
+    index_delta_len: <span class="number">2</span>,
+    <span class="comment">// ...
+</span>};
+
+<span class="kw">let </span><span class="kw-2">mut </span>ctx = AuHeaderParseContext {
+    params: <span class="kw-2">&amp;</span>mode_params,
+    base_index: <span class="prelude-val">None</span>,
+};
+
+<span class="kw">let </span>header1 = reader.parse_with::&lt;AuHeader&gt;(<span class="kw-2">&amp;</span>ctx).unwrap();
+<span class="macro">assert_eq!</span>(
+    header1,
+    AuHeader {
+        size: <span class="number">1023</span>,
+        index: <span class="number">42</span>,
+    }
+);
+
+ctx.base_index = <span class="prelude-val">Some</span>(header1.index);
+
+<span class="macro">assert_eq!</span>(
+    reader.parse_with::&lt;AuHeader&gt;(<span class="kw-2">&amp;</span>ctx).unwrap(),
+    AuHeader {
+        size: <span class="number">1020</span>,
+        index: <span class="number">44</span>,
+    }
+);</code></pre></div></div></details><h2 id="required-associated-types" class="section-header">Required Associated Types<a href="#required-associated-types" class="anchor">§</a></h2><div class="methods"><details class="toggle" open><summary><section id="associatedtype.Context" class="method"><a class="src rightside" href="../../src/bitstream_io/read.rs.html#2396">Source</a><h4 class="code-header">type <a href="#associatedtype.Context" class="associatedtype">Context</a>: 'a</h4></section></summary><div class="docblock"><p>Some context to use when parsing</p>
+</div></details><details class="toggle" open><summary><section id="associatedtype.Error" class="method"><a class="src rightside" href="../../src/bitstream_io/read.rs.html#2399">Source</a><h4 class="code-header">type <a href="#associatedtype.Error" class="associatedtype">Error</a></h4></section></summary><div class="docblock"><p>Error generated during parsing, such as <code>io::Error</code></p>
+</div></details></div><h2 id="required-methods" class="section-header">Required Methods<a href="#required-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="tymethod.from_reader" class="method"><a class="src rightside" href="../../src/bitstream_io/read.rs.html#2402-2407">Source</a><h4 class="code-header">fn <a href="#tymethod.from_reader" class="fn">from_reader</a>&lt;R: <a class="trait" href="trait.BitRead.html" title="trait bitstream_io::read::BitRead">BitRead</a> + ?<a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>&gt;(
+    r: <a class="primitive" href="https://doc.rust-lang.org/1.94.1/std/primitive.reference.html">&amp;mut R</a>,
+    context: &amp;Self::<a class="associatedtype" href="trait.FromBitStreamWith.html#associatedtype.Context" title="type bitstream_io::read::FromBitStreamWith::Context">Context</a>,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.94.1/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Self, Self::<a class="associatedtype" href="trait.FromBitStreamWith.html#associatedtype.Error" title="type bitstream_io::read::FromBitStreamWith::Error">Error</a>&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.94.1/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Parse Self from reader with the given context</p>
+</div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"></div><script src="../../trait.impl/bitstream_io/read/trait.FromBitStreamWith.js" async></script></section></div></main></body></html>

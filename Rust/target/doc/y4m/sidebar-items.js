@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Colorspace","Error","ParseError"],"fn":["decode","encode"],"struct":["Decoder","Encoder","EncoderBuilder","Frame","Limits","Ratio","VendorExtensionString"]};
