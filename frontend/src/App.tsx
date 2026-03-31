@@ -54,6 +54,7 @@ function App() {
 
   // Connection state
   const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
+  const [connectedPassword, setConnectedPassword] = useState<string>('');
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
   const [connectionStatusDetail, setConnectionStatusDetail] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -66,7 +67,7 @@ function App() {
   const [isConnectionModeOpen, setIsConnectionModeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
-  
+
   const isScanningRef = { current: false };
 
   const scanNetworks = useCallback(async () => {
@@ -154,23 +155,24 @@ function App() {
     setConnectingSSID(network.ssid);
     setConnectionError(null);
     setConnectionStatusDetail(`Initializing connection to ${network.name}...`);
-    
+
     try {
       // Small delay for smoother transition
       await new Promise(r => setTimeout(r, 400));
       setConnectionStatusDetail(`Authenticating with ${network.name}...`);
-      
+
       const success: boolean = await invoke('connect_to_wifi', { ssid: network.ssid, password });
       if (success) {
-        setConnectedSSID(network.ssid); // Set connected first to hide the bar
-        
+        setConnectedSSID(network.ssid);
+        setConnectedPassword(password || '');
+
         // Brief delay before clearing the connecting state to avoid flicker
         await new Promise(r => setTimeout(r, 200));
-        
+
         try {
           const discovered: any[] = await invoke('discover_projectors');
           if (discovered.length > 0) {
-            setNetworks(prev => prev.map(n => 
+            setNetworks(prev => prev.map(n =>
               n.ssid === network.ssid ? { ...n, name: discovered[0].name } : n
             ));
           }
@@ -208,14 +210,14 @@ function App() {
       // 2. Projectors next
       if (a.is_projector && !b.is_projector) return -1;
       if (!a.is_projector && b.is_projector) return 1;
-      
+
       // 3. Then signal strength
       return b.signal - a.signal;
     });
 
   return (
     <div className="app">
-      <StatusBanner 
+      <StatusBanner
         connectedSSID={connectedSSID}
         connectingSSID={connectingSSID}
         connectionError={connectionError}
@@ -223,7 +225,7 @@ function App() {
         onDismissError={() => setConnectionError(null)}
       />
 
-      <TopHeader 
+      <TopHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onRefresh={scanNetworks}
@@ -236,7 +238,7 @@ function App() {
       <div className="app-body">
         <main className="main">
           <div className="main-scroll">
-            <NetworkTable 
+            <NetworkTable
               networks={filtered}
               connectedSSID={connectedSSID}
               connectingSSID={connectingSSID}
@@ -251,10 +253,10 @@ function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <ConnectionModeModal isOpen={isConnectionModeOpen} onClose={() => setIsConnectionModeOpen(false)} mode={connectionMode} setMode={setConnectionMode} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-      
-      <PasswordModal 
-        isOpen={!!passwordModalNet} 
-        networkName={passwordModalNet?.name || ''} 
+
+      <PasswordModal
+        isOpen={!!passwordModalNet}
+        networkName={passwordModalNet?.name || ''}
         isLoading={connectingSSID === passwordModalNet?.ssid}
         error={connectingSSID === passwordModalNet?.ssid ? null : connectionError}
         onCancel={() => {

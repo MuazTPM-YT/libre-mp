@@ -445,7 +445,7 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // SHARED: wifi_connect (same flow on all platforms)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-pub fn wifi_connect() -> (Option<String>, String, String) {
+pub fn wifi_connect() -> (Option<String>, String, String, String) {
     let current = get_current_connection_id();
     show_current_network();
 
@@ -454,7 +454,7 @@ pub fn wifi_connect() -> (Option<String>, String, String) {
 
     let idx = match interactive_select(&networks) {
         Some(i) => i,
-        None => return (current, String::new(), String::new()),
+        None => return (current, String::new(), String::new(), String::new()),
     };
 
     let selected = &networks[idx];
@@ -474,7 +474,7 @@ pub fn wifi_connect() -> (Option<String>, String, String) {
 
     if connect_to_network(selected, &password) {
         eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
-        return (current, selected.ssid.clone(), password);
+        return (current, selected.ssid.clone(), selected.bssid.clone(), password);
     }
 
     eprintln!("[-] Failed to connect to '{}'", selected.ssid);

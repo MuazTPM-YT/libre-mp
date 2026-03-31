@@ -16,16 +16,20 @@ pub enum ProtocolError {
 pub struct EpsonClient {
     pub projector_ip: String,
     pub my_ip: String,
+    pub password: String,
+    pub ssid: String,
     pub s_auth: Option<Arc<Mutex<TcpStream>>>,
     pub s_video: Option<Arc<Mutex<TcpStream>>>,
     pub s_video_aux: Option<Arc<Mutex<TcpStream>>>,
 }
 
 impl EpsonClient {
-    pub fn new(projector_ip: &str) -> Self {
+    pub fn new(projector_ip: &str, password: &str, ssid: &str) -> Self {
         Self {
             projector_ip: projector_ip.to_string(),
             my_ip: config::get_local_ip(),
+            password: password.to_string(),
+            ssid: ssid.to_string(),
             s_auth: None,
             s_video: None,
             s_video_aux: None,
@@ -74,8 +78,8 @@ impl EpsonClient {
         auth_stream.set_nodelay(true).unwrap();
 
         println!("[*]    Sending 264-Byte Full Auth Request...");
-        // Arbitrary fake MAC for testing ("a4d73ccdaf45")
-        let auth_payload = payloads::get_auth_payload_full(&self.my_ip, &self.projector_ip, "a4d73ccdaf45");
+        let mac = self.password.replace([':', '-'], "").to_lowercase();
+        let auth_payload = payloads::get_auth_payload_full(&self.my_ip, &self.projector_ip, &mac, &self.ssid);
         auth_stream.write_all(&auth_payload).await
             .map_err(|e| ProtocolError::NetworkError(e.to_string()))?;
 
