@@ -1,0 +1,1 @@
+/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -g -Wl,--dependency-file=CMakeFiles/wrjpgcom.dir/link.d CMakeFiles/wrjpgcom.dir/src/wrjpgcom.c.o -o wrjpgcom

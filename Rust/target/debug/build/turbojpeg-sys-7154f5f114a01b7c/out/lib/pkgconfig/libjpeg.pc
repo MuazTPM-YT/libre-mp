@@ -1,0 +1,10 @@
+prefix=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-7154f5f114a01b7c/out
+exec_prefix=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-7154f5f114a01b7c/out
+libdir=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-7154f5f114a01b7c/out/lib
+includedir=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-7154f5f114a01b7c/out/include
+
+Name: libjpeg
+Description: A SIMD-accelerated JPEG codec that provides the libjpeg API
+Version: 3.1.0
+Libs: -L${libdir} -ljpeg
+Cflags: -I${includedir}

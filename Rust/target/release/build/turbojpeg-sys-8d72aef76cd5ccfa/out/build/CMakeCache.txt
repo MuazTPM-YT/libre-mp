@@ -60,8 +60,8 @@ CMAKE_CXX_COMPILER:UNINITIALIZED=/usr/bin/c++
 //No help, variable specified on the command line.
 CMAKE_CXX_FLAGS:UNINITIALIZED= -ffunction-sections -fdata-sections -fPIC -m64 -w
 
-//C compiler
-CMAKE_C_COMPILER:STRING=/usr/bin/cc
+//No help, variable specified on the command line.
+CMAKE_C_COMPILER:UNINITIALIZED=/usr/bin/cc
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler

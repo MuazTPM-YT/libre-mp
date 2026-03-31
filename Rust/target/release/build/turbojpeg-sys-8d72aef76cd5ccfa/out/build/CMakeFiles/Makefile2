@@ -261,8 +261,8 @@ CMakeFiles/jpeg16-static.dir/clean:
 # Target rules for target CMakeFiles/jpeg-static.dir
 
 # All Build rule for target.
-CMakeFiles/jpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
 CMakeFiles/jpeg-static.dir/all: CMakeFiles/jpeg12-static.dir/all
+CMakeFiles/jpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
 CMakeFiles/jpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jpeg-static.dir/build.make CMakeFiles/jpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jpeg-static.dir/build.make CMakeFiles/jpeg-static.dir/build
@@ -359,10 +359,10 @@ CMakeFiles/turbojpeg16-static.dir/clean:
 # Target rules for target CMakeFiles/turbojpeg-static.dir
 
 # All Build rule for target.
-CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/turbojpeg12-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/turbojpeg16-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/jpeg12-static.dir/all
+CMakeFiles/turbojpeg-static.dir/all: CMakeFiles/jpeg16-static.dir/all
 CMakeFiles/turbojpeg-static.dir/all: simd/CMakeFiles/simd.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/turbojpeg-static.dir/build.make CMakeFiles/turbojpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/turbojpeg-static.dir/build.make CMakeFiles/turbojpeg-static.dir/build
@@ -523,8 +523,8 @@ CMakeFiles/cjpeg16-static.dir/clean:
 # Target rules for target CMakeFiles/cjpeg-static.dir
 
 # All Build rule for target.
-CMakeFiles/cjpeg-static.dir/all: CMakeFiles/cjpeg12-static.dir/all
 CMakeFiles/cjpeg-static.dir/all: CMakeFiles/jpeg-static.dir/all
+CMakeFiles/cjpeg-static.dir/all: CMakeFiles/cjpeg12-static.dir/all
 CMakeFiles/cjpeg-static.dir/all: CMakeFiles/cjpeg16-static.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cjpeg-static.dir/build.make CMakeFiles/cjpeg-static.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cjpeg-static.dir/build.make CMakeFiles/cjpeg-static.dir/build

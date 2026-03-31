@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{self, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 

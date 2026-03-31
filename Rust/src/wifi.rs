@@ -4,13 +4,11 @@ use std::collections::HashMap;
 
 // ─── Shared: password logic ──────────────────────────────────────────────────
 
-/// Load saved projector passwords from projectors.txt.
-/// Format: SSID = PASSWORD (one per line, # comments)
 fn load_projector_passwords() -> HashMap<String, String> {
     let mut passwords = HashMap::new();
     for path in ["projectors.txt", "../projectors.txt", "Rust/projectors.txt"] {
         if let Ok(file) = std::fs::File::open(path) {
-            for line in io::BufReader::new(file).lines().flatten() {
+            for line in std::io::BufReader::new(file).lines().flatten() {
                 let t = line.trim();
                 if t.is_empty() || t.starts_with('#') { continue; }
                 if let Some((ssid, pw)) = t.split_once('=') {
@@ -22,6 +20,8 @@ fn load_projector_passwords() -> HashMap<String, String> {
     }
     passwords
 }
+
+
 /// Detect if an SSID belongs to an Epson projector.
 fn is_epson_projector(ssid: &str) -> bool {
     if ssid.starts_with("DIRECT-") && ssid.contains("EPSON") {
@@ -51,7 +51,7 @@ struct WifiNetwork {
 }
 
 /// Interactive: display networks and let user choose.
-fn interactive_select(networks: &[WifiNetwork], saved: &HashMap<String, String>) -> Option<usize> {
+fn interactive_select(networks: &[WifiNetwork]) -> Option<usize> {
     if networks.is_empty() {
         eprintln!("[-] No Wi-Fi networks found!");
         return None;
@@ -59,7 +59,7 @@ fn interactive_select(networks: &[WifiNetwork], saved: &HashMap<String, String>)
 
     eprintln!("Available Wi-Fi Networks:");
     for (i, net) in networks.iter().enumerate() {
-        let star = if saved.contains_key(&net.ssid) || is_epson_projector(&net.ssid) {
+        let star = if is_epson_projector(&net.ssid) {
             " ★"
         } else {
             ""
@@ -467,7 +467,6 @@ pub fn wifi_connect() -> Option<String> {
     let current = get_current_connection_id();
     show_current_network();
 
-    // Load saved projector passwords
     let saved = load_projector_passwords();
     if !saved.is_empty() {
         eprintln!("[*] Loaded {} saved projector(s) from projectors.txt", saved.len());
@@ -476,7 +475,7 @@ pub fn wifi_connect() -> Option<String> {
     eprintln!("Scanning for Wi-Fi networks... Please wait.\n");
     let networks = scan_networks();
 
-    let idx = match interactive_select(&networks, &saved) {
+    let idx = match interactive_select(&networks) {
         Some(i) => i,
         None => return current,
     };
@@ -484,30 +483,32 @@ pub fn wifi_connect() -> Option<String> {
     let selected = &networks[idx];
     eprintln!();
 
-    // 1. Check projectors.txt first — instant connect
     if let Some(pw) = saved.get(&selected.ssid) {
-        eprintln!("[*] Found in projectors.txt! Using saved password.");
+        eprintln!("[*] Found in projectors.txt! Using saved Wi-Fi password.");
         if connect_to_network(selected, pw) {
             eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
             return current;
         }
-        eprintln!("[-] Saved password failed.");
+        eprintln!("[-] Saved Wi-Fi password failed.");
     }
 
-    // 2. Ask user for password
+    // Ask user for password
     if is_epson_projector(&selected.ssid) {
         eprintln!("[*] Epson projector detected: '{}'", selected.ssid);
-        eprintln!();
-        eprintln!("    ┌───────────────────────────────────────────────────────┐");
-        eprintln!("    │  Enter the projector's Wi-Fi password.               │");
-        eprintln!("    │                                                      │");
-        eprintln!("    │  No password set? Set one on the projector:          │");
-        eprintln!("    │  Menu → Network → Security → Web Control Password   │");
-        eprintln!("    └───────────────────────────────────────────────────────┘");
-        eprintln!();
+        let derived_pw = selected.bssid.replace(":", "").to_uppercase();
+        eprintln!("[*] Auto-deriving Wi-Fi password from MAC address...");
+        
+        if connect_to_network(selected, &derived_pw) {
+            eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
+            return current;
+        } else {
+            eprintln!("[-] Auto-connect failed. You must enter the Wi-Fi password manually.");
+        }
+    } else {
+        eprintln!("[*] Selected network: '{}'", selected.ssid);
     }
 
-    eprint!("    Password: ");
+    eprint!("    Wi-Fi Password (WPA2): ");
     io::stderr().flush().ok();
     let mut pw = String::new();
     io::stdin().read_line(&mut pw).unwrap_or(0);
@@ -520,12 +521,9 @@ pub fn wifi_connect() -> Option<String> {
 
     if connect_to_network(selected, &password) {
         eprintln!("[+] Successfully connected to '{}'!", selected.ssid);
-
-        // Auto-save to projectors.txt for next time
         if is_epson_projector(&selected.ssid) && !saved.contains_key(&selected.ssid) {
             save_projector_password(&selected.ssid, &password);
         }
-
         return current;
     }
 
@@ -533,11 +531,9 @@ pub fn wifi_connect() -> Option<String> {
     std::process::exit(1);
 }
 
-/// Append a new projector entry to projectors.txt
 fn save_projector_password(ssid: &str, password: &str) {
     use std::io::Write as _;
     for path in ["projectors.txt", "../projectors.txt", "Rust/projectors.txt"] {
-        // Try to append to existing file, or create at first path
         let file = if std::path::Path::new(path).exists() {
             std::fs::OpenOptions::new().append(true).open(path)
         } else if path == "projectors.txt" {
@@ -548,7 +544,7 @@ fn save_projector_password(ssid: &str, password: &str) {
 
         if let Ok(mut f) = file {
             let _ = writeln!(f, "{} = {}", ssid, password);
-            eprintln!("[+] Saved to {} — will auto-connect next time!", path);
+            eprintln!("[+] Saved Wi-Fi password to {} for instant connection next time!", path);
             return;
         }
     }

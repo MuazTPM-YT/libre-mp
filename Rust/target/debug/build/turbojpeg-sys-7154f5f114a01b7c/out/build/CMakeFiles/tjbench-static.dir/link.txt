@@ -1,0 +1,1 @@
+/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -g -Wl,--dependency-file=CMakeFiles/tjbench-static.dir/link.d "CMakeFiles/tjbench-static.dir/src/tjbench.c.o" "CMakeFiles/tjbench-static.dir/src/tjutil.c.o" -o tjbench-static  libturbojpeg.a -lm

@@ -51,7 +51,7 @@ npm run tauri dev
 **Prerequisites:**
 ```bash
 sudo apt update
-sudo apt install build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev nasm imagemagick nodejs npm
+sudo apt install build-essential cmake curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev nasm imagemagick nodejs npm
 # Install Rust:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
