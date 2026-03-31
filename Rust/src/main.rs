@@ -17,6 +17,8 @@ pub const STREAM_H: u32 = 768;
 pub const JPEG_QUALITY: i32 = 95;
 const TARGET_FPS: u64 = 24;
 
+/// Main entry point for the Epson EasyMP Rust Streamer.
+/// Handles CLI arguments, prompts, and manages the main application lifecycle.
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
@@ -128,6 +130,8 @@ fn main() {
     wifi::wifi_restore(orig_uuid);
 }
 
+/// The core streaming loop. Manages screen capture, JPEG encoding, frame rate, 
+/// and network transmission over the established projector connection.
 fn stream_loop(
     client: &mut protocol::EpsonClient,
     tpl: &mut template::Template,
@@ -271,6 +275,7 @@ fn stream_loop(
     "Ctrl+C".to_string()
 }
 
+/// Locates the `windows_perfect_stream.bin` template file required for frame framing.
 fn find_template() -> String {
     for path in [
         "../windows_perfect_stream.bin",

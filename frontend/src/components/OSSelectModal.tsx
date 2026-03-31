@@ -22,6 +22,7 @@ function detectOS(): number {
     return 4;
 }
 
+/** Modal for selecting the target OS mode before streaming */
 export function OSSelectModal({ isOpen, onCancel, onSelect }: Props) {
     const [selected, setSelected] = useState<number>(detectOS);
 

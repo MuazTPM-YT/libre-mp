@@ -2,17 +2,20 @@ use std::net::Ipv4Addr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 
+/// Converts an IPv4 address string into a standard byte array.
 pub fn get_hex_ip_bytes(ip: &str) -> Vec<u8> {
     let parsed: Ipv4Addr = ip.parse().unwrap_or(Ipv4Addr::new(0, 0, 0, 0));
     parsed.octets().to_vec()
 }
 
+/// Converts an IPv4 address string into a reversed byte array.
 pub fn get_hex_ip_reversed_bytes(ip: &str) -> Vec<u8> {
     let mut parsed: Vec<u8> = get_hex_ip_bytes(ip);
     parsed.reverse();
     parsed
 }
 
+/// Generates the initial registration handshake payload.
 pub fn get_registration_payload(my_ip: &str) -> Vec<u8> {
     let mut raw = hex::decode(
         "45454d5030313030000000000200000030000000007f0000b0f8ef5314000000\
@@ -23,6 +26,7 @@ pub fn get_registration_payload(my_ip: &str) -> Vec<u8> {
     raw
 }
 
+/// Generates the full authentication payload including client and projector details.
 pub fn get_auth_payload_full(my_ip: &str, proj_ip: &str, my_mac: &str, ssid: &str) -> Vec<u8> {
     let hex_ip_str = hex::encode(get_hex_ip_bytes(my_ip));
     let hex_proj_str = hex::encode(get_hex_ip_bytes(proj_ip));
@@ -53,6 +57,7 @@ pub fn get_auth_payload_full(my_ip: &str, proj_ip: &str, my_mac: &str, ssid: &st
     hex::decode(&template).unwrap()
 }
 
+/// Generates the control layer initialization payload for video streaming.
 pub fn get_video_init_payload_ctrl(my_ip: &str) -> Vec<u8> {
     let mut raw = hex::decode(
         "4550524430363030000000000000000010000000d0000000000000000000000000000000"
@@ -65,12 +70,14 @@ pub fn get_video_init_payload_ctrl(my_ip: &str) -> Vec<u8> {
     raw
 }
 
+/// Generates the data layer initialization payload for video streaming.
 pub fn get_video_init_payload_data(my_ip: &str) -> Vec<u8> {
     let mut raw = get_video_init_payload_ctrl(my_ip);
     raw[28] = 0x01;
     raw
 }
 
+/// Generates the header for an auxiliary channel packet.
 pub fn get_aux_header(size: u32) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.push(0xC9);
@@ -78,12 +85,14 @@ pub fn get_aux_header(size: u32) -> Vec<u8> {
     buf
 }
 
+/// Generates a zero-filled buffer payload of the specified size.
 pub fn get_zero_buffer(size: u32) -> Vec<u8> {
     let mut raw = get_aux_header(size);
     raw.extend(vec![0; size as usize]);
     raw
 }
 
+/// Generates the EPRD header for frame metadata.
 pub fn get_eprd_meta_header(my_ip: &str, meta_size: u32) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.extend_from_slice(b"EPRD0600");
@@ -93,6 +102,7 @@ pub fn get_eprd_meta_header(my_ip: &str, meta_size: u32) -> Vec<u8> {
     buf
 }
 
+/// Generates the EPRD header for a JPEG frame payload.
 pub fn get_eprd_jpeg_header(my_ip: &str, jpeg_size: u32) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.extend_from_slice(b"EPRD0600");
@@ -102,10 +112,12 @@ pub fn get_eprd_jpeg_header(my_ip: &str, jpeg_size: u32) -> Vec<u8> {
     buf
 }
 
+/// Generates the display configuration metadata payload for streaming.
 pub fn get_display_config_meta() -> Vec<u8> {
     hex::decode("cc0000000400030020200001ff00ff00ff0010080000000006400384000000600400024000000000000000000000").unwrap()
 }
 
+/// Generates the header for a new video frame.
 pub fn get_frame_header(frame_type: u32, x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.write_u32::<BigEndian>(frame_type).unwrap();
@@ -120,6 +132,7 @@ pub fn get_frame_header(frame_type: u32, x: u16, y: u16, w: u16, h: u16) -> Vec<
     buf
 }
 
+/// Generates the header for a subsequent packet of a split video frame.
 pub fn get_subsequent_frame_header(x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let mut buf = Vec::new();
     buf.write_u16::<BigEndian>(x).unwrap();

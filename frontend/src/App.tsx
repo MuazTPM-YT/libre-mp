@@ -30,6 +30,7 @@ interface WifiNetwork {
   is_projector: boolean;
 }
 
+/** Main application orchestrator managing network state and UI modals */
 function App() {
   const [networks, setNetworks] = useState<NetworkItem[]>([]);
   const [isScanning, setIsScanning] = useState(false);

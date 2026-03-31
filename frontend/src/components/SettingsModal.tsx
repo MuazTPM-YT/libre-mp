@@ -36,11 +36,12 @@ interface Props {
 
 type SettingsTab = 'general' | 'performance' | 'audio' | 'deliver';
 
+/** Modal for configuring application settings (FPS, Resolution) */
 export function SettingsModal({ isOpen, onClose, settings, onApply }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('performance');
   const [draft, setDraft] = useState<AppSettings>(settings);
   const [saved, setSaved] = useState(false);
-  
+
   const isDirty = JSON.stringify(draft) !== JSON.stringify(settings);
 
   // Sync draft when settings change externally or modal opens
@@ -272,9 +273,9 @@ export function SettingsModal({ isOpen, onClose, settings, onApply }: Props) {
         {/* Footer Buttons */}
         <div className="modal-footer">
           <button className="action-btn secondary" onClick={handleReset}>Reset</button>
-          <button 
-            className={`action-btn ${(saved && !isDirty) ? 'success' : isDirty ? 'primary' : 'secondary'}`} 
-            onClick={handleApply} 
+          <button
+            className={`action-btn ${(saved && !isDirty) ? 'success' : isDirty ? 'primary' : 'secondary'}`}
+            onClick={handleApply}
             disabled={!isDirty && !(saved && !isDirty)}
           >
             {(saved && !isDirty) ? <><Check size={14} /> Saved</> : 'Apply'}

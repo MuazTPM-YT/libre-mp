@@ -15,6 +15,7 @@ pub struct VideoStreamer {
 }
 
 impl VideoStreamer {
+    /// Initializes a new video streamer instance.
     pub fn new(projector_ip: &str, fps: u32, password: &str, ssid: &str) -> Self {
         Self {
             client: EpsonClient::new(projector_ip, password, ssid),
@@ -23,6 +24,7 @@ impl VideoStreamer {
         }
     }
 
+    /// Starts the screen capture and video streaming loop.
     pub async fn start(&mut self) -> Result<(), ProtocolError> {
         self.client.connect_and_negotiate().await?;
         self.is_running.store(true, Ordering::SeqCst);
@@ -86,6 +88,7 @@ impl VideoStreamer {
         Ok(())
     }
 
+    /// Signals the streaming loop to stop.
     pub fn stop(&self) {
         self.is_running.store(false, Ordering::SeqCst);
     }

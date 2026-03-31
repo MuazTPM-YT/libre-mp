@@ -10,6 +10,7 @@ interface Props {
   onSubmit: (password: string) => void;
 }
 
+/** Modal for entering Wi-Fi network passwords */
 export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel, onSubmit }: Props) {
   const [pwd, setPwd] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -48,16 +49,16 @@ export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel,
             <X size={18} />
           </button>
         </div>
-        
+
         <div className="modal-body-pad">
           <p className="modal-instruction">
             Enter the security key for <strong>{networkName}</strong>
           </p>
-          
+
           <div className="password-input-wrapper">
             <div className="input-with-icon">
-              <input 
-                type={showPassword ? "text" : "password"} 
+              <input
+                type={showPassword ? "text" : "password"}
                 className={`text-input ${error ? 'error' : ''}`}
                 placeholder="Security key"
                 autoFocus
@@ -66,7 +67,7 @@ export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel,
                 onChange={e => setPwd(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSubmit()}
               />
-              <button 
+              <button
                 type="button"
                 className="input-icon-btn"
                 onClick={() => setShowPassword(!showPassword)}
@@ -76,7 +77,7 @@ export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel,
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            
+
             {error && (
               <div className="modal-error-message">
                 <AlertCircle size={14} />
@@ -87,15 +88,15 @@ export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel,
         </div>
 
         <div className="modal-footer">
-          <button 
-            className="action-btn secondary" 
+          <button
+            className="action-btn secondary"
             onClick={handleCancel}
             disabled={isLoading}
           >
             Cancel
           </button>
-          <button 
-            className="action-btn primary btn-min-width" 
+          <button
+            className="action-btn primary btn-min-width"
             onClick={handleSubmit}
             disabled={!pwd.trim() || isLoading}
           >

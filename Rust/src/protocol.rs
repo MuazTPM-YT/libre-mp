@@ -15,6 +15,7 @@ use crate::hex;
 const PROJECTOR_IP: &str = "192.168.88.1";
 const PORT_CONTROL: u16 = 3620;
 const PORT_VIDEO: u16 = 3621;
+/// Detects the local IPv4 address by attempting to route traffic to the projector.
 fn get_local_ip() -> Ipv4Addr {
     let sock = std::net::UdpSocket::bind("0.0.0.0:0").expect("bind");
     sock.connect((PROJECTOR_IP, 80)).expect("connect");
@@ -24,10 +25,12 @@ fn get_local_ip() -> Ipv4Addr {
     }
 }
 
+/// Converts an `Ipv4Addr` into a raw 4-byte array.
 fn ip_bytes(ip: Ipv4Addr) -> [u8; 4] {
     ip.octets()
 }
 
+/// Converts an `Ipv4Addr` into a reverse-ordered 4-byte array.
 fn ip_bytes_rev(ip: Ipv4Addr) -> [u8; 4] {
     let o = ip.octets();
     [o[3], o[2], o[1], o[0]]
@@ -48,6 +51,7 @@ fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
 
 // ─── Protocol Payloads ───────────────────────────────────────────────────────
 
+/// Generates the initial registration network payload sent to the projector.
 fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     let mut p = Vec::with_capacity(68);
     p.extend_from_slice(b"EEMP0100");
@@ -57,6 +61,7 @@ fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
+/// Generates the authentication network payload containing the password MAC and SSID details.
 fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) -> Vec<u8> {
     let my = ip_bytes(my_ip);
     let proj = ip_bytes(proj_ip);
@@ -102,6 +107,7 @@ fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) 
     p
 }
 
+/// Constructs a response to the projector's 0x010E heartbeat queries.
 pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     let pcap_hex = concat!(
         "45454d5030313030c0a858020801000048010000",
@@ -136,6 +142,7 @@ pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     raw
 }
 
+/// Generates the initialization payload for the video control channel.
 fn video_init_ctrl(my_ip: Ipv4Addr) -> Vec<u8> {
     let mut p = Vec::with_capacity(36);
     p.extend_from_slice(b"EPRD0600");
@@ -146,6 +153,7 @@ fn video_init_ctrl(my_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
+/// Generates the initialization payload for the auxiliary data channel.
 fn video_init_data(my_ip: Ipv4Addr) -> Vec<u8> {
     let mut p = Vec::with_capacity(36);
     p.extend_from_slice(b"EPRD0600");
@@ -158,6 +166,7 @@ fn video_init_data(my_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
+/// Generates a header for the auxiliary stream indicating the size of the following buffer.
 fn aux_header(size: u32) -> Vec<u8> {
     let mut h = Vec::with_capacity(5);
     h.push(0xC9);

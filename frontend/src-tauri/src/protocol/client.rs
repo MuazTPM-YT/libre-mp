@@ -24,6 +24,7 @@ pub struct EpsonClient {
 }
 
 impl EpsonClient {
+    /// Creates a new instance of the Epson client.
     pub fn new(projector_ip: &str, password: &str, ssid: &str) -> Self {
         Self {
             projector_ip: projector_ip.to_string(),
@@ -36,6 +37,7 @@ impl EpsonClient {
         }
     }
 
+    /// Executes the full connection and negotiation sequence with the projector.
     pub async fn connect_and_negotiate(&mut self) -> Result<(), ProtocolError> {
         println!("[*] Starting deterministic negotiation sequence with {}...", self.projector_ip);
         
@@ -49,6 +51,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Handles the initial registration and authentication handshake.
     async fn authenticate_session(&mut self) -> Result<(), ProtocolError> {
         println!("[*] 1. Opening Authentication Channel (Port 3620)...");
         let reg_addr = format!("{}:{}", self.projector_ip, config::PORT_CONTROL);
@@ -98,6 +101,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Completes the post-authentication negotiation phase.
     async fn complete_auth_handshake(&self) -> Result<(), ProtocolError> {
         println!("[*]    Completing post-auth handshake on Port 3620...");
         let s_auth_arc = self.s_auth.as_ref().unwrap();
@@ -148,6 +152,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Builds the heartbeat response required during authentication.
     fn _build_0x0108_response(&self) -> Vec<u8> {
         let pcap_hex = "45454d5030313030c0a8580208010000480100000001000000000000000000000000000000000000\
                         00000000000000000000000000000000000000000000000000000000140100000500000038000000\
@@ -170,6 +175,7 @@ impl EpsonClient {
         raw
     }
 
+    /// Opens the dedicated video and auxiliary TCP channels.
     async fn open_video_channels(&mut self) -> Result<(), ProtocolError> {
         println!("[*] 2. Opening Video Channels (Port 3621)...");
         tokio::time::sleep(Duration::from_millis(300)).await;
@@ -198,6 +204,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Waits for the projector to send the ready-to-stream signal.
     async fn wait_for_streaming_signal(&self) -> Result<(), ProtocolError> {
         println!("[*] 3. Waiting for projector 0x0016 streaming signal...");
         let s_auth_arc = self.s_auth.as_ref().unwrap();
@@ -216,6 +223,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Sends an auxiliary buffer bundle of the specified size.
     async fn send_aux_bundle(&self, size: u32) -> Result<(), ProtocolError> {
         if let Some(s_aux_arc) = &self.s_video_aux {
             let mut s_aux = s_aux_arc.lock().await;
@@ -227,6 +235,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Transmits initial warmup buffers to prepare the projector for video.
     async fn send_warmup_buffers(&self) -> Result<(), ProtocolError> {
         println!("[*] 4. Sending warmup buffers on byte28=0x01...");
         let warmup_sizes = [7276, 2646, 1764];
@@ -238,6 +247,7 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Assembles and sends a complete or partial video frame.
     pub async fn send_video_frame(&self, is_first: bool, x: u16, y: u16, w: u16, h: u16, jpeg_bytes: &[u8]) -> Result<(), ProtocolError> {
         let s_video_arc = self.s_video.as_ref().ok_or_else(|| ProtocolError::NetworkError("Video socket not open".into()))?;
         let mut s_video = s_video_arc.lock().await;
@@ -280,12 +290,14 @@ impl EpsonClient {
         Ok(())
     }
 
+    /// Sends periodic keepalive messages on the auxiliary channel to prevent disconnects.
     pub async fn send_frame_keepalive(&self) -> Result<(), ProtocolError> {
         let _ = self.send_aux_bundle(2646).await;
         let _ = self.send_aux_bundle(1764).await;
         Ok(())
     }
 
+    /// Disconnects from the projector by closing all active channels.
     pub async fn disconnect(&mut self) {
         self.s_auth = None;
         self.s_video = None;

@@ -5,6 +5,7 @@ use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
 
 // ─── Wayland (grim) Capture ───────────────────────────────────────────────
 
+/// Captures the screen on Wayland using the `grim` utility.
 pub fn capture_wayland() -> Option<Vec<u8>> {
     let output = Command::new("grim")
         .args(["-c", "-t", "ppm", "-"])
@@ -26,6 +27,7 @@ pub fn capture_wayland() -> Option<Vec<u8>> {
     Some(resize_nearest(rgb_data, w, h, STREAM_W, STREAM_H))
 }
 
+/// Parses the PPM image header to extract width, height, and pixel data offset.
 fn parse_ppm_header(data: &[u8]) -> Option<(u32, u32, usize)> {
     if data.len() < 7 || data[0] != b'P' || data[1] != b'6' {
         return None;
@@ -48,6 +50,7 @@ fn parse_ppm_header(data: &[u8]) -> Option<(u32, u32, usize)> {
     Some((w, h, pos))
 }
 
+/// Resizes an RGB image using fast nearest-neighbor interpolation.
 fn resize_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
     let mut dst = vec![0u8; (dw * dh * 3) as usize];
     let sw_usize = sw as usize;
@@ -69,6 +72,7 @@ fn resize_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
 
 // ─── High-Performance BGRA Resizer ─────────────────────────────────────────
 
+/// Resizes a BGRA image and converts it to RGB simultaneously.
 pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
     let mut dst = vec![0u8; (dw * dh * 3) as usize];
     let sw_usize = sw as usize;
@@ -89,6 +93,7 @@ pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec
     dst
 }
 
+/// Extracts a bounded rectangular tile from the main RGB screen buffer.
 fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let sw = STREAM_W;
     let sh = STREAM_H;
@@ -156,6 +161,7 @@ pub fn encode_tile_adaptive(
 // ─── Windows GDI Capture (with cursor) ────────────────────────────────────
 
 #[cfg(windows)]
+/// Captures the screen on Windows using GDI, including the mouse cursor.
 pub fn capture_windows() -> Option<Vec<u8>> {
     use std::ptr::null_mut;
     use winapi::um::wingdi::{
@@ -256,6 +262,7 @@ pub fn capture_windows() -> Option<Vec<u8>> {
     }
 }
 #[cfg(not(windows))]
+/// Dummy implementation of Windows screen capture for non-Windows platforms.
 pub fn capture_windows() -> Option<Vec<u8>> {
     None
 }
