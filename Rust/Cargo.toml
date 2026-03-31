@@ -9,6 +9,7 @@ byteorder = "1"
 ctrlc = "3"
 xcap = "0.9.3"
 image = "0.25.10"
+scrap = "0.5.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -1,0 +1,13 @@
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/scrap-0ee5582cba534ea6.d: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/mod.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/capturer.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/display.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/ffi.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/iter.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/server.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/mod.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/x11.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libscrap-0ee5582cba534ea6.rmeta: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/mod.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/capturer.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/display.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/ffi.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/iter.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/server.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/mod.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/x11.rs
+
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/lib.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/mod.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/capturer.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/display.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/ffi.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/iter.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/x11/server.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/mod.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/scrap-0.5.0/src/common/x11.rs:
