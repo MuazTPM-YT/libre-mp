@@ -1,1 +1,0 @@
-/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -g -Wl,--dependency-file=CMakeFiles/strtest.dir/link.d CMakeFiles/strtest.dir/src/strtest.c.o -o strtest

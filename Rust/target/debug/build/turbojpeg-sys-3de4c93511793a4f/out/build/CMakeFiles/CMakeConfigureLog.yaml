@@ -886,8 +886,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -896,13 +896,13 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_cd9a7/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_cd9a7.dir/build.make CMakeFiles/cmTC_cd9a7.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4'
-        Building C object CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w    -v -o CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_b41fe/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_b41fe.dir/build.make CMakeFiles/cmTC_b41fe.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB'
+        Building C object CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w    -v -o CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         Target: x86_64-pc-linux-gnu
@@ -910,8 +910,8 @@ events:
         Thread model: posix
         Supported LTO compression algorithms: zlib zstd
         gcc version 15.2.1 20260209 (GCC) 
-        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/'
-         /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_cd9a7.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -m64 -mtune=generic -march=x86-64 -w -version -ffunction-sections -fdata-sections -fPIC -o /tmp/ccCask7h.s
+        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/'
+         /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_b41fe.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -m64 -mtune=generic -march=x86-64 -w -version -ffunction-sections -fdata-sections -fPIC -o /tmp/cc0ovuLe.s
         GNU C23 (GCC) version 15.2.1 20260209 (x86_64-pc-linux-gnu)
         	compiled by GNU C version 15.2.1 20260209, GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.3.1, isl version isl-0.27-GMP
         
@@ -925,14 +925,14 @@ events:
          /usr/include
         End of search list.
         Compiler executable checksum: 4a3176b8a5098bb872007d0a1d5e5fb3
-        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/'
-         as -v -W --64 -o CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o /tmp/ccCask7h.s
+        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/'
+         as -v -W --64 -o CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o /tmp/cc0ovuLe.s
         GNU assembler version 2.46 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.46
         COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.'
-        Linking C executable cmTC_cd9a7
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_cd9a7.dir/link.txt --verbose=1
+        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_b41fe
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b41fe.dir/link.txt --verbose=1
         Using built-in specs.
         COLLECT_GCC=/usr/bin/cc
         COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper
@@ -943,14 +943,14 @@ events:
         gcc version 15.2.1 20260209 (GCC) 
         COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/
         LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../:/lib/:/usr/lib/
-        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_cd9a7' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_cd9a7.'
-         /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc93dnIx.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_cd9a7 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o
+        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_b41fe' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_b41fe.'
+         /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc2DjHSW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_b41fe /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o
         collect2 version 15.2.1 20260209
-        /usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc93dnIx.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_cd9a7 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o
+        /usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc2DjHSW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_b41fe /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o
         GNU ld (GNU Binutils) 2.46
-        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_cd9a7' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_cd9a7.'
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w   -v -Wl,-v CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -o cmTC_cd9a7
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4'
+        COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_b41fe' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_b41fe.'
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w   -v -Wl,-v CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -o cmTC_b41fe
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB'
         
       exitCode: 0
   -
@@ -985,13 +985,13 @@ events:
       Parsed C implicit link information:
         link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
         linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
-        ignore line: [Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4']
+        ignore line: [Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB']
         ignore line: []
-        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_cd9a7/fast]
-        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_cd9a7.dir/build.make CMakeFiles/cmTC_cd9a7.dir/build]
-        ignore line: [make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-dGdCy4']
-        ignore line: [Building C object CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o]
-        ignore line: [/usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w    -v -o CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c]
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_b41fe/fast]
+        ignore line: [/usr/bin/make  -f CMakeFiles/cmTC_b41fe.dir/build.make CMakeFiles/cmTC_b41fe.dir/build]
+        ignore line: [make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-WUT9fB']
+        ignore line: [Building C object CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w    -v -o CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [Target: x86_64-pc-linux-gnu]
@@ -999,8 +999,8 @@ events:
         ignore line: [Thread model: posix]
         ignore line: [Supported LTO compression algorithms: zlib zstd]
         ignore line: [gcc version 15.2.1 20260209 (GCC) ]
-        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/']
-        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_cd9a7.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -m64 -mtune=generic -march=x86-64 -w -version -ffunction-sections -fdata-sections -fPIC -o /tmp/ccCask7h.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/']
+        ignore line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_b41fe.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -m64 -mtune=generic -march=x86-64 -w -version -ffunction-sections -fdata-sections -fPIC -o /tmp/cc0ovuLe.s]
         ignore line: [GNU C23 (GCC) version 15.2.1 20260209 (x86_64-pc-linux-gnu)]
         ignore line: [	compiled by GNU C version 15.2.1 20260209  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.3.1  isl version isl-0.27-GMP]
         ignore line: []
@@ -1014,14 +1014,14 @@ events:
         ignore line: [ /usr/include]
         ignore line: [End of search list.]
         ignore line: [Compiler executable checksum: 4a3176b8a5098bb872007d0a1d5e5fb3]
-        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/']
-        ignore line: [ as -v -W --64 -o CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o /tmp/ccCask7h.s]
+        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/']
+        ignore line: [ as -v -W --64 -o CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o /tmp/cc0ovuLe.s]
         ignore line: [GNU assembler version 2.46 (x86_64-pc-linux-gnu) using BFD version (GNU Binutils) 2.46]
         ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.']
-        ignore line: [Linking C executable cmTC_cd9a7]
-        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_cd9a7.dir/link.txt --verbose=1]
+        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-dumpdir' 'CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_b41fe]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_b41fe.dir/link.txt --verbose=1]
         ignore line: [Using built-in specs.]
         ignore line: [COLLECT_GCC=/usr/bin/cc]
         ignore line: [COLLECT_LTO_WRAPPER=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper]
@@ -1032,13 +1032,13 @@ events:
         ignore line: [gcc version 15.2.1 20260209 (GCC) ]
         ignore line: [COMPILER_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/]
         ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/:/lib/../lib/:/usr/lib/../lib/:/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../:/lib/:/usr/lib/]
-        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_cd9a7' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_cd9a7.']
-        link line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc93dnIx.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_cd9a7 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o]
+        ignore line: [COLLECT_GCC_OPTIONS='-ffunction-sections' '-fdata-sections' '-fPIC' '-m64' '-w' '-v' '-o' 'cmTC_b41fe' '-mtune=generic' '-march=x86-64' '-dumpdir' 'cmTC_b41fe.']
+        link line: [ /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/collect2 -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc2DjHSW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_b41fe /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o]
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/collect2] ==> ignore
           arg [-plugin] ==> ignore
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so] ==> ignore
           arg [-plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper] ==> ignore
-          arg [-plugin-opt=-fresolution=/tmp/cc93dnIx.res] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/cc2DjHSW.res] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
           arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
           arg [-plugin-opt=-pass-through=-lc] ==> ignore
@@ -1053,7 +1053,7 @@ events:
           arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
           arg [-pie] ==> ignore
           arg [-o] ==> ignore
-          arg [cmTC_cd9a7] ==> ignore
+          arg [cmTC_b41fe] ==> ignore
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o]
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o]
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o]
@@ -1065,7 +1065,7 @@ events:
           arg [-L/lib] ==> dir [/lib]
           arg [-L/usr/lib] ==> dir [/usr/lib]
           arg [-v] ==> ignore
-          arg [CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o] ==> ignore
           arg [-lgcc] ==> lib [gcc]
           arg [--push-state] ==> ignore
           arg [--as-needed] ==> ignore
@@ -1080,7 +1080,7 @@ events:
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o]
           arg [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o] ==> obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o]
         ignore line: [collect2 version 15.2.1 20260209]
-        ignore line: [/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc93dnIx.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_cd9a7 /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_cd9a7.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o]
+        ignore line: [/usr/bin/ld -plugin /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/liblto_plugin.so -plugin-opt=/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/lto-wrapper -plugin-opt=-fresolution=/tmp/cc2DjHSW.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s --build-id --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -pie -o cmTC_b41fe /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtbeginS.o -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1 -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib -L/lib/../lib -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_b41fe.dir/CMakeCCompilerABI.c.o -lgcc --push-state --as-needed -lgcc_s --pop-state -lc -lgcc --push-state --as-needed -lgcc_s --pop-state /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/crtendS.o /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crtn.o]
         linker tool for 'C': /usr/bin/ld
         collapse obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/Scrt1.o] ==> [/usr/lib/Scrt1.o]
         collapse obj [/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/../../../../lib/crti.o] ==> [/usr/lib/crti.o]
@@ -1117,8 +1117,8 @@ events:
     checks:
       - "Looking for sys/types.h"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1127,17 +1127,17 @@ events:
       variable: "HAVE_SYS_TYPES_H"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a9b4f/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_a9b4f.dir/build.make CMakeFiles/cmTC_a9b4f.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef'
-        Building C object CMakeFiles/cmTC_a9b4f.dir/CheckIncludeFile.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_a9b4f.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef/CheckIncludeFile.c
-        Linking C executable cmTC_a9b4f
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a9b4f.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_a9b4f.dir/CheckIncludeFile.c.o -o cmTC_a9b4f
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-PQdFef'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_c6bd4/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_c6bd4.dir/build.make CMakeFiles/cmTC_c6bd4.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj'
+        Building C object CMakeFiles/cmTC_c6bd4.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_c6bd4.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj/CheckIncludeFile.c
+        Linking C executable cmTC_c6bd4
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c6bd4.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_c6bd4.dir/CheckIncludeFile.c.o -o cmTC_c6bd4
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Oh24zj'
         
       exitCode: 0
   -
@@ -1149,8 +1149,8 @@ events:
     checks:
       - "Looking for stdint.h"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1159,17 +1159,17 @@ events:
       variable: "HAVE_STDINT_H"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_93cd9/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_93cd9.dir/build.make CMakeFiles/cmTC_93cd9.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2'
-        Building C object CMakeFiles/cmTC_93cd9.dir/CheckIncludeFile.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_93cd9.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2/CheckIncludeFile.c
-        Linking C executable cmTC_93cd9
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_93cd9.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_93cd9.dir/CheckIncludeFile.c.o -o cmTC_93cd9
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-SLEeC2'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_8f672/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_8f672.dir/build.make CMakeFiles/cmTC_8f672.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ'
+        Building C object CMakeFiles/cmTC_8f672.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_8f672.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ/CheckIncludeFile.c
+        Linking C executable cmTC_8f672
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_8f672.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_8f672.dir/CheckIncludeFile.c.o -o cmTC_8f672
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-D2lmiQ'
         
       exitCode: 0
   -
@@ -1181,8 +1181,8 @@ events:
     checks:
       - "Looking for stddef.h"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1191,17 +1191,17 @@ events:
       variable: "HAVE_STDDEF_H"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6d859/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_6d859.dir/build.make CMakeFiles/cmTC_6d859.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL'
-        Building C object CMakeFiles/cmTC_6d859.dir/CheckIncludeFile.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_6d859.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL/CheckIncludeFile.c
-        Linking C executable cmTC_6d859
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6d859.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_6d859.dir/CheckIncludeFile.c.o -o cmTC_6d859
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ZfoQiL'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_925ba/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_925ba.dir/build.make CMakeFiles/cmTC_925ba.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5'
+        Building C object CMakeFiles/cmTC_925ba.dir/CheckIncludeFile.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_925ba.dir/CheckIncludeFile.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5/CheckIncludeFile.c
+        Linking C executable cmTC_925ba
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_925ba.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_925ba.dir/CheckIncludeFile.c.o -o cmTC_925ba
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-P8tYa5'
         
       exitCode: 0
   -
@@ -1213,8 +1213,8 @@ events:
     checks:
       - "Check size of size_t"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1223,17 +1223,17 @@ events:
       variable: "HAVE_SIZE_T"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_0fd5d/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_0fd5d.dir/build.make CMakeFiles/cmTC_0fd5d.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1'
-        Building C object CMakeFiles/cmTC_0fd5d.dir/SIZE_T.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_0fd5d.dir/SIZE_T.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1/SIZE_T.c
-        Linking C executable cmTC_0fd5d
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_0fd5d.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_0fd5d.dir/SIZE_T.c.o -o cmTC_0fd5d
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ouclZ1'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_e74ec/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_e74ec.dir/build.make CMakeFiles/cmTC_e74ec.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM'
+        Building C object CMakeFiles/cmTC_e74ec.dir/SIZE_T.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_e74ec.dir/SIZE_T.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM/SIZE_T.c
+        Linking C executable cmTC_e74ec
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e74ec.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_e74ec.dir/SIZE_T.c.o -o cmTC_e74ec
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-exZUIM'
         
       exitCode: 0
   -
@@ -1245,8 +1245,8 @@ events:
     checks:
       - "Check size of unsigned long"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1255,17 +1255,17 @@ events:
       variable: "HAVE_UNSIGNED_LONG"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_2b205/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_2b205.dir/build.make CMakeFiles/cmTC_2b205.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym'
-        Building C object CMakeFiles/cmTC_2b205.dir/UNSIGNED_LONG.c.o
-        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_2b205.dir/UNSIGNED_LONG.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym/UNSIGNED_LONG.c
-        Linking C executable cmTC_2b205
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_2b205.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_2b205.dir/UNSIGNED_LONG.c.o -o cmTC_2b205
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-ImX8ym'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_c208d/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_c208d.dir/build.make CMakeFiles/cmTC_c208d.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx'
+        Building C object CMakeFiles/cmTC_c208d.dir/UNSIGNED_LONG.c.o
+        /usr/bin/cc   -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_c208d.dir/UNSIGNED_LONG.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx/UNSIGNED_LONG.c
+        Linking C executable cmTC_c208d
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c208d.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_c208d.dir/UNSIGNED_LONG.c.o -o cmTC_c208d
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xQUtAx'
         
       exitCode: 0
   -
@@ -1277,8 +1277,8 @@ events:
     checks:
       - "Performing Test HAVE_BUILTIN_CTZL"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1287,17 +1287,17 @@ events:
       variable: "HAVE_BUILTIN_CTZL"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_ce3d8/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_ce3d8.dir/build.make CMakeFiles/cmTC_ce3d8.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu'
-        Building C object CMakeFiles/cmTC_ce3d8.dir/src.c.o
-        /usr/bin/cc -DHAVE_BUILTIN_CTZL  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_ce3d8.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu/src.c
-        Linking C executable cmTC_ce3d8
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ce3d8.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_ce3d8.dir/src.c.o -o cmTC_ce3d8
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-xphIpu'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_a2801/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_a2801.dir/build.make CMakeFiles/cmTC_a2801.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX'
+        Building C object CMakeFiles/cmTC_a2801.dir/src.c.o
+        /usr/bin/cc -DHAVE_BUILTIN_CTZL  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_a2801.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX/src.c
+        Linking C executable cmTC_a2801
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a2801.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_a2801.dir/src.c.o -o cmTC_a2801
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-Eqh7eX'
         
       exitCode: 0
   -
@@ -1309,8 +1309,8 @@ events:
     checks:
       - "Performing Test RIGHT_SHIFT_IS_UNSIGNED"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1319,17 +1319,17 @@ events:
       variable: "RIGHT_SHIFT_IS_UNSIGNED_COMPILED"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_e924e/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_e924e.dir/build.make CMakeFiles/cmTC_e924e.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT'
-        Building C object CMakeFiles/cmTC_e924e.dir/src.c.o
-        /usr/bin/cc -DRIGHT_SHIFT_IS_UNSIGNED  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_e924e.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT/src.c
-        Linking C executable cmTC_e924e
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e924e.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_e924e.dir/src.c.o -o cmTC_e924e
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-R2KMjT'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_e64b0/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_e64b0.dir/build.make CMakeFiles/cmTC_e64b0.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx'
+        Building C object CMakeFiles/cmTC_e64b0.dir/src.c.o
+        /usr/bin/cc -DRIGHT_SHIFT_IS_UNSIGNED  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_e64b0.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx/src.c
+        Linking C executable cmTC_e64b0
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_e64b0.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_e64b0.dir/src.c.o -o cmTC_e64b0
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-v3seFx'
         
       exitCode: 0
     runResult:
@@ -1347,8 +1347,8 @@ events:
     checks:
       - "Performing Test HIDDEN_WORKS"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1357,17 +1357,17 @@ events:
       variable: "HIDDEN_WORKS"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_02ffa/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_02ffa.dir/build.make CMakeFiles/cmTC_02ffa.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3'
-        Building C object CMakeFiles/cmTC_02ffa.dir/src.c.o
-        /usr/bin/cc -DHIDDEN_WORKS  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_02ffa.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3/src.c
-        Linking C executable cmTC_02ffa
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_02ffa.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_02ffa.dir/src.c.o -o cmTC_02ffa
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-qZJKm3'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_7eeae/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_7eeae.dir/build.make CMakeFiles/cmTC_7eeae.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz'
+        Building C object CMakeFiles/cmTC_7eeae.dir/src.c.o
+        /usr/bin/cc -DHIDDEN_WORKS  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_7eeae.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz/src.c
+        Linking C executable cmTC_7eeae
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_7eeae.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_7eeae.dir/src.c.o -o cmTC_7eeae
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-9Q70Mz'
         
       exitCode: 0
   -
@@ -1379,8 +1379,8 @@ events:
     checks:
       - "Performing Test INLINE_WORKS"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1389,17 +1389,17 @@ events:
       variable: "INLINE_WORKS"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_3cdaf/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_3cdaf.dir/build.make CMakeFiles/cmTC_3cdaf.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK'
-        Building C object CMakeFiles/cmTC_3cdaf.dir/src.c.o
-        /usr/bin/cc -DINLINE_WORKS  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_3cdaf.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK/src.c
-        Linking C executable cmTC_3cdaf
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_3cdaf.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_3cdaf.dir/src.c.o -o cmTC_3cdaf
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-aXdUuK'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_fc7f8/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_fc7f8.dir/build.make CMakeFiles/cmTC_fc7f8.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p'
+        Building C object CMakeFiles/cmTC_fc7f8.dir/src.c.o
+        /usr/bin/cc -DINLINE_WORKS  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_fc7f8.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p/src.c
+        Linking C executable cmTC_fc7f8
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fc7f8.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_fc7f8.dir/src.c.o -o cmTC_fc7f8
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-hnde0p'
         
       exitCode: 0
   -
@@ -1411,8 +1411,8 @@ events:
     checks:
       - "Performing Test HAVE_THREAD_LOCAL"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1421,17 +1421,17 @@ events:
       variable: "HAVE_THREAD_LOCAL"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_93547/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_93547.dir/build.make CMakeFiles/cmTC_93547.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba'
-        Building C object CMakeFiles/cmTC_93547.dir/src.c.o
-        /usr/bin/cc -DHAVE_THREAD_LOCAL  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_93547.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba/src.c
-        Linking C executable cmTC_93547
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_93547.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_93547.dir/src.c.o -o cmTC_93547
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-8LW4ba'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_1ba65/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_1ba65.dir/build.make CMakeFiles/cmTC_1ba65.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp'
+        Building C object CMakeFiles/cmTC_1ba65.dir/src.c.o
+        /usr/bin/cc -DHAVE_THREAD_LOCAL  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_1ba65.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp/src.c
+        Linking C executable cmTC_1ba65
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_1ba65.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w  CMakeFiles/cmTC_1ba65.dir/src.c.o -o cmTC_1ba65
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-HTMCZp'
         
       exitCode: 0
   -
@@ -1443,8 +1443,8 @@ events:
     checks:
       - "Performing Test HAVE_VERSION_SCRIPT"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1453,17 +1453,17 @@ events:
       variable: "HAVE_VERSION_SCRIPT"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_f9746/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_f9746.dir/build.make CMakeFiles/cmTC_f9746.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL'
-        Building C object CMakeFiles/cmTC_f9746.dir/src.c.o
-        /usr/bin/cc -DHAVE_VERSION_SCRIPT  -ffunction-sections -fdata-sections -fPIC -m64 -w -Wl,--version-script,/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/conftest.map -o CMakeFiles/cmTC_f9746.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL/src.c
-        Linking C executable cmTC_f9746
-        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_f9746.dir/link.txt --verbose=1
-        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -Wl,--version-script,/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/conftest.map CMakeFiles/cmTC_f9746.dir/src.c.o -o cmTC_f9746
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-EMW5dL'
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_6675b/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_6675b.dir/build.make CMakeFiles/cmTC_6675b.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu'
+        Building C object CMakeFiles/cmTC_6675b.dir/src.c.o
+        /usr/bin/cc -DHAVE_VERSION_SCRIPT  -ffunction-sections -fdata-sections -fPIC -m64 -w -Wl,--version-script,/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/conftest.map -o CMakeFiles/cmTC_6675b.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu/src.c
+        Linking C executable cmTC_6675b
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_6675b.dir/link.txt --verbose=1
+        /usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -Wl,--version-script,/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/conftest.map CMakeFiles/cmTC_6675b.dir/src.c.o -o cmTC_6675b
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-tluQGu'
         
       exitCode: 0
   -
@@ -1789,8 +1789,8 @@ events:
     checks:
       - "Performing Test HAVE_CET"
     directories:
-      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm"
-      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm"
+      source: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA"
+      binary: "/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA"
     cmakeVariables:
       CMAKE_C_FLAGS: " -ffunction-sections -fdata-sections -fPIC -m64 -w"
       CMAKE_C_FLAGS_DEBUG: "-g"
@@ -1799,19 +1799,19 @@ events:
       variable: "HAVE_CET"
       cached: true
       stdout: |
-        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm'
+        Change Dir: '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA'
         
-        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_1d0bc/fast
-        /usr/bin/make  -f CMakeFiles/cmTC_1d0bc.dir/build.make CMakeFiles/cmTC_1d0bc.dir/build
-        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm'
-        Building C object CMakeFiles/cmTC_1d0bc.dir/src.c.o
-        /usr/bin/cc -DHAVE_CET  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_1d0bc.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm/src.c
-        /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm/src.c:3:6: error: #error "CET not enabled"
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/make -f Makefile cmTC_fdb93/fast
+        /usr/bin/make  -f CMakeFiles/cmTC_fdb93.dir/build.make CMakeFiles/cmTC_fdb93.dir/build
+        make[1]: Entering directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA'
+        Building C object CMakeFiles/cmTC_fdb93.dir/src.c.o
+        /usr/bin/cc -DHAVE_CET  -ffunction-sections -fdata-sections -fPIC -m64 -w  -o CMakeFiles/cmTC_fdb93.dir/src.c.o -c /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA/src.c
+        /home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA/src.c:3:6: error: #error "CET not enabled"
             3 |     #error "CET not enabled"
               |      ^~~~~
-        make[1]: *** [CMakeFiles/cmTC_1d0bc.dir/build.make:81: CMakeFiles/cmTC_1d0bc.dir/src.c.o] Error 1
-        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-bwU0Lm'
-        make: *** [Makefile:134: cmTC_1d0bc/fast] Error 2
+        make[1]: *** [CMakeFiles/cmTC_fdb93.dir/build.make:81: CMakeFiles/cmTC_fdb93.dir/src.c.o] Error 1
+        make[1]: Leaving directory '/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/CMakeFiles/CMakeScratch/TryCompile-I3FTIA'
+        make: *** [Makefile:134: cmTC_fdb93/fast] Error 2
         
       exitCode: 2
 ...

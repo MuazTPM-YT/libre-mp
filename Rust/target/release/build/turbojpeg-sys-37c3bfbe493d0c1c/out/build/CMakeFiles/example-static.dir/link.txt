@@ -1,1 +1,0 @@
-/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/example-static.dir/link.d "CMakeFiles/example-static.dir/src/example.c.o" -o example-static  libjpeg.a

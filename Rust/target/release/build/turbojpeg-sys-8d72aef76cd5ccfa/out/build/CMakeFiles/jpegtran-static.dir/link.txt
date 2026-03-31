@@ -1,1 +1,0 @@
-/usr/bin/cc  -ffunction-sections -fdata-sections -fPIC -m64 -w -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/jpegtran-static.dir/link.d "CMakeFiles/jpegtran-static.dir/src/jpegtran.c.o" "CMakeFiles/jpegtran-static.dir/src/cdjpeg.c.o" "CMakeFiles/jpegtran-static.dir/src/rdswitch.c.o" "CMakeFiles/jpegtran-static.dir/src/transupp.c.o" -o jpegtran-static  libjpeg.a

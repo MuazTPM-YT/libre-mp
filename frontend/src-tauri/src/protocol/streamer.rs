@@ -15,9 +15,9 @@ pub struct VideoStreamer {
 }
 
 impl VideoStreamer {
-    pub fn new(projector_ip: &str, fps: u32) -> Self {
+    pub fn new(projector_ip: &str, fps: u32, password: &str, ssid: &str) -> Self {
         Self {
-            client: EpsonClient::new(projector_ip),
+            client: EpsonClient::new(projector_ip, password, ssid),
             target_fps: fps,
             is_running: Arc::new(AtomicBool::new(false)),
         }

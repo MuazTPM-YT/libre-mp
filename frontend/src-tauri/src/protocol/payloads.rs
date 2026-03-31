@@ -23,20 +23,32 @@ pub fn get_registration_payload(my_ip: &str) -> Vec<u8> {
     raw
 }
 
-pub fn get_auth_payload_full(my_ip: &str, proj_ip: &str, my_mac: &str) -> Vec<u8> {
+pub fn get_auth_payload_full(my_ip: &str, proj_ip: &str, my_mac: &str, ssid: &str) -> Vec<u8> {
     let hex_ip_str = hex::encode(get_hex_ip_bytes(my_ip));
     let hex_proj_str = hex::encode(get_hex_ip_bytes(proj_ip));
+    
+    // Extract projector name from SSID prefix (e.g. "RESEARCHLAB-xxx" → "RESEARCHLAB")
+    let proj_name = ssid.split('-').next().unwrap_or(ssid);
+    let name_hex = hex::encode(proj_name.as_bytes());
+    // Pad to 32 bytes (64 hex chars)
+    let name_hex_padded = format!("{:0<64}", name_hex);
+    // Length descriptor as 4-byte LE hex
+    let name_len = proj_name.len() as u32;
+    let len_hex = hex::encode(name_len.to_le_bytes());
     
     let template = format!(
         "45454d5030313030{}01010000f40000000101000000380f000000000000\
          ffffff0000000000020f0b0004000320200001ff00ff00ff00000810000000010e0000\
          {}00000000000000000000000000000000\
          {}a600000005000000380000000200000004000000\
-         {}0c00000004000000000000000100000004000000\
-         500043000b00000004000000000000001c00000000000000040000003600000001000000030000002a000000\
-         {}{}52455345415243484c4142000000000000000000000000000000000000000000\
+         {}0c0000000400000000000000010000000400000050004300\
+         {}\
+         04000000000000001c00000000000000040000003600000001000000030000002a000000\
+         {}{}{}\
          0f00000004000000320000000d000000040000000200000026000000080000000010000000100000",
-        hex_ip_str, my_mac, hex_proj_str, hex_ip_str, my_mac, hex_proj_str
+        hex_ip_str, my_mac, hex_proj_str, hex_ip_str,
+        len_hex,
+        my_mac, hex_proj_str, name_hex_padded
     );
     hex::decode(&template).unwrap()
 }

@@ -1,0 +1,14 @@
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/clang_sys-f2ccf1f717a67420.d: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/macros.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/common.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/dynamic.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libclang_sys-f2ccf1f717a67420.rlib: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/macros.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/common.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/dynamic.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libclang_sys-f2ccf1f717a67420.rmeta: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/macros.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/common.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/dynamic.rs
+
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/lib.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/support.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/clang-sys-1.8.1/src/link.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/macros.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/common.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out/dynamic.rs:
+
+# env-dep:OUT_DIR=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/clang-sys-397fb9b14d8eb919/out

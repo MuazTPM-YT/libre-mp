@@ -501,19 +501,15 @@ async fn get_connection_status() -> Result<ConnectionStatus, String> {
 
 
 #[tauri::command]
-async fn start_casting_async(ip: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
+async fn start_casting_async(ip: String, ssid: String, password: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut streamer_guard = state.streamer.lock().await;
     if streamer_guard.is_some() {
         return Err("Already casting".into());
     }
 
-    let streamer = protocol::streamer::VideoStreamer::new(&ip, 15);
-    // Note: To make this robust, we'd spawn the start() method in a tokio task, 
-    // but we can spawn it here. We need the streamer to be Clone or Arc'd.
-    // For now, let's just create a basic bridge logic.
+    let streamer = protocol::streamer::VideoStreamer::new(&ip, 15, &password, &ssid);
     *streamer_guard = Some(streamer);
     
-    // We will launch a separate background task for the actual stream
     Ok(true)
 }
 

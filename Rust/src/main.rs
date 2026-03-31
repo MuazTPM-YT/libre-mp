@@ -20,7 +20,7 @@ const TARGET_FPS: u64 = 24;
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
-    let (orig_uuid, ssid, password) = wifi::wifi_connect();
+    let (orig_uuid, ssid, _bssid, password) = wifi::wifi_connect();
 
     let os_mode = {
         eprintln!("\n[*] Select your Operating System / Display Environment:");
