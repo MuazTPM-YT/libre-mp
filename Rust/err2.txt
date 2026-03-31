@@ -1,0 +1,62 @@
+﻿cargo :     Checking 
+epson-streamer v0.1.0 (C:\U
+sers\User\Documents\libre-m
+p\Rust)
+At line:1 char:1
++ cargo check 2>&1 | 
+Out-File -Encoding utf8 
+err2.txt
++ ~~~~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: (     
+   Checking ep...\libre-   
+ mp\Rust):String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+error[E0432]: unresolved 
+import `winapi::um::winuser
+::DI_NORMAL`
+   --> src\capture.rs:167:9
+    |
+167 |         DI_NORMAL, 
+ICONINFO,
+    |         ^^^^^^^^^
+    |         |
+    |         no 
+`DI_NORMAL` in 
+`um::winuser`
+    |         help: a 
+similar name exists in the 
+module: `SW_NORMAL`
+
+warning: unused variable: 
+`val`
+   --> src\wifi.rs:348:25
+    |
+348 |             if let 
+Some(val) = 
+trimmed.splitn(2, 
+':').nth(1) {
+    |                      
+   ^^^ help: if this is 
+intentional, prefix it 
+with an underscore: `_val`
+    |
+    = note: `#[warn(unused_
+variables)]` (part of 
+`#[warn(unused)]`) on by 
+default
+
+For more information about 
+this error, try `rustc 
+--explain E0432`.
+warning: `epson-streamer` 
+(bin "epson-streamer") 
+generated 1 warning
+error: could not compile 
+`epson-streamer` (bin 
+"epson-streamer") due to 1 
+previous error; 1 warning 
+emitted

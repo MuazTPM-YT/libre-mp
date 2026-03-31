@@ -152,3 +152,111 @@ pub fn encode_tile_adaptive(
         }
     }
 }
+
+// ─── Windows GDI Capture (with cursor) ────────────────────────────────────
+
+#[cfg(windows)]
+pub fn capture_windows() -> Option<Vec<u8>> {
+    use std::ptr::null_mut;
+    use winapi::um::wingdi::{
+        BitBlt, CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDeviceCaps,
+        GetDIBits, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, SRCCOPY,
+    };
+    use winapi::um::winuser::{
+        DrawIconEx, GetCursorInfo, GetDC, GetIconInfo, ReleaseDC, CURSORINFO, CURSOR_SHOWING,
+        ICONINFO,
+    };
+    use winapi::shared::minwindef::TRUE;
+    
+    unsafe {
+        let hdc_screen = GetDC(null_mut());
+        if hdc_screen.is_null() {
+            return None;
+        }
+
+        // 118 = DESKTOPHORZRES, 117 = DESKTOPVERTRES
+        let width = GetDeviceCaps(hdc_screen, 118);
+        let height = GetDeviceCaps(hdc_screen, 117);
+        
+        let width = if width == 0 { GetDeviceCaps(hdc_screen, 8) } else { width }; // fallback to HORZRES
+        let height = if height == 0 { GetDeviceCaps(hdc_screen, 10) } else { height }; // fallback to VERTRES
+
+        let hdc_mem = CreateCompatibleDC(hdc_screen);
+        let hbm_screen = CreateCompatibleBitmap(hdc_screen, width, height);
+
+        let hbm_old = SelectObject(hdc_mem, hbm_screen as *mut _);
+
+        // Copy screen
+        BitBlt(hdc_mem, 0, 0, width, height, hdc_screen, 0, 0, SRCCOPY);
+
+        // Draw cursor
+        let mut ci: CURSORINFO = std::mem::zeroed();
+        ci.cbSize = std::mem::size_of::<CURSORINFO>() as u32;
+        if GetCursorInfo(&mut ci) == TRUE {
+            if ci.flags == CURSOR_SHOWING {
+                let mut ii: ICONINFO = std::mem::zeroed();
+                if GetIconInfo(ci.hCursor, &mut ii) == TRUE {
+                    // Offset by hotspot
+                    let draw_x = ci.ptScreenPos.x - ii.xHotspot as i32;
+                    let draw_y = ci.ptScreenPos.y - ii.yHotspot as i32;
+                    DrawIconEx(
+                        hdc_mem,
+                        draw_x,
+                        draw_y,
+                        ci.hCursor,
+                        0,
+                        0,
+                        0,
+                        null_mut(),
+                        3, // DI_NORMAL
+                    );
+                    
+                    if !ii.hbmColor.is_null() { DeleteObject(ii.hbmColor as *mut _); }
+                    if !ii.hbmMask.is_null() { DeleteObject(ii.hbmMask as *mut _); }
+                }
+            }
+        }
+
+        // Extract DIB bits
+        let mut bmi: BITMAPINFO = std::mem::zeroed();
+        bmi.bmiHeader.biSize = std::mem::size_of::<BITMAPINFOHEADER>() as u32;
+        bmi.bmiHeader.biWidth = width;
+        bmi.bmiHeader.biHeight = -height; // Top-down
+        bmi.bmiHeader.biPlanes = 1;
+        bmi.bmiHeader.biBitCount = 32;
+        bmi.bmiHeader.biCompression = BI_RGB;
+
+        let mut bgra_buf = vec![0u8; (width * height * 4) as usize];
+        let res = GetDIBits(
+            hdc_screen,
+            hbm_screen,
+            0,
+            height as u32,
+            bgra_buf.as_mut_ptr() as *mut _,
+            &mut bmi,
+            DIB_RGB_COLORS,
+        );
+
+        SelectObject(hdc_mem, hbm_old);
+        DeleteObject(hbm_screen as *mut _);
+        DeleteDC(hdc_mem);
+        ReleaseDC(null_mut(), hdc_screen);
+
+        if res == 0 {
+            return None;
+        }
+
+        Some(crate::capture::resize_bgra_to_rgb(
+            &bgra_buf,
+            width as u32,
+            height as u32,
+            crate::STREAM_W,
+            crate::STREAM_H,
+        ))
+    }
+}
+#[cfg(not(windows))]
+pub fn capture_windows() -> Option<Vec<u8>> {
+    None
+}
+

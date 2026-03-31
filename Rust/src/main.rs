@@ -81,7 +81,7 @@ fn main() {
             }
         };
 
-        let mut opt_capturer = if os_mode != 4 {
+        let mut opt_capturer = if os_mode == 2 || os_mode == 3 {
             let d = Display::primary().expect("No primary display found. Make sure you have a graphical session.");
             Some(Capturer::new(d).expect("Couldn't begin screen capture."))
         } else {
@@ -120,7 +120,23 @@ fn stream_loop(
         let t0 = Instant::now();
 
         // 1. Capture (0-copy direct from GPU/OS, or grim)
-        let screen = if let Some(capturer) = opt_capturer.as_mut() {
+        let screen = if os_mode == 1 {
+            match capture::capture_windows() {
+                Some(s) => s,
+                None => {
+                    std::thread::sleep(Duration::from_millis(16));
+                    continue;
+                }
+            }
+        } else if os_mode == 4 {
+            match capture::capture_wayland() {
+                Some(s) => s,
+                None => {
+                    std::thread::sleep(Duration::from_millis(50));
+                    continue;
+                }
+            }
+        } else if let Some(capturer) = opt_capturer.as_mut() {
             let w = capturer.width() as u32;
             let h = capturer.height() as u32;
             loop {
@@ -144,13 +160,8 @@ fn stream_loop(
                 }
             }
         } else {
-            match capture::capture_wayland() {
-                Some(s) => s,
-                None => {
-                    std::thread::sleep(Duration::from_millis(50));
-                    continue;
-                }
-            }
+            std::thread::sleep(Duration::from_millis(50));
+            continue;
         };
         let t_capture = t0.elapsed();
 
