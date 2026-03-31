@@ -10,6 +10,7 @@ import { PasswordModal } from './components/PasswordModal';
 import { StatusBanner } from './components/StatusBanner';
 import { TopHeader } from './components/TopHeader';
 import { NetworkTable } from './components/NetworkTable';
+import { OSSelectModal } from './components/OSSelectModal';
 
 export interface NetworkItem {
   id: string;
@@ -58,6 +59,7 @@ function App() {
   const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
   const [connectionStatusDetail, setConnectionStatusDetail] = useState<string | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isCasting, setIsCasting] = useState<boolean>(false);
 
   // Toast notification state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
@@ -66,6 +68,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConnectionModeOpen, setIsConnectionModeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isOSSelectOpen, setIsOSSelectOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
 
   const isScanningRef = { current: false };
@@ -166,19 +169,11 @@ function App() {
         setConnectedSSID(network.ssid);
         setConnectedPassword(password || '');
 
-        // Brief delay before clearing the connecting state to avoid flicker
         await new Promise(r => setTimeout(r, 200));
 
-        try {
-          const discovered: any[] = await invoke('discover_projectors');
-          if (discovered.length > 0) {
-            setNetworks(prev => prev.map(n =>
-              n.ssid === network.ssid ? { ...n, name: discovered[0].name } : n
-            ));
-          }
-        } catch (e) {
-          console.error("UDP Discovery failed", e);
-        }
+        // Show OS selection modal after successful connection
+        setIsOSSelectOpen(true);
+
         return true;
       }
       return false;
@@ -194,8 +189,42 @@ function App() {
   };
 
   const handleDisconnect = () => {
+    if (isCasting) {
+      handleStopCast();
+    }
     setConnectedSSID(null);
     setConnectionError(null);
+  };
+
+  const handleOSSelect = async (osMode: number) => {
+    setIsOSSelectOpen(false);
+    if (!connectedSSID) return;
+
+    try {
+      setConnectionStatusDetail('Starting stream...');
+      await invoke('start_casting_async', {
+        ssid: connectedSSID,
+        password: connectedPassword,
+        osMode,
+      });
+      setIsCasting(true);
+      setConnectionStatusDetail(null);
+      setToast({ message: 'Screen casting started!', type: 'success' });
+    } catch (err: any) {
+      console.error('Failed to start cast:', err);
+      setConnectionError(typeof err === 'string' ? err : 'Failed to start streaming');
+      setConnectionStatusDetail(null);
+    }
+  };
+
+  const handleStopCast = async () => {
+    try {
+      await invoke('stop_casting');
+      setIsCasting(false);
+      setToast({ message: 'Screen casting stopped.', type: 'info' });
+    } catch (err: any) {
+      console.error('Failed to stop cast:', err);
+    }
   };
 
   const filtered = networks
@@ -245,6 +274,9 @@ function App() {
               onConnect={handleNetworkClick}
               onDisconnect={handleDisconnect}
               isScanning={isScanning}
+              isCasting={isCasting}
+              onStartCast={() => setIsOSSelectOpen(true)}
+              onStopCast={handleStopCast}
             />
           </div>
         </main>
@@ -253,6 +285,7 @@ function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <ConnectionModeModal isOpen={isConnectionModeOpen} onClose={() => setIsConnectionModeOpen(false)} mode={connectionMode} setMode={setConnectionMode} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <OSSelectModal isOpen={isOSSelectOpen} onCancel={() => setIsOSSelectOpen(false)} onSelect={handleOSSelect} />
 
       <PasswordModal
         isOpen={!!passwordModalNet}
