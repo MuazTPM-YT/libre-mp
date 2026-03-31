@@ -1,0 +1,10 @@
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/wayland_server-d0f4e8be8f9ee8c9.d: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/client.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/dispatch.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/display.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/global.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/socket.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libwayland_server-d0f4e8be8f9ee8c9.rmeta: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/client.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/dispatch.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/display.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/global.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/socket.rs
+
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/lib.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/client.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/dispatch.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/display.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/global.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/wayland-server-0.31.13/src/socket.rs:

@@ -1,0 +1,14 @@
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/uuid-52c2550fcb489a39.d: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/macros.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/builder.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/error.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/non_nil.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/parser.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/fmt.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/timestamp.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external/serde_support.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libuuid-52c2550fcb489a39.rmeta: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/macros.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/builder.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/error.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/non_nil.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/parser.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/fmt.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/timestamp.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external/serde_support.rs
+
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/lib.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/macros.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/builder.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/error.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/non_nil.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/parser.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/fmt.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/timestamp.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/uuid-1.23.0/src/external/serde_support.rs:

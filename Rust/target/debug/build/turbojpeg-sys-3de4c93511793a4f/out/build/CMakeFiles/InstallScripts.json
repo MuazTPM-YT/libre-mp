@@ -1,0 +1,9 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/cmake_install.cmake",
+		"/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/simd/cmake_install.cmake",
+		"/home/Muaz/Documents/Software/projector/Rust/target/debug/build/turbojpeg-sys-3de4c93511793a4f/out/build/src/md5/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

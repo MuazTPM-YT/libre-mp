@@ -1,0 +1,20 @@
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/xcb-4504ff85df0b0986.d: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/base.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/error.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/event.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ext.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lat1_str.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/base.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/ext.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/dl.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xproto.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/bigreq.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xc_misc.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/randr.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/render.rs
+
+/home/Muaz/Documents/Software/projector/Rust/target/debug/deps/libxcb-4504ff85df0b0986.rmeta: /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lib.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/base.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/error.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/event.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ext.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lat1_str.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/base.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/ext.rs /home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/dl.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xproto.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/bigreq.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xc_misc.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/randr.rs /home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/render.rs
+
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lib.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/base.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/error.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/event.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ext.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/lat1_str.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/base.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/ext.rs:
+/home/Muaz/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xcb-1.7.0/src/ffi/dl.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xproto.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/bigreq.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/xc_misc.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/randr.rs:
+/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out/render.rs:
+
+# env-dep:OUT_DIR=/home/Muaz/Documents/Software/projector/Rust/target/debug/build/xcb-1e536ac4a9d9f008/out
