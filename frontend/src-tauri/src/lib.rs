@@ -42,10 +42,145 @@ lazy_static! {
     static ref AUTH_RE: Regex = Regex::new(r"Authentication\s+:\s+([^\r\n]+)").unwrap();
 }
 
-/// Scans for available Wi-Fi networks using OS-native tools (nmcli/netsh).
+/// Heuristic for flagging an SSID as a likely projector (Epson direct-mode, etc.).
+fn is_projector_ssid(ssid: &str) -> bool {
+    let l = ssid.to_lowercase();
+    l.contains("epson")
+        || l.contains("projector")
+        || l.contains("direct-")
+        || l.contains("display")
+        || l.contains("cast")
+}
+
+/// Detects the active Wi-Fi hardware device name on macOS (e.g. "en0" or "en1").
+/// The Wi-Fi port is NOT always en0, so we look it up instead of assuming.
+#[cfg(target_os = "macos")]
+fn macos_wifi_device() -> Option<String> {
+    let out = Command::new("networksetup")
+        .arg("-listallhardwareports")
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut is_wifi = false;
+    for line in text.lines() {
+        let line = line.trim();
+        if let Some(port) = line.strip_prefix("Hardware Port:") {
+            is_wifi = port.contains("Wi-Fi") || port.contains("AirPort");
+        } else if is_wifi {
+            if let Some(dev) = line.strip_prefix("Device:") {
+                return Some(dev.trim().to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Converts a macOS "spairport_signal_noise" field (e.g. "-55 dBm / -90 dBm")
+/// into a rough 0-100 signal percentage.
+#[cfg(target_os = "macos")]
+fn macos_signal_to_percent(field: &str) -> u8 {
+    let rssi: i32 = field
+        .split_whitespace()
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(-100);
+    // -50 dBm ≈ excellent, -100 dBm ≈ none.
+    (2 * (rssi + 100)).clamp(0, 100) as u8
+}
+
+/// Normalizes macOS "spairport_security_mode" strings into the same vocabulary
+/// the frontend expects ("Open" means no password prompt).
+#[cfg(target_os = "macos")]
+fn macos_clean_security(mode: &str) -> String {
+    let m = mode.to_lowercase();
+    if m.contains("none") || m.is_empty() {
+        "Open".to_string()
+    } else if m.contains("wep") {
+        "WEP".to_string()
+    } else {
+        "WPA2".to_string()
+    }
+}
+
+/// Scans for available Wi-Fi networks using OS-native tools (nmcli/netsh/system_profiler).
 #[tauri::command]
+#[allow(unreachable_code)]
 async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
-    if !cfg!(target_os = "windows") {
+    // ── macOS ── `nmcli` does not exist; use system_profiler (airport CLI was
+    // removed in macOS 14). This requires Location Services to see SSIDs.
+    #[cfg(target_os = "macos")]
+    {
+        let output = Command::new("system_profiler")
+            .args(["SPAirPortDataType", "-json"])
+            .output()
+            .map_err(|e| format!("Failed to execute system_profiler: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut networks: Vec<WifiNetwork> = Vec::new();
+
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+            if let Some(ifaces) = json
+                .get("SPAirPortDataType")
+                .and_then(|v| v.as_array())
+                .and_then(|a| a.first())
+                .and_then(|v| v.get("spairport_airport_interfaces"))
+                .and_then(|v| v.as_array())
+            {
+                for iface in ifaces {
+                    // Visible networks plus the one we are currently joined to.
+                    let mut buckets: Vec<&serde_json::Value> = Vec::new();
+                    if let Some(arr) = iface
+                        .get("spairport_airport_other_local_wireless_networks")
+                        .and_then(|v| v.as_array())
+                    {
+                        buckets.extend(arr.iter());
+                    }
+                    if let Some(cur) = iface.get("spairport_current_network_information") {
+                        buckets.push(cur);
+                    }
+
+                    for net in buckets {
+                        let ssid = match net.get("_name").and_then(|v| v.as_str()) {
+                            Some(s) if !s.is_empty() => s.to_string(),
+                            _ => continue,
+                        };
+                        let security = net
+                            .get("spairport_security_mode")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let signal = net
+                            .get("spairport_signal_noise")
+                            .and_then(|v| v.as_str())
+                            .map(macos_signal_to_percent)
+                            .unwrap_or(0);
+
+                        networks.push(WifiNetwork {
+                            is_projector: is_projector_ssid(&ssid),
+                            ssid,
+                            bssid: String::new(),
+                            signal,
+                            security: macos_clean_security(security),
+                        });
+                    }
+                }
+            }
+        }
+
+        let mut unique_nets: std::collections::HashMap<String, WifiNetwork> =
+            std::collections::HashMap::new();
+        for n in networks {
+            let entry = unique_nets.entry(n.ssid.clone()).or_insert_with(|| n.clone());
+            if n.signal > entry.signal {
+                *entry = n;
+            }
+        }
+        let mut result: Vec<WifiNetwork> = unique_nets.into_values().collect();
+        result.sort_by(|a, b| b.signal.cmp(&a.signal));
+        return Ok(result);
+    }
+
+    // ── Linux (NetworkManager) ──
+    if !cfg!(target_os = "windows") && !cfg!(target_os = "macos") {
         let output = Command::new("nmcli")
             .args(["-t", "-f", "SSID,BSSID,SECURITY,SIGNAL", "dev", "wifi"])
             .output()
@@ -67,10 +202,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
                 let signal = parts[3].parse::<u8>().unwrap_or(0);
                 
                 if !ssid.is_empty() && ssid != "--" {
-                    let is_projector = {
-                        let l = ssid.to_lowercase();
-                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
-                    };
+                    let is_projector = is_projector_ssid(&ssid);
                     networks.push(WifiNetwork {
                         ssid,
                         bssid,
@@ -127,10 +259,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
                     bssid,
                     signal: current_signal.max(1), // Default minimal signal if visible but no signal reported
                     security: current_security.clone(),
-                    is_projector: {
-                        let l = current_ssid.to_lowercase();
-                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
-                    },
+                    is_projector: is_projector_ssid(&current_ssid),
                 });
             }
 
@@ -158,10 +287,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
                     bssid: current_bssid.clone(),
                     signal: current_signal.max(1),
                     security: current_security.clone(),
-                    is_projector: {
-                        let l = current_ssid.to_lowercase();
-                        l.contains("epson") || l.contains("projector") || l.contains("direct-") || l.contains("display") || l.contains("cast")
-                    },
+                    is_projector: is_projector_ssid(&current_ssid),
                 });
                 current_signal = 0;
             }
@@ -325,9 +451,48 @@ fn try_extract_ascii_name(data: &[u8]) -> Option<String> {
 
 /// Connects to a specific Wi-Fi network using OS-native tools.
 #[tauri::command]
+#[allow(unreachable_code)]
 async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool, String> {
     println!("Connecting to network: {} (password provided: {})", ssid, password.is_some());
-    
+
+    // ── macOS ── `nmcli` is unavailable; use networksetup on the detected Wi-Fi port.
+    #[cfg(target_os = "macos")]
+    {
+        let device = macos_wifi_device().unwrap_or_else(|| "en0".to_string());
+        let mut args: Vec<String> =
+            vec!["-setairportnetwork".to_string(), device, ssid.clone()];
+        if let Some(ref pwd) = password {
+            if !pwd.is_empty() {
+                args.push(pwd.clone());
+            }
+        }
+
+        let output = Command::new("networksetup")
+            .args(&args)
+            .output()
+            .map_err(|e| format!("Failed to execute networksetup: {}", e))?;
+
+        // networksetup frequently exits 0 even on failure, printing the error to stdout.
+        let combined = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let lc = combined.to_lowercase();
+        if output.status.success()
+            && !lc.contains("could not")
+            && !lc.contains("error")
+            && !lc.contains("failed to join")
+        {
+            return Ok(true);
+        }
+        return Err(if combined.trim().is_empty() {
+            "Failed to connect. Please check your password and try again.".to_string()
+        } else {
+            combined.trim().to_string()
+        });
+    }
+
     if cfg!(target_os = "windows") {
         // If a password was provided, create a temporary XML profile
         if let Some(ref pwd) = password {

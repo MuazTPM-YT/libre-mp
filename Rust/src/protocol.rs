@@ -10,18 +10,117 @@ use std::os::unix::io::AsRawFd;
 #[cfg(target_os = "windows")]
 use std::os::windows::io::AsRawSocket;
 
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+use std::process::Command;
+
 use crate::hex;
 
-const PROJECTOR_IP: &str = "192.168.88.1";
+/// Fallback projector address used only when gateway auto-detection fails.
+/// Historically this was the single hard-coded address the app supported.
+const DEFAULT_PROJECTOR_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 88, 1);
 const PORT_CONTROL: u16 = 3620;
 const PORT_VIDEO: u16 = 3621;
-/// Detects the local IPv4 address by attempting to route traffic to the projector.
-fn get_local_ip() -> Ipv4Addr {
-    let sock = std::net::UdpSocket::bind("0.0.0.0:0").expect("bind");
-    sock.connect((PROJECTOR_IP, 80)).expect("connect");
-    match sock.local_addr().expect("local_addr").ip() {
-        std::net::IpAddr::V4(ip) => ip,
-        _ => Ipv4Addr::new(192, 168, 88, 2),
+
+/// Detects the default-gateway IPv4 address of the active network interface.
+///
+/// In Epson "direct" Wi-Fi mode the projector itself is the access point and
+/// gateway, so its address always equals the default gateway — regardless of
+/// which subnet a particular model hands out (some use 192.168.88.x, others
+/// 192.168.1.x, 192.168.10.x, etc.). Detecting the gateway is what lets us
+/// connect to *any* Epson projector instead of one hard-coded address.
+fn detect_default_gateway() -> Option<Ipv4Addr> {
+    #[cfg(target_os = "linux")]
+    {
+        // Parse /proc/net/route directly — dependency-free and works on every
+        // Linux distribution regardless of NetworkManager / iproute2 presence.
+        let table = std::fs::read_to_string("/proc/net/route").ok()?;
+        for line in table.lines().skip(1) {
+            let cols: Vec<&str> = line.split_whitespace().collect();
+            if cols.len() < 4 {
+                continue;
+            }
+            // Default route: destination 0.0.0.0 with the RTF_GATEWAY (0x2) flag.
+            let flags = u16::from_str_radix(cols[3], 16).unwrap_or(0);
+            if cols[1] == "00000000" && (flags & 0x2) != 0 {
+                if let Ok(gw) = u32::from_str_radix(cols[2], 16) {
+                    if gw != 0 {
+                        // The kernel stores the gateway little-endian.
+                        let o = gw.to_le_bytes();
+                        return Some(Ipv4Addr::new(o[0], o[1], o[2], o[3]));
+                    }
+                }
+            }
+        }
+        None
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let out = Command::new("route").args(["-n", "get", "default"]).output().ok()?;
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some(rest) = line.trim().strip_prefix("gateway:") {
+                if let Ok(ip) = rest.trim().parse::<Ipv4Addr>() {
+                    return Some(ip);
+                }
+            }
+        }
+        None
+    }
+    #[cfg(target_os = "windows")]
+    {
+        // `ipconfig` lists the default gateway per adapter; take the first valid IPv4.
+        let out = Command::new("ipconfig").output().ok()?;
+        // ipconfig output can be non-UTF8 on localized systems; lossy is fine here.
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            let line = line.trim();
+            if line.starts_with("Default Gateway") {
+                if let Some(idx) = line.find(':') {
+                    if let Ok(ip) = line[idx + 1..].trim().parse::<Ipv4Addr>() {
+                        if !ip.is_unspecified() {
+                            return Some(ip);
+                        }
+                    }
+                }
+            }
+        }
+        None
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    {
+        None
+    }
+}
+
+/// Resolves the projector address: explicit override → detected gateway → fallback.
+fn resolve_projector_ip(override_ip: Option<Ipv4Addr>) -> Ipv4Addr {
+    if let Some(ip) = override_ip {
+        eprintln!("[*] Using projector IP from --projector-ip: {ip}");
+        return ip;
+    }
+    match detect_default_gateway() {
+        Some(gw) => {
+            eprintln!("[*] Auto-detected projector (gateway) IP: {gw}");
+            gw
+        }
+        None => {
+            eprintln!("[*] Gateway detection failed; falling back to {DEFAULT_PROJECTOR_IP}");
+            DEFAULT_PROJECTOR_IP
+        }
+    }
+}
+
+/// Detects the local IPv4 address by routing a dummy datagram toward the projector.
+fn get_local_ip(proj_ip: Ipv4Addr) -> Ipv4Addr {
+    let fallback = Ipv4Addr::new(192, 168, 88, 2);
+    let sock = match std::net::UdpSocket::bind("0.0.0.0:0") {
+        Ok(s) => s,
+        Err(_) => return fallback,
+    };
+    match sock.connect((proj_ip, 80)).and_then(|_| sock.local_addr()) {
+        Ok(addr) => match addr.ip() {
+            std::net::IpAddr::V4(ip) => ip,
+            _ => fallback,
+        },
+        Err(_) => fallback,
     }
 }
 
@@ -186,14 +285,14 @@ pub struct EpsonClient {
 }
 
 impl EpsonClient {
-    pub fn connect(password: &str, ssid: &str) -> io::Result<Self> {
-        let my_ip = get_local_ip();
-        let proj_ip: Ipv4Addr = PROJECTOR_IP.parse().unwrap();
+    pub fn connect(password: &str, ssid: &str, proj_ip_override: Option<Ipv4Addr>) -> io::Result<Self> {
+        let proj_ip = resolve_projector_ip(proj_ip_override);
+        let my_ip = get_local_ip(proj_ip);
         eprintln!("[*] Local IP: {my_ip}, Projector: {proj_ip}");
 
         // ── 1. Registration ──────────────────────────────────────────────
         eprintln!("[*] 1. Registration on port {PORT_CONTROL}...");
-        let mut s_auth = TcpStream::connect((PROJECTOR_IP, PORT_CONTROL))?;
+        let mut s_auth = TcpStream::connect((proj_ip, PORT_CONTROL))?;
         s_auth.set_nodelay(true)?;
         s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
         enable_tcp_keepalive(&s_auth);
@@ -214,7 +313,7 @@ impl EpsonClient {
 
         // ── 2. Authentication ────────────────────────────────────────────
         eprintln!("[*]    Authenticating...");
-        let mut s_auth = TcpStream::connect((PROJECTOR_IP, PORT_CONTROL))?;
+        let mut s_auth = TcpStream::connect((proj_ip, PORT_CONTROL))?;
         s_auth.set_nodelay(true)?;
         s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
         enable_tcp_keepalive(&s_auth);
@@ -290,14 +389,14 @@ impl EpsonClient {
         eprintln!("[*] 2. Opening video channels on port {PORT_VIDEO}...");
         std::thread::sleep(Duration::from_millis(300));
 
-        let mut s_video = TcpStream::connect((PROJECTOR_IP, PORT_VIDEO))?;
+        let mut s_video = TcpStream::connect((proj_ip, PORT_VIDEO))?;
         s_video.set_nodelay(true)?;
         s_video.set_read_timeout(None)?;
         enable_tcp_keepalive(&s_video);
         s_video.write_all(&video_init_ctrl(my_ip))?;
         eprintln!("[+]    Video channel OPEN (byte28=0x00)");
 
-        let mut s_aux = TcpStream::connect((PROJECTOR_IP, PORT_VIDEO))?;
+        let mut s_aux = TcpStream::connect((proj_ip, PORT_VIDEO))?;
         s_aux.set_nodelay(true)?;
         s_aux.set_read_timeout(None)?;
         enable_tcp_keepalive(&s_aux);

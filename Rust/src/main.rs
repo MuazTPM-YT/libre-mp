@@ -36,6 +36,9 @@ fn main() {
     let cli_ssid = get_arg("--ssid");
     let cli_password = get_arg("--password");
     let cli_os: Option<u8> = get_arg("--os").and_then(|v| v.parse().ok());
+    // Optional explicit projector address; otherwise auto-detected from the gateway.
+    let cli_proj_ip: Option<std::net::Ipv4Addr> =
+        get_arg("--projector-ip").and_then(|v| v.parse().ok());
 
     // Determine credentials: CLI args or interactive
     let (orig_uuid, ssid, password) = if skip_wifi {
@@ -96,7 +99,7 @@ fn main() {
 
     // Auto-reconnect loop — runs until Ctrl+C
     while running.load(Ordering::Relaxed) {
-        let mut client = match protocol::EpsonClient::connect(&password, &ssid) {
+        let mut client = match protocol::EpsonClient::connect(&password, &ssid, cli_proj_ip) {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("[-] Connection failed: {e}");

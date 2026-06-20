@@ -176,6 +176,30 @@ pub fn wifi_restore(orig_uuid: Option<String>) {
 // macOS (networksetup / airport)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/// Detects the active Wi-Fi hardware device on macOS (e.g. "en0" or "en1").
+/// Falls back to "en0" if detection fails. The Wi-Fi port is not always en0.
+#[cfg(target_os = "macos")]
+fn wifi_device() -> String {
+    if let Ok(out) = Command::new("networksetup")
+        .arg("-listallhardwareports")
+        .output()
+    {
+        let text = String::from_utf8_lossy(&out.stdout);
+        let mut is_wifi = false;
+        for line in text.lines() {
+            let line = line.trim();
+            if let Some(port) = line.strip_prefix("Hardware Port:") {
+                is_wifi = port.contains("Wi-Fi") || port.contains("AirPort");
+            } else if is_wifi {
+                if let Some(dev) = line.strip_prefix("Device:") {
+                    return dev.trim().to_string();
+                }
+            }
+        }
+    }
+    "en0".to_string()
+}
+
 /// Scans for available Wi-Fi networks using the `airport` utility on macOS.
 #[cfg(target_os = "macos")]
 fn scan_networks() -> Vec<WifiNetwork> {
@@ -259,8 +283,9 @@ fn find_mac_in_line(line: &str) -> Option<String> {
 fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
     eprintln!("Attempting to connect to '{}'...", net.ssid);
 
+    let device = wifi_device();
     let status = Command::new("networksetup")
-        .args(["-setairportnetwork", "en0", &net.ssid, password])
+        .args(["-setairportnetwork", &device, &net.ssid, password])
         .status();
 
     matches!(status, Ok(s) if s.success())
@@ -270,8 +295,9 @@ fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
 /// Retrieves the active Wi-Fi connection SSID using `networksetup` on macOS.
 #[cfg(target_os = "macos")]
 fn get_current_connection_id() -> Option<String> {
+    let device = wifi_device();
     Command::new("networksetup")
-        .args(["-getairportnetwork", "en0"])
+        .args(["-getairportnetwork", &device])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -295,8 +321,9 @@ fn show_current_network() {
 pub fn wifi_restore(orig_uuid: Option<String>) {
     if let Some(ssid) = orig_uuid {
         eprintln!("\n[*] Restoring Wi-Fi (background)...");
+        let device = wifi_device();
         let _ = Command::new("networksetup")
-            .args(["-setairportnetwork", "en0", &ssid])
+            .args(["-setairportnetwork", &device, &ssid])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn();
