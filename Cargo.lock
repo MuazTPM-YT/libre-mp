@@ -660,7 +660,6 @@ version = "0.1.0"
 dependencies = [
  "ctrlc",
  "libremp-core",
- "scrap",
 ]
 
 [[package]]
@@ -1213,6 +1212,7 @@ dependencies = [
  "image",
  "libc",
  "quircs",
+ "scrap",
  "serde",
  "serde_json",
  "turbojpeg",

@@ -10,10 +10,12 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 # QR decoding for Epson iProjection "Quick Connect" codes.
 quircs = "0.10"
-# Universal screen capture — handles Wayland via xdg-desktop-portal + PipeWire
-# (works on KDE/GNOME/wlroots), plus X11/Windows/macOS.
+# Universal screen capture. xcap handles Wayland via xdg-desktop-portal +
+# PipeWire (KDE/GNOME/wlroots) and also X11/Windows/macOS; scrap is the fast
+# direct grabber for X11/macOS. Both are used with a fallback chain.
 xcap = "0.9.3"
 image = "0.25"
+scrap = "0.5.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -119,6 +119,147 @@ impl XcapGrabber {
             dynimg.resize_exact(STREAM_W, STREAM_H, image::imageops::FilterType::Triangle);
         Some(resized.to_rgb8().into_raw())
     }
+
+    /// Construct only if at least one monitor can be enumerated.
+    pub fn try_new() -> Option<Self> {
+        let mut g = XcapGrabber::new();
+        if g.ensure_monitor() {
+            Some(g)
+        } else {
+            None
+        }
+    }
+}
+
+// ─── Unified capture: one trait, an ordered fallback chain per platform ─────
+//
+// Every OS/desktop in the support matrix reduces to a display server (X11 vs
+// Wayland) plus, on Wayland, a portal backend. We don't special-case distros —
+// we pick the proven grabber for the detected environment and, if it can't
+// initialize, fall through to the next. `xcap` (portal/PipeWire) is the
+// universal fallback that works even when the fast path is unavailable.
+
+/// Yields RGB frames at `STREAM_W` x `STREAM_H`.
+pub trait FrameGrabber {
+    /// Grab one frame. `None` = transient failure; the caller should retry.
+    fn grab(&mut self) -> Option<Vec<u8>>;
+    /// Human-readable backend name, for diagnostics.
+    fn name(&self) -> &'static str;
+}
+
+impl FrameGrabber for XcapGrabber {
+    fn grab(&mut self) -> Option<Vec<u8>> {
+        self.capture_rgb()
+    }
+    fn name(&self) -> &'static str {
+        "xcap (portal / PipeWire)"
+    }
+}
+
+/// Fast direct grabber for X11 (XShm) and macOS (CoreGraphics), via `scrap`.
+pub struct ScrapGrabber {
+    capturer: scrap::Capturer,
+    w: u32,
+    h: u32,
+}
+
+impl ScrapGrabber {
+    pub fn try_new() -> Option<Self> {
+        let display = scrap::Display::primary().ok()?;
+        let capturer = scrap::Capturer::new(display).ok()?;
+        let w = capturer.width() as u32;
+        let h = capturer.height() as u32;
+        Some(ScrapGrabber { capturer, w, h })
+    }
+}
+
+impl FrameGrabber for ScrapGrabber {
+    fn grab(&mut self) -> Option<Vec<u8>> {
+        // scrap returns WouldBlock until the compositor delivers a frame.
+        for _ in 0..100 {
+            match self.capturer.frame() {
+                Ok(frame) => {
+                    return Some(resize_bgra_to_rgb(&frame, self.w, self.h, STREAM_W, STREAM_H));
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
+                Err(_) => return None,
+            }
+        }
+        None
+    }
+    fn name(&self) -> &'static str {
+        "scrap (X11 XShm / CoreGraphics)"
+    }
+}
+
+/// Windows GDI grabber (captures the cursor). Windows-only.
+#[cfg(windows)]
+pub struct GdiGrabber;
+
+#[cfg(windows)]
+impl GdiGrabber {
+    pub fn try_new() -> Option<Self> {
+        Some(GdiGrabber)
+    }
+}
+
+#[cfg(windows)]
+impl FrameGrabber for GdiGrabber {
+    fn grab(&mut self) -> Option<Vec<u8>> {
+        capture_windows()
+    }
+    fn name(&self) -> &'static str {
+        "windows gdi (with cursor)"
+    }
+}
+
+/// Build the best available grabber for the current environment, trying proven
+/// backends in priority order and falling through to `xcap` if needed. Always
+/// returns a grabber (a lazy `xcap` one as the last resort).
+pub fn detect_grabber() -> Box<dyn FrameGrabber> {
+    let backend = detect_backend();
+    eprintln!("[*] Capture: {:?} session detected", backend);
+
+    macro_rules! first_of {
+        ($($ctor:expr),+ $(,)?) => {{
+            $(
+                if let Some(g) = $ctor {
+                    eprintln!("[+] Capture backend: {}", g.name());
+                    return Box::new(g);
+                }
+            )+
+        }};
+    }
+
+    #[cfg(windows)]
+    {
+        let _ = backend;
+        first_of!(GdiGrabber::try_new(), ScrapGrabber::try_new(), XcapGrabber::try_new());
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = backend;
+        first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        match backend {
+            // Wayland: the portal is the only correct primary; scrap can still
+            // work under XWayland as a fallback.
+            CaptureBackend::LinuxWaylandPortal => {
+                first_of!(XcapGrabber::try_new(), ScrapGrabber::try_new());
+            }
+            // X11: fast direct grabber first, portal as fallback.
+            _ => {
+                first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
+            }
+        }
+    }
+
+    eprintln!("[-] No capture backend initialized; retrying via lazy xcap.");
+    Box::new(XcapGrabber::new())
 }
 
 // ─── High-Performance BGRA Resizer ─────────────────────────────────────────

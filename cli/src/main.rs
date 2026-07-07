@@ -1,10 +1,9 @@
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use scrap::{Capturer, Display};
 
-use libremp_core::{capture, protocol, template, wifi, STREAM_W, STREAM_H};
-use libremp_core::capture::CaptureBackend;
+use libremp_core::capture::FrameGrabber;
+use libremp_core::{capture, protocol, template, wifi};
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -45,11 +44,9 @@ fn main() {
         (uuid, ssid, password)
     };
 
-    // Screen-capture backend is auto-detected from the OS/session — no manual
-    // picker. `--os` is still accepted for backwards compatibility but ignored.
+    // Capture backend is auto-detected per environment (see detect_grabber).
+    // `--os` is still accepted for backwards compatibility but ignored.
     let _ = cli_os;
-    let backend = capture::detect_backend();
-    eprintln!("[*] Auto-detected capture backend: {:?}", backend);
 
     // Ctrl+C: set flag immediately (cross-platform via ctrlc crate)
     let running = Arc::new(AtomicBool::new(true));
@@ -97,29 +94,11 @@ fn main() {
             }
         };
 
-        // X11 / macOS use scrap's direct grabber; Wayland uses xcap (portal).
-        let mut opt_capturer =
-            if matches!(backend, CaptureBackend::LinuxX11 | CaptureBackend::MacCoreGraphics) {
-                let d = Display::primary()
-                    .expect("No primary display found. Make sure you have a graphical session.");
-                Some(Capturer::new(d).expect("Couldn't begin screen capture."))
-            } else {
-                None
-            };
-        let mut wl_grabber = if matches!(backend, CaptureBackend::LinuxWaylandPortal) {
-            Some(capture::XcapGrabber::new())
-        } else {
-            None
-        };
+        // Build the best available grabber for this environment (fresh per
+        // connection so it re-negotiates the portal/display each time).
+        let mut grabber = capture::detect_grabber();
 
-        let reason = stream_loop(
-            &mut client,
-            &mut tpl,
-            &mut opt_capturer,
-            &mut wl_grabber,
-            &running,
-            backend,
-        );
+        let reason = stream_loop(&mut client, &mut tpl, grabber.as_mut(), &running);
         if !running.load(Ordering::Relaxed) {
             eprintln!("\n[*] Ctrl+C received, shutting down...");
             break;
@@ -138,10 +117,8 @@ fn main() {
 fn stream_loop(
     client: &mut protocol::EpsonClient,
     tpl: &mut template::Template,
-    opt_capturer: &mut Option<Capturer>,
-    wl_grabber: &mut Option<capture::XcapGrabber>,
+    grabber: &mut dyn FrameGrabber,
     running: &AtomicBool,
-    backend: CaptureBackend,
 ) -> String {
     let mut frame_idx = 0u64;
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
@@ -153,47 +130,16 @@ fn stream_loop(
     while running.load(Ordering::Relaxed) {
         let t0 = Instant::now();
 
-        // 1. Capture — backend auto-selected: GDI (Windows), scrap (X11/macOS),
-        //    or xcap portal (Wayland: KDE/GNOME/wlroots).
-        let screen = match backend {
-            CaptureBackend::WindowsGdi => match capture::capture_windows() {
-                Some(s) => s,
-                None => {
-                    std::thread::sleep(Duration::from_millis(16));
-                    continue;
+        // 1. Capture — the grabber is whatever detect_grabber() selected for
+        //    this environment (GDI / scrap / xcap portal), with fallback baked in.
+        let screen = match grabber.grab() {
+            Some(s) => s,
+            None => {
+                if !running.load(Ordering::Relaxed) {
+                    return "Ctrl+C".to_string();
                 }
-            },
-            CaptureBackend::LinuxWaylandPortal => {
-                match wl_grabber.as_mut().and_then(|g| g.capture_rgb()) {
-                    Some(s) => s,
-                    None => {
-                        std::thread::sleep(Duration::from_millis(50));
-                        continue;
-                    }
-                }
-            }
-            CaptureBackend::LinuxX11 | CaptureBackend::MacCoreGraphics => {
-                if let Some(capturer) = opt_capturer.as_mut() {
-                    let w = capturer.width() as u32;
-                    let h = capturer.height() as u32;
-                    loop {
-                        match capturer.frame() {
-                            Ok(frame) => {
-                                break capture::resize_bgra_to_rgb(&frame, w, h, STREAM_W, STREAM_H);
-                            }
-                            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                                if !running.load(Ordering::Relaxed) {
-                                    return "Ctrl+C".to_string();
-                                }
-                                std::thread::sleep(Duration::from_millis(2));
-                            }
-                            Err(e) => return format!("Capture Error: {e}"),
-                        }
-                    }
-                } else {
-                    std::thread::sleep(Duration::from_millis(50));
-                    continue;
-                }
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
             }
         };
         let t_capture = t0.elapsed();
@@ -267,11 +213,10 @@ fn stream_loop(
                 fps,
             );
 
-            if non_zero_pixels == 0 && matches!(backend, CaptureBackend::LinuxX11) {
-                eprintln!("\n[!] CRITICAL WARNING: Entire screen capture is completely BLACK.");
-                eprintln!("    -> The X11 grabber cannot see the screen. If this is actually a");
-                eprintln!("       Wayland session, ensure WAYLAND_DISPLAY is set so the portal");
-                eprintln!("       backend is auto-selected, or log in to an Xorg session.\n");
+            if non_zero_pixels == 0 {
+                eprintln!("\n[!] WARNING: the captured frame is entirely black.");
+                eprintln!("    -> On Wayland, approve the screen-share prompt when it appears.");
+                eprintln!("       On X11, make sure you're in a graphical session.\n");
             }
         }
     }
