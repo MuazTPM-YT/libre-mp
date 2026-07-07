@@ -131,6 +131,25 @@ impl XcapGrabber {
     }
 }
 
+/// Encode an interleaved RGB buffer to JPEG (fast, via turbojpeg). Used to
+/// stream live camera frames to the UI as `data:` images.
+pub fn encode_jpeg(rgb: &[u8], w: u32, h: u32, quality: i32) -> Option<Vec<u8>> {
+    if rgb.len() < (w as usize) * (h as usize) * 3 {
+        return None;
+    }
+    let image = Image {
+        pixels: rgb,
+        width: w as usize,
+        pitch: (w * 3) as usize,
+        height: h as usize,
+        format: PixelFormat::RGB,
+    };
+    let mut comp = Compressor::new().ok()?;
+    comp.set_quality(quality).ok()?;
+    comp.set_subsamp(Subsamp::Sub2x2).ok()?;
+    comp.compress_to_vec(image).ok()
+}
+
 // ─── Unified capture: one trait, an ordered fallback chain per platform ─────
 //
 // Every OS/desktop in the support matrix reduces to a display server (X11 vs

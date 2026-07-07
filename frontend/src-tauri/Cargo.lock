@@ -1531,6 +1531,7 @@ dependencies = [
 name = "frontend"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "lazy_static",
  "libremp-core",
  "nokhwa",

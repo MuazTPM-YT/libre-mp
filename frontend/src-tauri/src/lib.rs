@@ -2,18 +2,23 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use regex::Regex;
 use lazy_static::lazy_static;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Requests sent to the dedicated camera thread. The thread owns the (non-Send)
+/// `nokhwa::Camera`, so the handle never has to live in Tauri's shared state.
+enum CamCmd {
+    Preview(tokio::sync::oneshot::Sender<Result<String, String>>),
+    Capture(tokio::sync::oneshot::Sender<Result<String, String>>),
+    Scan(tokio::sync::oneshot::Sender<Result<QrProjector, String>>),
+    Stop,
+}
+
 pub struct AppState {
     pub child_process: Arc<Mutex<Option<std::process::Child>>>,
-    /// Monotonic scan generation. Bumping it preempts any running scan, so a new
-    /// or cancelled scan supersedes the previous one instead of racing it.
-    pub scan_gen: Arc<AtomicU64>,
-    /// Serializes physical camera access so two opens never overlap — overlap is
-    /// what triggers V4L2 "device busy" (e.g. React StrictMode's double-invoke).
-    pub camera_lock: Arc<Mutex<()>>,
+    /// Sender to the camera worker thread. `None` until a scan opens the camera;
+    /// reset to `None` by `camera_stop`.
+    cam_tx: Arc<Mutex<Option<std::sync::mpsc::Sender<CamCmd>>>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -366,72 +371,136 @@ async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String
     })
 }
 
-/// Live-scan the projector QR from the default camera, natively (V4L2 /
-/// AVFoundation / Media Foundation) — NOT via the webview, whose getUserMedia
-/// path segfaults WebKitGTK. Blocks up to ~20s or until cancelled.
-#[tauri::command]
-async fn scan_qr_camera(state: tauri::State<'_, AppState>) -> Result<QrProjector, String> {
-    // Take a new generation first — this preempts any previous/duplicate scan so
-    // it releases the camera. Then serialize actual device access via the lock,
-    // so opens never overlap (overlap = V4L2 "device busy").
-    let my_gen = state.scan_gen.fetch_add(1, Ordering::SeqCst) + 1;
-    let gen = state.scan_gen.clone();
-    let _guard = state.camera_lock.lock().await;
-    if gen.load(Ordering::SeqCst) != my_gen {
-        return Err("Scan superseded.".into());
-    }
-    tokio::task::spawn_blocking(move || scan_camera_blocking(&gen, my_gen))
-        .await
-        .map_err(|e| format!("Scan task failed: {e}"))?
-}
+// ── Live camera: preview → capture → scan ──────────────────────────────────
+// Native camera (V4L2/AVFoundation/MediaFoundation), NOT the webview's
+// getUserMedia (which segfaults WebKitGTK). Frames are JPEG-encoded and streamed
+// to the UI as data: URLs for a real preview.
 
-/// Cancels/preempts an in-progress `scan_qr_camera` by advancing the generation.
-#[tauri::command]
-async fn cancel_camera_scan(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    state.scan_gen.fetch_add(1, Ordering::SeqCst);
-    Ok(())
-}
-
-fn scan_camera_blocking(gen: &AtomicU64, my_gen: u64) -> Result<QrProjector, String> {
+/// Ensure the camera is open in `guard` and grab one RGB frame (w, h, rgb).
+fn grab_rgb(guard: &mut Option<nokhwa::Camera>) -> Result<(u32, u32, Vec<u8>), String> {
     use nokhwa::pixel_format::RgbFormat;
     use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
     use nokhwa::Camera;
 
-    let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution);
-    let mut camera = Camera::new(CameraIndex::Index(0), format)
-        .map_err(|e| format!("Could not open the camera: {e}"))?;
-    camera
-        .open_stream()
-        .map_err(|e| format!("Could not start the camera: {e}"))?;
+    if guard.is_none() {
+        let format =
+            RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution);
+        let mut camera = Camera::new(CameraIndex::Index(0), format)
+            .map_err(|e| format!("Could not open the camera: {e}"))?;
+        camera
+            .open_stream()
+            .map_err(|e| format!("Could not start the camera: {e}"))?;
+        *guard = Some(camera);
+    }
+    let camera = guard.as_mut().unwrap();
+    let img = camera
+        .frame()
+        .and_then(|f| f.decode_image::<RgbFormat>())
+        .map_err(|e| e.to_string())?;
+    Ok((img.width(), img.height(), img.into_raw()))
+}
 
-    let start = std::time::Instant::now();
-    let timeout = std::time::Duration::from_secs(30);
-    let mut last_err = String::new();
+fn jpeg_data_url(rgb: &[u8], w: u32, h: u32, quality: i32) -> Result<String, String> {
+    use base64::Engine as _;
+    let jpeg = libremp_core::capture::encode_jpeg(rgb, w, h, quality)
+        .ok_or_else(|| "Failed to encode frame".to_string())?;
+    Ok(format!(
+        "data:image/jpeg;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(&jpeg)
+    ))
+}
 
-    while start.elapsed() < timeout {
-        if gen.load(Ordering::SeqCst) != my_gen {
-            return Err("Scan cancelled.".into());
-        }
-        match camera.frame().and_then(|f| f.decode_image::<RgbFormat>()) {
-            Ok(img) => {
-                let (w, h) = (img.width(), img.height());
-                if let Some(qr) = libremp_core::qr::parse_from_rgb(w, h, &img.into_raw()) {
-                    return Ok(QrProjector {
-                        ssid: qr.ssid().unwrap_or_default().to_string(),
-                        password: qr.wifi_password().unwrap_or_default().to_string(),
-                        ip: qr.ip.to_string(),
-                    });
-                }
+/// The camera thread body: owns the Camera + the last captured still, and serves
+/// requests until it receives `Stop` (or all senders drop). Dropping at the end
+/// releases the device.
+fn camera_worker(rx: std::sync::mpsc::Receiver<CamCmd>) {
+    let mut cam: Option<nokhwa::Camera> = None;
+    let mut captured: Option<(u32, u32, Vec<u8>)> = None;
+
+    while let Ok(cmd) = rx.recv() {
+        match cmd {
+            CamCmd::Preview(reply) => {
+                let r = grab_rgb(&mut cam).and_then(|(w, h, rgb)| jpeg_data_url(&rgb, w, h, 55));
+                let _ = reply.send(r);
             }
-            Err(e) => last_err = e.to_string(),
+            CamCmd::Capture(reply) => {
+                let r = grab_rgb(&mut cam).and_then(|(w, h, rgb)| {
+                    let url = jpeg_data_url(&rgb, w, h, 88)?;
+                    captured = Some((w, h, rgb));
+                    Ok(url)
+                });
+                let _ = reply.send(r);
+            }
+            CamCmd::Scan(reply) => {
+                let r = match &captured {
+                    None => Err("Take a photo first.".to_string()),
+                    Some((w, h, rgb)) => libremp_core::qr::parse_from_rgb(*w, *h, rgb)
+                        .map(|qr| QrProjector {
+                            ssid: qr.ssid().unwrap_or_default().to_string(),
+                            password: qr.wifi_password().unwrap_or_default().to_string(),
+                            ip: qr.ip.to_string(),
+                        })
+                        .ok_or_else(|| {
+                            "No projector QR found in the photo. Retake it with the QR filling more of the frame.".to_string()
+                        }),
+                };
+                let _ = reply.send(r);
+            }
+            CamCmd::Stop => break,
         }
     }
+}
 
-    if last_err.is_empty() {
-        Err("No QR found. Hold the projector's QR steady in view and try again.".into())
-    } else {
-        Err(format!("No QR found ({last_err})."))
+/// Get the worker's command sender, spawning the worker thread on first use.
+async fn camera_sender(state: &tauri::State<'_, AppState>) -> std::sync::mpsc::Sender<CamCmd> {
+    let mut guard = state.cam_tx.lock().await;
+    if let Some(tx) = guard.as_ref() {
+        return tx.clone();
     }
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || camera_worker(rx));
+    *guard = Some(tx.clone());
+    tx
+}
+
+/// Grab one live preview frame as a JPEG data: URL (opens the camera on first call).
+#[tauri::command]
+async fn camera_preview_frame(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let tx = camera_sender(&state).await;
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    tx.send(CamCmd::Preview(reply_tx))
+        .map_err(|_| "Camera stopped.".to_string())?;
+    reply_rx.await.map_err(|_| "Camera stopped.".to_string())?
+}
+
+/// Freeze a full-resolution still and return it as a data: URL. Stored for `camera_scan`.
+#[tauri::command]
+async fn camera_capture(state: tauri::State<'_, AppState>) -> Result<String, String> {
+    let tx = camera_sender(&state).await;
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    tx.send(CamCmd::Capture(reply_tx))
+        .map_err(|_| "Camera stopped.".to_string())?;
+    reply_rx.await.map_err(|_| "Camera stopped.".to_string())?
+}
+
+/// Decode the projector QR from the captured still.
+#[tauri::command]
+async fn camera_scan(state: tauri::State<'_, AppState>) -> Result<QrProjector, String> {
+    let tx = camera_sender(&state).await;
+    let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+    tx.send(CamCmd::Scan(reply_tx))
+        .map_err(|_| "Camera stopped.".to_string())?;
+    reply_rx.await.map_err(|_| "Camera stopped.".to_string())?
+}
+
+/// Release the camera (on modal close): stop the worker so it drops the device.
+#[tauri::command]
+async fn camera_stop(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let mut guard = state.cam_tx.lock().await;
+    if let Some(tx) = guard.take() {
+        let _ = tx.send(CamCmd::Stop);
+    }
+    Ok(())
 }
 
 /// A projector the user has connected to before, persisted for one-click rejoin.
@@ -924,15 +993,16 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             child_process: Arc::new(Mutex::new(None)),
-            scan_gen: Arc::new(AtomicU64::new(0)),
-            camera_lock: Arc::new(Mutex::new(())),
+            cam_tx: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
             discover_projectors,
             decode_projector_qr,
-            scan_qr_camera,
-            cancel_camera_scan,
+            camera_preview_frame,
+            camera_capture,
+            camera_scan,
+            camera_stop,
             list_saved_projectors,
             save_projector,
             forget_projector,

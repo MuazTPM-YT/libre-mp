@@ -29,4 +29,6 @@ libremp-core = { path = "../../core" }
 # Native camera capture for live QR scanning (V4L2 / AVFoundation / MediaFoundation).
 # Deliberately NOT the webview getUserMedia path, which segfaults WebKitGTK.
 nokhwa = { version = "0.10", features = ["input-native"] }
+# Encode camera frames as data: URLs to stream a live preview into an <img>.
+base64 = "0.22"
 

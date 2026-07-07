@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Camera, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Camera, RotateCcw, AlertCircle, ScanLine, ArrowRight } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface QrResult {
@@ -15,60 +15,88 @@ interface Props {
 }
 
 /**
- * Live QR scan using the native camera (Rust `scan_qr_camera` command, V4L2 /
- * AVFoundation / Media Foundation). There is no in-window video preview because
- * the webview's getUserMedia path segfaults WebKitGTK — the camera is driven
- * entirely in Rust, which decodes frames and returns the first Epson QR.
+ * Live camera QR: preview → Capture → Scan. The camera is driven natively in
+ * Rust (a worker thread); frames arrive as JPEG data: URLs, so there's a real
+ * preview without the webview's getUserMedia (which segfaults WebKitGTK).
  */
 export function LiveScanModal({ isOpen, onClose, onDecoded }: Props) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [captured, setCaptured] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const [busy, setBusy] = useState(false);
 
+  // Live preview loop — runs while open and not frozen on a captured still.
   useEffect(() => {
-    if (!isOpen) return;
-    // `active` scopes this scan to its own effect run, so a scan superseded by
-    // this effect's cleanup (e.g. React StrictMode's double-invoke in dev)
-    // doesn't surface its expected cancellation as an error.
+    if (!isOpen || captured || error) return;
     let active = true;
-    setError(null);
-    setScanning(true);
-    invoke<QrResult>('scan_qr_camera')
-      .then((r) => {
-        if (active) onDecoded(r);
-      })
-      .catch((e) => {
-        if (!active) return;
-        const msg = typeof e === 'string' ? e : 'Camera scan failed.';
-        if (/cancel|supersed/i.test(msg)) return; // expected preemption, not an error
-        setError(msg);
-      })
-      .finally(() => {
-        if (active) setScanning(false);
-      });
+    const loop = async () => {
+      while (active) {
+        try {
+          const url = await invoke<string>('camera_preview_frame');
+          if (!active) return;
+          setPreview(url);
+        } catch (e) {
+          if (active) setError(typeof e === 'string' ? e : 'Camera error.');
+          return;
+        }
+      }
+    };
+    loop();
     return () => {
       active = false;
-      invoke('cancel_camera_scan').catch(() => {});
     };
-  }, [isOpen, attempt, onDecoded]);
+  }, [isOpen, captured, error]);
 
-  const close = () => {
-    invoke('cancel_camera_scan').catch(() => {});
-    onClose();
+  // Release the camera and reset when the modal closes.
+  useEffect(() => {
+    if (isOpen) return;
+    invoke('camera_stop').catch(() => {});
+    setPreview(null);
+    setCaptured(null);
+    setError(null);
+    setBusy(false);
+  }, [isOpen]);
+
+  const capture = async () => {
+    setBusy(true);
+    try {
+      setCaptured(await invoke<string>('camera_capture'));
+    } catch (e) {
+      setError(typeof e === 'string' ? e : 'Could not take the photo.');
+    } finally {
+      setBusy(false);
+    }
   };
-  const retry = () => setAttempt((a) => a + 1);
+
+  const scan = async () => {
+    setBusy(true);
+    try {
+      onDecoded(await invoke<QrResult>('camera_scan'));
+    } catch (e) {
+      setError(typeof e === 'string' ? e : 'Scan failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const retake = () => {
+    setError(null);
+    setCaptured(null);
+  };
 
   if (!isOpen) return null;
 
+  const shown = captured || preview;
+
   return (
-    <div className="lm-modal-overlay" onClick={close}>
-      <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="lm-modal-overlay" onClick={onClose}>
+      <div className="lm-modal lm-scan-modal" onClick={(e) => e.stopPropagation()}>
         <div className="lm-modal-head">
           <div className="lm-modal-title">
             <Camera size={16} />
             <span>Live camera scan</span>
           </div>
-          <button className="lm-iconbtn" onClick={close} aria-label="Close">
+          <button className="lm-iconbtn" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
@@ -80,26 +108,43 @@ export function LiveScanModal({ isOpen, onClose, onDecoded }: Props) {
               <p className="lm-scan-copy">{error}</p>
             </div>
           ) : (
-            <div className="lm-scan-state">
-              <span className="lm-scan-pulse">
-                <Camera size={28} />
-              </span>
+            <>
+              <div className="lm-cam-view">
+                {shown ? (
+                  <img className="lm-cam-img" src={shown} alt="camera preview" />
+                ) : (
+                  <span className="lm-scan-hint">Starting camera…</span>
+                )}
+              </div>
               <p className="lm-scan-copy">
-                Hold the projector’s QR code in front of your camera. LibreMP connects the
-                moment it reads it.
+                {captured
+                  ? 'Photo taken. Press Scan to read the QR, or retake it.'
+                  : 'Line up the projector’s QR in the frame, then press Capture.'}
               </p>
-              <span className="lm-scan-hint">{scanning ? 'Scanning…' : 'Starting camera…'}</span>
-            </div>
+            </>
           )}
         </div>
 
-        <div className="lm-modal-foot" style={{ justifyContent: 'center' }}>
-          <button className="lm-btn ghost" onClick={close}>
+        <div className="lm-modal-foot">
+          <button className="lm-btn ghost" onClick={onClose}>
             Cancel
           </button>
-          {error && (
-            <button className="lm-btn signal" onClick={retry}>
+          {error ? (
+            <button className="lm-btn signal" onClick={retake}>
               Try again <RotateCcw size={14} />
+            </button>
+          ) : captured ? (
+            <>
+              <button className="lm-btn ghost" onClick={retake} disabled={busy}>
+                Retake
+              </button>
+              <button className="lm-btn signal" onClick={scan} disabled={busy}>
+                Scan {busy ? <RotateCcw size={14} className="lm-spin" /> : <ArrowRight size={14} />}
+              </button>
+            </>
+          ) : (
+            <button className="lm-btn signal" onClick={capture} disabled={busy || !preview}>
+              Capture <ScanLine size={14} />
             </button>
           )}
         </div>
