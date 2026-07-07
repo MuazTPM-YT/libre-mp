@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { HelpCircle, X } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { HelpCircle, X, QrCode } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import './index.css';
 
@@ -196,6 +196,38 @@ function App() {
     setConnectionError(null);
   };
 
+  const qrInputRef = useRef<HTMLInputElement>(null);
+
+  // Decode an uploaded photo of the projector's QR code, then auto-connect using
+  // the SSID + passphrase it carries — no manual typing.
+  const handleQrImage = async (file: File) => {
+    try {
+      setConnectionError(null);
+      setConnectionStatusDetail('Reading projector QR…');
+      const buf = await file.arrayBuffer();
+      const bytes = Array.from(new Uint8Array(buf));
+      const res = await invoke<{ ssid: string; password: string; ip: string }>(
+        'decode_projector_qr',
+        { imageBytes: bytes }
+      );
+      setConnectionStatusDetail(null);
+      setToast({ message: `Found projector: ${res.ssid}`, type: 'info' });
+      const net: NetworkItem = {
+        id: `qr-${res.ssid}`,
+        name: res.ssid,
+        ssid: res.ssid,
+        signal: 100,
+        security: 'WPA',
+        is_projector: true,
+        ip: res.ip,
+      };
+      await handleConnect(net, res.password);
+    } catch (err: any) {
+      setConnectionStatusDetail(null);
+      setConnectionError(typeof err === 'string' ? err : 'Could not read the QR code.');
+    }
+  };
+
   const startCasting = async (ssid?: string, password?: string) => {
     const useSsid = ssid ?? connectedSSID;
     const usePwd = password ?? connectedPassword;
@@ -305,6 +337,26 @@ function App() {
           }
         }}
       />
+
+      <input
+        ref={qrInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleQrImage(f);
+          e.currentTarget.value = '';
+        }}
+      />
+      <button
+        className="qr-fab"
+        onClick={() => qrInputRef.current?.click()}
+        title="Scan or upload a photo of the projector's QR code"
+      >
+        <QrCode size={18} />
+        <span>Scan QR</span>
+      </button>
 
       {!isHelpOpen && (
         <button className="help-fab" onClick={() => setIsHelpOpen(true)} title="Help &amp; Guide">

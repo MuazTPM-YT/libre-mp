@@ -335,6 +335,30 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 
 }
 
+/// Credentials decoded from an Epson Quick Connect QR code.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QrProjector {
+    pub ssid: String,
+    pub password: String,
+    pub ip: String,
+}
+
+/// Decodes an Epson projector QR code from an uploaded image's raw bytes.
+/// Returns the SSID, Wi-Fi passphrase, and Direct-mode IP so the app can
+/// auto-connect without the user typing anything.
+#[tauri::command]
+async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String> {
+    let qr = libremp_core::qr::parse_from_image_bytes(&image_bytes).ok_or_else(|| {
+        "No Epson projector QR code found. Make sure the QR is clear and fills the frame."
+            .to_string()
+    })?;
+    Ok(QrProjector {
+        ssid: qr.ssid().unwrap_or_default().to_string(),
+        password: qr.wifi_password().unwrap_or_default().to_string(),
+        ip: qr.ip.to_string(),
+    })
+}
+
 /// Discovers local Epson projectors using UDP broadcast probes.
 #[tauri::command]
 async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
@@ -768,6 +792,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
             discover_projectors,
+            decode_projector_qr,
             connect_to_wifi,
             get_connection_status,
             start_casting_async,

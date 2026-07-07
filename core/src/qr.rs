@@ -100,6 +100,13 @@ pub fn parse_deobfuscated(d: &[u8]) -> Option<EpsonQr> {
     Some(EpsonQr { ip, fields })
 }
 
+/// Decode a QR from encoded image bytes (PNG/JPEG/etc.) — e.g. an uploaded photo
+/// of the projector's QR screen — and parse it as an Epson record.
+pub fn parse_from_image_bytes(bytes: &[u8]) -> Option<EpsonQr> {
+    let luma = image::load_from_memory(bytes).ok()?.to_luma8();
+    parse_from_luma(luma.width() as usize, luma.height() as usize, &luma)
+}
+
 /// Decode a QR from an 8-bit grayscale buffer and parse it as an Epson record.
 pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<EpsonQr> {
     let mut quirc = quircs::Quirc::default();
