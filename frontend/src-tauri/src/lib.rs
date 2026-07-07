@@ -359,6 +359,58 @@ async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String
     })
 }
 
+/// A projector the user has connected to before, persisted for one-click rejoin.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SavedProjectorDto {
+    pub name: String,
+    pub ssid: String,
+    pub password: String,
+    pub ip: String,
+}
+
+/// Lists projectors saved from previous successful connections.
+#[tauri::command]
+async fn list_saved_projectors() -> Result<Vec<SavedProjectorDto>, String> {
+    let store = libremp_core::config::SavedProjectors::load();
+    Ok(store
+        .projectors
+        .into_iter()
+        .map(|p| SavedProjectorDto {
+            name: p.name,
+            ssid: p.ssid,
+            password: p.psk,
+            ip: p.last_ip,
+        })
+        .collect())
+}
+
+/// Saves (or updates) a projector so it can be rejoined later without re-entry.
+#[tauri::command]
+async fn save_projector(
+    name: String,
+    ssid: String,
+    password: String,
+    ip: String,
+) -> Result<(), String> {
+    let mut store = libremp_core::config::SavedProjectors::load();
+    store.upsert(libremp_core::config::SavedProjector {
+        name,
+        ssid,
+        psk: password.clone(),
+        auth_token: password, // password IS the MAC on Epson Quick Connect
+        last_ip: ip,
+    });
+    store.save().map_err(|e| e.to_string())
+}
+
+/// Removes a saved projector by SSID.
+#[tauri::command]
+async fn forget_projector(ssid: String) -> Result<(), String> {
+    let mut store = libremp_core::config::SavedProjectors::load();
+    store.projectors.retain(|p| p.ssid != ssid);
+    store.save().map_err(|e| e.to_string())
+}
+
 /// Discovers local Epson projectors using UDP broadcast probes.
 #[tauri::command]
 async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
@@ -793,6 +845,9 @@ pub fn run() {
             scan_wifi_networks,
             discover_projectors,
             decode_projector_qr,
+            list_saved_projectors,
+            save_projector,
+            forget_projector,
             connect_to_wifi,
             get_connection_status,
             start_casting_async,
