@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  HelpCircle, X, QrCode, Camera, Upload, Sun, Moon, SlidersHorizontal,
+  HelpCircle, X, QrCode, KeyRound, Sun, Moon, SlidersHorizontal,
   RefreshCw, RotateCcw, Cast, Trash2, MonitorPlay, Radio,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -9,7 +9,13 @@ import './index.css';
 import { SettingsModal, type AppSettings, defaultSettings } from './components/SettingsModal';
 import { HelpModal } from './components/HelpModal';
 import { PasswordModal } from './components/PasswordModal';
-import { QrScannerModal, type QrResult } from './components/QrScannerModal';
+import { ManualConnectModal } from './components/ManualConnectModal';
+
+interface QrResult {
+  ssid: string;
+  password: string;
+  ip: string;
+}
 
 export interface NetworkItem {
   id: string;
@@ -79,7 +85,7 @@ function App() {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
 
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -231,7 +237,6 @@ function App() {
 
   const handleQrDecoded = useCallback(
     (res: QrResult) => {
-      setIsScannerOpen(false);
       notify(`Found ${res.ssid}`, 'info');
       connectProjector(projName(res.ssid), res.ssid, res.password, res.ip);
     },
@@ -284,7 +289,6 @@ function App() {
       <header className="lm-topbar">
         <div className="lm-brand">
           <span className="lm-brand-mark">Libre<b>MP</b></span>
-          <span className="lm-brand-tag">signal desk</span>
         </div>
         <div className="lm-topbar-spacer" />
 
@@ -348,20 +352,20 @@ function App() {
               Connect a projector <span className="lm-rule" />
             </p>
             <div className="lm-hero">
-              <button className="lm-hero-card" onClick={() => setIsScannerOpen(true)}>
-                <span className="lm-hero-icon"><Camera size={20} /></span>
-                <span className="lm-hero-title">Scan with camera</span>
+              <button className="lm-hero-card" onClick={() => uploadRef.current?.click()}>
+                <span className="lm-hero-icon"><QrCode size={20} /></span>
+                <span className="lm-hero-title">Scan projector QR</span>
                 <span className="lm-hero-sub">
-                  Point at the QR code on the projector’s LAN screen. It reads the SSID and
-                  passphrase and connects — no typing.
+                  Choose or take a photo of the QR on the projector’s LAN screen. LibreMP reads
+                  the SSID and passphrase and connects — no typing.
                 </span>
               </button>
-              <button className="lm-hero-card lm-hero-lamp" onClick={() => uploadRef.current?.click()}>
-                <span className="lm-hero-icon"><Upload size={20} /></span>
-                <span className="lm-hero-title">Upload QR photo</span>
+              <button className="lm-hero-card lm-hero-lamp" onClick={() => setIsManualOpen(true)}>
+                <span className="lm-hero-icon"><KeyRound size={20} /></span>
+                <span className="lm-hero-title">Enter details</span>
                 <span className="lm-hero-sub">
-                  Already have a picture of the projector’s QR? Drop it in and LibreMP does
-                  the rest.
+                  No QR handy? Type the projector’s SSID and passphrase straight from its
+                  network screen.
                 </span>
               </button>
             </div>
@@ -489,7 +493,14 @@ function App() {
       {/* modals */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-      <QrScannerModal isOpen={isScannerOpen} onClose={() => setIsScannerOpen(false)} onDecoded={handleQrDecoded} />
+      <ManualConnectModal
+        isOpen={isManualOpen}
+        onClose={() => setIsManualOpen(false)}
+        onConnect={(ssid, password) => {
+          setIsManualOpen(false);
+          connectProjector(projName(ssid), ssid, password, '');
+        }}
+      />
       <PasswordModal
         isOpen={!!passwordModalNet}
         networkName={passwordModalNet?.name || ''}

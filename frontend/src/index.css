@@ -90,13 +90,6 @@ body {
   color: var(--lm-text);
 }
 .lm-brand-mark b { color: var(--lm-signal); font-weight: 700; }
-.lm-brand-tag {
-  font-family: var(--lm-mono);
-  font-size: 0.6rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--lm-faint);
-}
 
 .lm-topbar-spacer { flex: 1; }
 
@@ -394,23 +387,6 @@ body {
 }
 .lm-input-wrap .lm-iconbtn { width: 40px; }
 .lm-inline-err { display: flex; align-items: center; gap: 7px; color: var(--lm-danger); font-size: 0.8rem; margin-top: 10px; }
-
-/* scanner */
-.lm-scan-modal { max-width: 520px; }
-.lm-scan-frame {
-  position: relative; width: 100%; aspect-ratio: 4 / 3;
-  border-radius: var(--lm-radius-sm); overflow: hidden; background: #000;
-}
-.lm-scan-video { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lm-scan-reticle {
-  position: absolute; inset: 16%;
-  border: 2px solid var(--lm-signal);
-  border-radius: 12px;
-  box-shadow: 0 0 0 100vmax rgba(4, 8, 14, 0.35);
-}
-.lm-scan-status { text-align: center; color: var(--lm-muted); font-size: 0.84rem; margin: 14px 0 0; }
-.lm-scan-error { display: flex; gap: 12px; align-items: flex-start; color: var(--lm-muted); }
-.lm-scan-error svg { color: var(--lm-lamp); flex-shrink: 0; margin-top: 2px; }
 
 .lm-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; }
 .lm-toggle + .lm-toggle { border-top: 1px solid var(--lm-line-soft); }
