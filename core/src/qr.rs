@@ -125,7 +125,32 @@ pub fn parse_from_rgb(width: u32, height: u32, rgb: &[u8]) -> Option<EpsonQr> {
 }
 
 /// Decode a QR from an 8-bit grayscale buffer and parse it as an Epson record.
+///
+/// Real-world captures (webcam/phone photos of a projector screen) have glare,
+/// low contrast, and color casts that quircs' internal binarization can't cope
+/// with. So we try the raw image first (fast path for sharp, clean images), then
+/// fall back to **adaptive local thresholding** at several window sizes — the
+/// standard technique for decoding codes under uneven lighting.
 pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<EpsonQr> {
+    if width == 0 || height == 0 || gray.len() < width * height {
+        return None;
+    }
+    if let Some(qr) = decode_luma(width, height, gray) {
+        return Some(qr);
+    }
+    let min_dim = width.min(height);
+    for factor in [24usize, 16, 10, 6] {
+        let win = ((min_dim / factor).max(15)) | 1; // odd, >= 15
+        let binarized = adaptive_threshold(gray, width, height, win, 8);
+        if let Some(qr) = decode_luma(width, height, &binarized) {
+            return Some(qr);
+        }
+    }
+    None
+}
+
+/// Run quircs on a luma buffer and parse the first Epson QR found.
+fn decode_luma(width: usize, height: usize, gray: &[u8]) -> Option<EpsonQr> {
     let mut quirc = quircs::Quirc::default();
     for code in quirc.identify(width, height, gray) {
         let code = match code {
@@ -139,6 +164,38 @@ pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<Epson
         }
     }
     None
+}
+
+/// Adaptive (local-mean) threshold via an integral image: each pixel is compared
+/// to the mean of its `win`x`win` neighborhood minus `c`. O(n), handles glare and
+/// brightness gradients that global thresholds cannot.
+fn adaptive_threshold(gray: &[u8], w: usize, h: usize, win: usize, c: i32) -> Vec<u8> {
+    let iw = w + 1;
+    let mut integral = vec![0u64; iw * (h + 1)];
+    for y in 0..h {
+        let mut row_sum = 0u64;
+        for x in 0..w {
+            row_sum += gray[y * w + x] as u64;
+            integral[(y + 1) * iw + (x + 1)] = integral[y * iw + (x + 1)] + row_sum;
+        }
+    }
+    let r = (win / 2) as i32;
+    let mut out = vec![0u8; w * h];
+    for y in 0..h {
+        for x in 0..w {
+            let x0 = (x as i32 - r).max(0) as usize;
+            let y0 = (y as i32 - r).max(0) as usize;
+            let x1 = (x as i32 + r).min(w as i32 - 1) as usize;
+            let y1 = (y as i32 + r).min(h as i32 - 1) as usize;
+            let area = ((x1 - x0 + 1) * (y1 - y0 + 1)) as u64;
+            let sum = integral[(y1 + 1) * iw + (x1 + 1)] + integral[y0 * iw + x0]
+                - integral[y0 * iw + (x1 + 1)]
+                - integral[(y1 + 1) * iw + x0];
+            let mean = (sum / area) as i32;
+            out[y * w + x] = if gray[y * w + x] as i32 > mean - c { 255 } else { 0 };
+        }
+    }
+    out
 }
 
 /// Scan for length-prefixed printable-ASCII fields: a byte `n` (4..=40) followed
