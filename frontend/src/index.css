@@ -5,15 +5,16 @@
    ============================================================ */
 
 :root {
-  --lm-bg: #0d141f;
-  --lm-bg-2: #101a27;
-  --lm-panel: #16212f;
-  --lm-panel-2: #1c2a3c;
-  --lm-line: #263749;
-  --lm-line-soft: #1e2c3d;
-  --lm-text: #e8eff8;
-  --lm-muted: #8598b0;
-  --lm-faint: #5c6d84;
+  /* Neutral dark-gray base (achromatic), with amber/teal kept as accents. */
+  --lm-bg: #0b0b0d;
+  --lm-bg-2: #0f0f11;
+  --lm-panel: #161618;
+  --lm-panel-2: #1e1e21;
+  --lm-line: #2a2a2e;
+  --lm-line-soft: #202022;
+  --lm-text: #ececee;
+  --lm-muted: #9a9aa2;
+  --lm-faint: #62626a;
   --lm-lamp: #f7a833;
   --lm-lamp-2: #ffbe57;
   --lm-lamp-glow: rgba(247, 168, 51, 0.4);
@@ -31,22 +32,23 @@
 }
 
 :root[data-theme="light"] {
-  --lm-bg: #e9edf3;
-  --lm-bg-2: #f4f7fb;
+  /* Neutral light-gray base to match the dark theme's achromatic feel. */
+  --lm-bg: #ededee;
+  --lm-bg-2: #f6f6f7;
   --lm-panel: #ffffff;
-  --lm-panel-2: #eef2f8;
-  --lm-line: #dbe2ec;
-  --lm-line-soft: #e7ecf3;
-  --lm-text: #14202e;
-  --lm-muted: #56677a;
-  --lm-faint: #8494a7;
+  --lm-panel-2: #f0f0f2;
+  --lm-line: #e1e1e4;
+  --lm-line-soft: #ececed;
+  --lm-text: #17171a;
+  --lm-muted: #5f5f68;
+  --lm-faint: #8a8a93;
   --lm-lamp: #cf7a06;
   --lm-lamp-2: #e08c14;
   --lm-lamp-glow: rgba(207, 122, 6, 0.28);
   --lm-signal: #0e9c8b;
   --lm-signal-glow: rgba(14, 156, 139, 0.22);
   --lm-danger: #d64a40;
-  --lm-shadow: 0 18px 44px rgba(35, 55, 85, 0.16);
+  --lm-shadow: 0 18px 44px rgba(20, 20, 25, 0.14);
 }
 
 * { box-sizing: border-box; }
@@ -58,8 +60,8 @@ body {
   font-family: var(--lm-sans);
   color: var(--lm-text);
   background:
-    radial-gradient(1100px 620px at 78% -8%, rgba(50, 211, 191, 0.06), transparent 60%),
-    radial-gradient(900px 560px at 8% 108%, rgba(247, 168, 51, 0.05), transparent 55%),
+    radial-gradient(1200px 700px at 84% -14%, rgba(50, 211, 191, 0.03), transparent 60%),
+    radial-gradient(1000px 620px at 5% 114%, rgba(247, 168, 51, 0.025), transparent 55%),
     var(--lm-bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

@@ -38,13 +38,6 @@ pub struct WifiNetwork {
     pub is_projector: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ConnectionStatus {
-    pub connected: bool,
-    pub ssid: Option<String>,
-    pub ip_address: Option<String>,
-}
-
 lazy_static! {
     static ref SSID_RE: Regex = Regex::new(r"(?m)^[^B]*SSID\s+\d+\s+:\s+(.*)").unwrap();
     static ref BSSID_RE: Regex = Regex::new(r"BSSID\s+\d+\s+:\s+([0-9a-fA-F:]{17})").unwrap();
@@ -876,16 +869,6 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
     }
 }
 
-/// Retrieves the current Wi-Fi connection status (Stubbed implementation).
-#[tauri::command]
-async fn get_connection_status() -> Result<ConnectionStatus, String> {
-    Ok(ConnectionStatus {
-        connected: false,
-        ssid: None,
-        ip_address: None,
-    })
-}
-
 
 /// Spawns the Rust Epson streamer process to begin casting.
 #[tauri::command]
@@ -1007,7 +990,6 @@ pub fn run() {
             save_projector,
             forget_projector,
             connect_to_wifi,
-            get_connection_status,
             start_casting_async,
             stop_casting
         ])
