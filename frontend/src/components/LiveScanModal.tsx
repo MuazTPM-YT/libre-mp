@@ -76,20 +76,19 @@ export function LiveScanModal({ isOpen, onClose, onDecoded }: Props) {
                 Hold the projector’s QR code in front of your camera. LibreMP connects the
                 moment it reads it.
               </p>
+              <span className="lm-scan-hint">{scanning ? 'Scanning…' : 'Starting camera…'}</span>
             </div>
           )}
         </div>
 
-        <div className="lm-modal-foot">
+        <div className="lm-modal-foot" style={{ justifyContent: 'center' }}>
           <button className="lm-btn ghost" onClick={close}>
             Cancel
           </button>
-          {error ? (
+          {error && (
             <button className="lm-btn signal" onClick={runScan}>
               Try again <RotateCcw size={14} />
             </button>
-          ) : (
-            <span className="lm-scan-hint">{scanning ? 'Scanning…' : 'Starting camera…'}</span>
           )}
         </div>
       </div>

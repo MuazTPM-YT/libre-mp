@@ -2,14 +2,18 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use regex::Regex;
 use lazy_static::lazy_static;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct AppState {
     pub child_process: Arc<Mutex<Option<std::process::Child>>>,
-    /// Set by `cancel_camera_scan` to stop an in-progress live scan.
-    pub scan_cancel: Arc<AtomicBool>,
+    /// Monotonic scan generation. Bumping it preempts any running scan, so a new
+    /// or cancelled scan supersedes the previous one instead of racing it.
+    pub scan_gen: Arc<AtomicU64>,
+    /// Serializes physical camera access so two opens never overlap — overlap is
+    /// what triggers V4L2 "device busy" (e.g. React StrictMode's double-invoke).
+    pub camera_lock: Arc<Mutex<()>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -367,21 +371,28 @@ async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String
 /// path segfaults WebKitGTK. Blocks up to ~20s or until cancelled.
 #[tauri::command]
 async fn scan_qr_camera(state: tauri::State<'_, AppState>) -> Result<QrProjector, String> {
-    let cancel = state.scan_cancel.clone();
-    cancel.store(false, Ordering::SeqCst);
-    tokio::task::spawn_blocking(move || scan_camera_blocking(&cancel))
+    // Take a new generation first — this preempts any previous/duplicate scan so
+    // it releases the camera. Then serialize actual device access via the lock,
+    // so opens never overlap (overlap = V4L2 "device busy").
+    let my_gen = state.scan_gen.fetch_add(1, Ordering::SeqCst) + 1;
+    let gen = state.scan_gen.clone();
+    let _guard = state.camera_lock.lock().await;
+    if gen.load(Ordering::SeqCst) != my_gen {
+        return Err("Scan superseded.".into());
+    }
+    tokio::task::spawn_blocking(move || scan_camera_blocking(&gen, my_gen))
         .await
         .map_err(|e| format!("Scan task failed: {e}"))?
 }
 
-/// Cancels an in-progress `scan_qr_camera`.
+/// Cancels/preempts an in-progress `scan_qr_camera` by advancing the generation.
 #[tauri::command]
 async fn cancel_camera_scan(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    state.scan_cancel.store(true, Ordering::SeqCst);
+    state.scan_gen.fetch_add(1, Ordering::SeqCst);
     Ok(())
 }
 
-fn scan_camera_blocking(cancel: &AtomicBool) -> Result<QrProjector, String> {
+fn scan_camera_blocking(gen: &AtomicU64, my_gen: u64) -> Result<QrProjector, String> {
     use nokhwa::pixel_format::RgbFormat;
     use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
     use nokhwa::Camera;
@@ -394,11 +405,11 @@ fn scan_camera_blocking(cancel: &AtomicBool) -> Result<QrProjector, String> {
         .map_err(|e| format!("Could not start the camera: {e}"))?;
 
     let start = std::time::Instant::now();
-    let timeout = std::time::Duration::from_secs(20);
+    let timeout = std::time::Duration::from_secs(30);
     let mut last_err = String::new();
 
     while start.elapsed() < timeout {
-        if cancel.load(Ordering::SeqCst) {
+        if gen.load(Ordering::SeqCst) != my_gen {
             return Err("Scan cancelled.".into());
         }
         match camera.frame().and_then(|f| f.decode_image::<RgbFormat>()) {
@@ -904,7 +915,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             child_process: Arc::new(Mutex::new(None)),
-            scan_cancel: Arc::new(AtomicBool::new(false)),
+            scan_gen: Arc::new(AtomicU64::new(0)),
+            camera_lock: Arc::new(Mutex::new(())),
         })
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
