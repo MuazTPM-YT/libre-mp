@@ -669,7 +669,7 @@ async fn get_connection_status() -> Result<ConnectionStatus, String> {
 
 /// Spawns the Rust Epson streamer process to begin casting.
 #[tauri::command]
-async fn start_casting_async(ssid: String, password: String, os_mode: u32, state: tauri::State<'_, AppState>) -> Result<bool, String> {
+async fn start_casting_async(ssid: String, password: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut child_guard = state.child_process.lock().await;
     if child_guard.is_some() {
         return Err("Already streaming".into());
@@ -690,7 +690,7 @@ async fn start_casting_async(ssid: String, password: String, os_mode: u32, state
 
     println!("[+] Spawning streamer: {:?}", binary);
     println!("[+] Working dir: {:?}", rust_dir);
-    println!("[+] Args: --skip-wifi --ssid {} --os {}", ssid, os_mode);
+    println!("[+] Args: --skip-wifi --ssid {} (capture backend auto-detected)", ssid);
 
     let child = Command::new(&binary)
         .current_dir(rust_dir)
@@ -698,7 +698,6 @@ async fn start_casting_async(ssid: String, password: String, os_mode: u32, state
             "--skip-wifi",
             "--ssid", &ssid,
             "--password", &password,
-            "--os", &os_mode.to_string(),
         ])
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())

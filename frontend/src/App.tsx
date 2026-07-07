@@ -10,7 +10,6 @@ import { PasswordModal } from './components/PasswordModal';
 import { StatusBanner } from './components/StatusBanner';
 import { TopHeader } from './components/TopHeader';
 import { NetworkTable } from './components/NetworkTable';
-import { OSSelectModal } from './components/OSSelectModal';
 
 export interface NetworkItem {
   id: string;
@@ -69,7 +68,6 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isConnectionModeOpen, setIsConnectionModeOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isOSSelectOpen, setIsOSSelectOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
 
   const isScanningRef = { current: false };
@@ -172,8 +170,9 @@ function App() {
 
         await new Promise(r => setTimeout(r, 200));
 
-        // Show OS selection modal after successful connection
-        setIsOSSelectOpen(true);
+        // Capture backend is auto-detected by the streamer — start casting directly.
+        // Pass credentials explicitly since the state updates above aren't visible yet.
+        startCasting(network.ssid, password || '');
 
         return true;
       }
@@ -197,16 +196,16 @@ function App() {
     setConnectionError(null);
   };
 
-  const handleOSSelect = async (osMode: number) => {
-    setIsOSSelectOpen(false);
-    if (!connectedSSID) return;
+  const startCasting = async (ssid?: string, password?: string) => {
+    const useSsid = ssid ?? connectedSSID;
+    const usePwd = password ?? connectedPassword;
+    if (!useSsid) return;
 
     try {
       setConnectionStatusDetail('Starting stream...');
       await invoke('start_casting_async', {
-        ssid: connectedSSID,
-        password: connectedPassword,
-        osMode,
+        ssid: useSsid,
+        password: usePwd,
       });
       setIsCasting(true);
       setConnectionStatusDetail(null);
@@ -276,7 +275,7 @@ function App() {
               onDisconnect={handleDisconnect}
               isScanning={isScanning}
               isCasting={isCasting}
-              onStartCast={() => setIsOSSelectOpen(true)}
+              onStartCast={() => startCasting()}
               onStopCast={handleStopCast}
             />
           </div>
@@ -286,7 +285,6 @@ function App() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <ConnectionModeModal isOpen={isConnectionModeOpen} onClose={() => setIsConnectionModeOpen(false)} mode={connectionMode} setMode={setConnectionMode} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-      <OSSelectModal isOpen={isOSSelectOpen} onCancel={() => setIsOSSelectOpen(false)} onSelect={handleOSSelect} />
 
       <PasswordModal
         isOpen={!!passwordModalNet}
