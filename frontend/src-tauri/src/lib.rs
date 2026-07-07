@@ -5,8 +5,6 @@ use lazy_static::lazy_static;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-pub mod protocol;
-
 pub struct AppState {
     pub child_process: Arc<Mutex<Option<std::process::Child>>>,
 }
