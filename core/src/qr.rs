@@ -37,14 +37,24 @@ pub struct EpsonQr {
 }
 
 impl EpsonQr {
-    /// MAC as lowercase hex with no separators — the EasyMP auth-token form
-    /// (this is also the Wi-Fi PSK on projectors that key Wi-Fi off the MAC).
+    /// MAC as lowercase hex with no separators — used as the **EasyMP auth
+    /// token** in the streaming handshake (hex-decoded, so case is irrelevant).
     pub fn mac_hex(&self) -> String {
         self.mac.iter().map(|b| format!("{:02x}", b)).collect()
     }
 
-    /// The SSID/credential string (second length-prefixed field), if present.
-    pub fn ssid_field(&self) -> Option<&str> {
+    /// The Wi-Fi passphrase (first length-prefixed field), returned **verbatim**
+    /// — case is preserved because WPA passphrases are case-sensitive. On
+    /// observed projectors this is the MAC in uppercase hex (e.g. `A4D73CCDAF45`),
+    /// confirmed against the OS Wi-Fi settings.
+    pub fn wifi_password(&self) -> Option<&str> {
+        self.fields.first().map(|s| s.as_str())
+    }
+
+    /// The full network SSID (second length-prefixed field), e.g.
+    /// `RESEARCHLAB-fE8DSypQz51AR2Q`. Note the projector's on-screen SSID line
+    /// is often truncated; this is the untruncated value.
+    pub fn ssid(&self) -> Option<&str> {
         self.fields.get(1).map(|s| s.as_str())
     }
 }

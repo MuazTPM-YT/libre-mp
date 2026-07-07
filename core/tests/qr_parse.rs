@@ -31,9 +31,10 @@ fn parses_all_fields() {
     assert_eq!(qr.mac, [0xa4, 0xd7, 0x3c, 0xcd, 0xaf, 0x45], "raw MAC");
     assert_eq!(qr.mac_hex(), "a4d73ccdaf45", "MAC as auth-token hex");
 
-    assert_eq!(qr.fields.len(), 2, "MAC-ascii + SSID/creds fields");
-    assert_eq!(qr.fields[0], "A4D73CCDAF45");
-    assert_eq!(qr.ssid_field(), Some("RESEARCHLAB-fE8DSypQz51AR2Q"));
+    assert_eq!(qr.fields.len(), 2, "password + SSID fields");
+    // Confirmed against the iPhone Wi-Fi settings: password is the uppercase MAC.
+    assert_eq!(qr.wifi_password(), Some("A4D73CCDAF45"));
+    assert_eq!(qr.ssid(), Some("RESEARCHLAB-fE8DSypQz51AR2Q"));
 }
 
 #[test]
