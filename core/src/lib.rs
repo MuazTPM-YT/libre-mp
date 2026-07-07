@@ -5,6 +5,7 @@ pub mod wifi;
 pub mod template;
 pub mod capture;
 pub mod protocol;
+pub mod config;
 
 /// Streaming frame width negotiated with Epson projectors.
 pub const STREAM_W: u32 = 1024;
