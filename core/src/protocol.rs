@@ -490,8 +490,9 @@ pub fn send_frame(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
 // ─── Custom EPRD Frame Builder ───────────────────────────────────────────────
 // Builds frames from scratch — no template needed, no COM padding, no gray boxes.
 
-/// 46-byte display config (from Windows PCAP). Sent once before first JPEG frame.
-#[allow(dead_code)]
+/// 46-byte display config, captured from the Windows iProjection session and
+/// verified byte-for-byte against `windows_perfect_stream.bin`. Sent once, as
+/// the very first EPRD block, before any JPEG frame.
 const META_DISPLAY_CONFIG: [u8; 46] = [
     0xcc, 0x00, 0x00, 0x00, 0x04, 0x00, 0x03, 0x00,
     0x20, 0x20, 0x00, 0x01, 0xff, 0x00, 0xff, 0x00,
@@ -501,53 +502,70 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-/// Build a complete EPRD video frame from raw JPEG tile data.
-/// `tiles`: slice of (jpeg_bytes, x, y, w, h) for each tile.
-/// `first_frame`: if true, prepends the META display config block.
-#[allow(dead_code)]
+/// One JPEG-encoded region of a video frame, with its placement and timestamp.
+///
+/// Mirrors the 16-byte region descriptor in the EasyMP video stream:
+/// `x, y, w, h` (big-endian `u16`) + `flags` (always `0x0000_0007`) + `ts`
+/// (big-endian `u32` timestamp), immediately followed by the raw JPEG bytes.
+pub struct VideoTile<'a> {
+    pub jpeg: &'a [u8],
+    pub x: u16,
+    pub y: u16,
+    pub w: u16,
+    pub h: u16,
+    pub ts: u32,
+}
+
+/// Build a complete EPRD video frame from JPEG tiles, entirely from scratch.
+///
+/// This reproduces the exact wire format Windows iProjection emits, so it works
+/// at whatever resolution and tile layout the projector negotiates — unlike the
+/// frozen `windows_perfect_stream.bin` template, which is welded to a single
+/// 1024x768 / 4-tile geometry.
+///
+/// * `frame_type` — `4` = full keyframe (tiles cover the whole screen); `3` or
+///   `1` = partial delta frames carrying only changed regions.
+/// * `first_frame` — when true, prepends the one-time META display-config block.
+///
+/// Note the endianness split confirmed from the capture: the META block's size
+/// field is little-endian, the JPEG block's size field is big-endian.
 pub fn build_video_frame(
     my_ip: Ipv4Addr,
-    tiles: &[(&[u8], u16, u16, u16, u16)],
+    tiles: &[VideoTile],
+    frame_type: u32,
     first_frame: bool,
 ) -> Vec<u8> {
     let ip = my_ip.octets();
-    let mut buf = Vec::with_capacity(if first_frame { 16384 } else { 16384 });
+    let mut buf = Vec::with_capacity(16384);
 
-    // First frame: prepend META EPRD block
+    // First frame: prepend the META EPRD block (size is little-endian here).
     if first_frame {
         buf.extend_from_slice(b"EPRD0600");
         buf.extend_from_slice(&ip);
-        buf.extend_from_slice(&0u32.to_le_bytes());
-        buf.extend_from_slice(&(META_DISPLAY_CONFIG.len() as u32).to_le_bytes()); // LE for meta
+        buf.extend_from_slice(&0u32.to_le_bytes()); // msg_id
+        buf.extend_from_slice(&(META_DISPLAY_CONFIG.len() as u32).to_le_bytes());
         buf.extend_from_slice(&META_DISPLAY_CONFIG);
     }
 
-    // Build JPEG payload: frame_type(4) + N × (region(16) + jpeg_data)
-    let ts = (std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_millis()
-        & 0xFFFFFFFF) as u32;
-
+    // JPEG payload: frame_type(4) + N × (16-byte region descriptor + jpeg data).
     let mut payload = Vec::new();
-    payload.extend_from_slice(&4u32.to_be_bytes()); // frame_type = 4 (full frame)
+    payload.extend_from_slice(&frame_type.to_be_bytes());
 
-    for &(jpeg, x, y, w, h) in tiles {
-        // Region descriptor: x, y, w, h (BE u16), flags (BE u32 = 7), timestamp (BE u32)
-        payload.extend_from_slice(&x.to_be_bytes());
-        payload.extend_from_slice(&y.to_be_bytes());
-        payload.extend_from_slice(&w.to_be_bytes());
-        payload.extend_from_slice(&h.to_be_bytes());
-        payload.extend_from_slice(&0x00000007u32.to_be_bytes());
-        payload.extend_from_slice(&ts.to_be_bytes());
-        payload.extend_from_slice(jpeg);
+    for t in tiles {
+        payload.extend_from_slice(&t.x.to_be_bytes());
+        payload.extend_from_slice(&t.y.to_be_bytes());
+        payload.extend_from_slice(&t.w.to_be_bytes());
+        payload.extend_from_slice(&t.h.to_be_bytes());
+        payload.extend_from_slice(&0x0000_0007u32.to_be_bytes()); // flags
+        payload.extend_from_slice(&t.ts.to_be_bytes());
+        payload.extend_from_slice(t.jpeg);
     }
 
-    // JPEG EPRD header (size is BIG-endian, as confirmed in PCAP)
+    // JPEG EPRD header (size is big-endian here).
     buf.extend_from_slice(b"EPRD0600");
     buf.extend_from_slice(&ip);
-    buf.extend_from_slice(&0u32.to_be_bytes());
-    buf.extend_from_slice(&(payload.len() as u32).to_be_bytes()); // BE for jpeg
+    buf.extend_from_slice(&0u32.to_be_bytes()); // msg_id
+    buf.extend_from_slice(&(payload.len() as u32).to_be_bytes());
     buf.extend_from_slice(&payload);
 
     buf
