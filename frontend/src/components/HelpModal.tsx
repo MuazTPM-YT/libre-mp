@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { X, HelpCircle } from 'lucide-react';
 
 interface Props {
@@ -5,32 +6,70 @@ interface Props {
   onClose: () => void;
 }
 
-/** Modal displaying troubleshooting and usage instructions */
+/** Quick guide: how to get from launch to casting. */
 export function HelpModal({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
+  const steps: [string, ReactNode][] = [
+    [
+      'Show the QR',
+      <>
+        On the projector, open <strong>LAN / Network</strong> — it displays a QR code
+        with the network details.
+      </>,
+    ],
+    [
+      'Scan or upload it',
+      <>
+        Use <strong>Scan with camera</strong> to point at the QR, or{' '}
+        <strong>Upload QR photo</strong> to pick a picture of it. LibreMP reads the SSID
+        and passphrase automatically.
+      </>,
+    ],
+    [
+      'It connects and casts',
+      <>
+        LibreMP joins the projector’s network and starts mirroring your screen. The lamp
+        in the top bar turns amber while casting.
+      </>,
+    ],
+    [
+      'Next time is one tap',
+      <>
+        Connected projectors are saved under <strong>Saved</strong> — reconnect instantly
+        without scanning again.
+      </>,
+    ],
+  ];
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-row">
+    <div className="lm-modal-overlay" onClick={onClose}>
+      <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="lm-modal-head">
+          <div className="lm-modal-title">
             <HelpCircle size={16} />
-            <h2>Help & Assistant</h2>
+            <span>How to connect</span>
           </div>
-          <button className="icon-btn" onClick={onClose}>
+          <button className="lm-iconbtn" onClick={onClose} aria-label="Close">
             <X size={18} />
           </button>
         </div>
-        <div className="modal-body-pad">
-          <h3>How to connect:</h3>
-          <ol className="help-steps">
-            <li>Turn on your Epson projector and wait for Wi-Fi broadcast.</li>
-            <li>Click <strong>Refresh</strong> to scan for available projectors.</li>
-            <li>Select a projector from the list and click <strong>Connect</strong>.</li>
+        <div className="lm-modal-body">
+          <ol className="lm-help-list">
+            {steps.map(([title, body], i) => (
+              <li key={i}>
+                <span className="lm-help-num">{String(i + 1).padStart(2, '0')}</span>
+                <p>
+                  <strong>{title}.</strong> {body}
+                </p>
+              </li>
+            ))}
           </ol>
-          <div className="help-note">
-            <strong>Note:</strong> You will temporarily lose internet access while connected directly to the projector's Quick Connection network.
-          </div>
+        </div>
+        <div className="lm-modal-foot">
+          <button className="lm-btn signal" onClick={onClose}>
+            Got it
+          </button>
         </div>
       </div>
     </div>

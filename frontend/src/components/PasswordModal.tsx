@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Lock, X, ArrowRight, RotateCcw, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, X, ArrowRight, AlertCircle, Eye, EyeOff, RotateCcw } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -10,100 +10,84 @@ interface Props {
   onSubmit: (password: string) => void;
 }
 
-/** Modal for entering Wi-Fi network passwords */
+/** Prompt for a Wi-Fi passphrase when connecting to a secured, non-projector network. */
 export function PasswordModal({ isOpen, networkName, error, isLoading, onCancel, onSubmit }: Props) {
   const [pwd, setPwd] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [show, setShow] = useState(false);
 
-  // Clear password field and reset visibility when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setPwd('');
-      setShowPassword(false);
+      setShow(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = () => {
-    if (pwd.trim() && !isLoading) {
-      onSubmit(pwd);
-    }
+  const submit = () => {
+    if (pwd.trim() && !isLoading) onSubmit(pwd);
   };
-
-  const handleCancel = () => {
-    if (!isLoading) {
-      onCancel();
-    }
+  const cancel = () => {
+    if (!isLoading) onCancel();
   };
 
   return (
-    <div className="modal-overlay" onClick={handleCancel}>
-      <div className="modal-content connection-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title-row">
+    <div className="lm-modal-overlay" onClick={cancel}>
+      <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="lm-modal-head">
+          <div className="lm-modal-title">
             <Lock size={16} />
-            <h2>Secure Network</h2>
+            <span>Enter passphrase</span>
           </div>
-          <button className="icon-btn" onClick={handleCancel} disabled={isLoading}>
+          <button className="lm-iconbtn" onClick={cancel} disabled={isLoading} aria-label="Close">
             <X size={18} />
           </button>
         </div>
 
-        <div className="modal-body-pad">
-          <p className="modal-instruction">
-            Enter the security key for <strong>{networkName}</strong>
+        <div className="lm-modal-body">
+          <p className="lm-field-label">
+            Security key for <strong>{networkName}</strong>
           </p>
-
-          <div className="password-input-wrapper">
-            <div className="input-with-icon">
-              <input
-                type={showPassword ? "text" : "password"}
-                className={`text-input ${error ? 'error' : ''}`}
-                placeholder="Security key"
-                autoFocus
-                value={pwd}
-                disabled={isLoading}
-                onChange={e => setPwd(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-              />
-              <button
-                type="button"
-                className="input-icon-btn"
-                onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? "Hide password" : "Show password"}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-
-            {error && (
-              <div className="modal-error-message">
-                <AlertCircle size={14} />
-                <span>{error}</span>
-              </div>
-            )}
+          <div className={`lm-input-wrap ${error ? 'err' : ''}`}>
+            <input
+              type={show ? 'text' : 'password'}
+              placeholder="Passphrase"
+              autoFocus
+              value={pwd}
+              disabled={isLoading}
+              onChange={(e) => setPwd(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && submit()}
+            />
+            <button
+              className="lm-iconbtn"
+              onClick={() => setShow(!show)}
+              tabIndex={-1}
+              aria-label={show ? 'Hide passphrase' : 'Show passphrase'}
+            >
+              {show ? <EyeOff size={17} /> : <Eye size={17} />}
+            </button>
           </div>
+          {error && (
+            <div className="lm-inline-err">
+              <AlertCircle size={14} />
+              <span>{error}</span>
+            </div>
+          )}
         </div>
 
-        <div className="modal-footer">
-          <button
-            className="action-btn secondary"
-            onClick={handleCancel}
-            disabled={isLoading}
-          >
+        <div className="lm-modal-foot">
+          <button className="lm-btn ghost" onClick={cancel} disabled={isLoading}>
             Cancel
           </button>
-          <button
-            className="action-btn primary btn-min-width"
-            onClick={handleSubmit}
-            disabled={!pwd.trim() || isLoading}
-          >
+          <button className="lm-btn signal" onClick={submit} disabled={!pwd.trim() || isLoading}>
             {isLoading ? (
-              <>Connecting <RotateCcw size={14} className="spinning" /></>
+              <>
+                Connecting <RotateCcw size={14} className="lm-spin" />
+              </>
             ) : (
-              <>Connect <ArrowRight size={14} /></>
+              <>
+                Connect <ArrowRight size={14} />
+              </>
             )}
           </button>
         </div>
