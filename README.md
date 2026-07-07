@@ -1,118 +1,133 @@
 # LibreMP (Epson EasyMP Cross-Platform Streamer)
 
-> **Disclaimer**: The code for this project was written with the assistance of AI. However, **the entire logic, network protocol reverse-engineering, architecture design, and problem-solving** were accomplished entirely by us. 
+> **Disclaimer**: The code for this project was written with the assistance of AI. However, **the entire logic, network protocol reverse-engineering, architecture design, and problem-solving** were accomplished entirely by us.
 
 ## Problem Statement
 Many projectors available today rely on proprietary software (like Epson EasyMP) that is strictly designed and supported only for the Windows operating system. This software limitation leaves users of Linux and macOS without a native, reliable way to connect to and cast their screens onto these devices. As teams and environments grow more diverse in the operating systems they use daily, this "Windows-only" restriction creates a significant barrier to communication, collaboration, and productivity.
 
 ## Solution
-Our team, **LibreMP**, built a lightweight, highly compatible cross-platform desktop application designed to interact seamlessly with Epson projectors across all major operating systems. We reverse-engineered the EasyMP (RFBPlus) protocol and built a solution capable of discovering available projectors on the network, bypassing the vendor's restrictive single-OS software. Our application allows Linux, macOS, and Windows users to easily manage, connect, and stream to projectors with zero friction at 24fps.
+Our team, **LibreMP**, built a lightweight, highly compatible cross-platform desktop application designed to interact seamlessly with Epson projectors across all major operating systems. We reverse-engineered the EasyMP protocol from raw packet captures and built a solution capable of discovering available projectors on the network, bypassing the vendor's restrictive single-OS software. Our application allows Linux, macOS, and Windows users to easily manage, connect, and stream to projectors at 24fps.
 
 ### How It Works
-1. **Wi-Fi Discovery**: Automatically scans for networks and detects Epson projectors by their SSID pattern.
-2. **Connect**: Connects seamlessly to the projector's Wi-Fi network (saving passwords automatically for instant reconnects).
-3. **Stream**: Captures the screen, encodes it into JPEG tiles using high-performance SIMD instructions, and streams it using the native EasyMP protocol directly to the projector display.
+1. **Discover / Connect**: LibreMP scans for Epson projectors — both on the current wired/Wi-Fi LAN (infrastructure mode) and via projector Direct-mode SSIDs. It connects over the existing network when possible, and only switches Wi-Fi when the projector is a Direct-mode access point.
+2. **Auto-detected capture**: The screen-capture backend is chosen automatically from your OS and session — there is **no manual OS picker**. Windows uses GDI (with cursor), macOS uses CoreGraphics, Linux X11 uses XShm, and **Linux Wayland uses the xdg-desktop-portal + PipeWire** path so it works on KDE, GNOME, and wlroots compositors alike.
+3. **Stream**: The frame is encoded into JPEG tiles with TurboJPEG (SIMD) and sent to the projector using the native EasyMP video protocol.
+
+> **Note on projector credentials:** On many Epson Direct-mode projectors the Wi-Fi
+> password and the EasyMP auth token are both the projector's **wired MAC address**
+> in hex (no separators). If a projector shows a keyword/password on the projected
+> screen, use that. LibreMP cannot bypass a network's Wi-Fi encryption — that is
+> cryptography, not a software limitation.
+
+## Architecture
+LibreMP is a Cargo **workspace** with a shared core library:
+
+- **`core/`** — `libremp-core`: all real logic (EasyMP protocol, universal screen capture, Wi-Fi helpers, saved-projector config, frame framing).
+- **`cli/`** — `epson-streamer`: a thin command-line binary over the core. This is the binary the GUI runs to actually stream.
+- **`frontend/`** — the Tauri + React desktop app. Its Rust backend depends on `libremp-core` and **spawns the prebuilt `epson-streamer` binary** to cast.
+
+Because the GUI spawns the streamer binary, you must build it (`cargo build --release`
+at the repo root) **before** the "Cast" button will work.
 
 ## Tech Stack
-- **Tauri**: Framework for building our tiny, blazing fast, and secure cross-platform desktop application.
-- **React**: Used to create a modern, fluid, glassmorphic UI that feels "premium" and consistent on any operating system.
-- **Rust**: Powers the backend, handling critical system-level operations such as network discovery, Wi-Fi management, high-performance stream encoding, and the EasyMP protocol communication with extreme safety and speed.
-- **TurboJPEG**: Used for high-speed hardware-accelerated JPEG encoding of screen frames.
+- **Tauri** + **React** — the cross-platform desktop UI.
+- **Rust** — the `libremp-core` library and `epson-streamer` binary (network discovery, EasyMP protocol, capture, encoding).
+- **xcap** — universal screen capture, including the Wayland xdg-desktop-portal + PipeWire path.
+- **TurboJPEG** — high-speed SIMD JPEG encoding of screen frames.
 
 ## Required Dependencies
-- **Node.js & npm**: Required to manage frontend dependencies and development scripts.
-- **Rust & Cargo**: Required to compile the Tauri backend and manage Rust crate dependencies.
-- **NASM (Netwide Assembler)**: Required by our `turbojpeg-sys` dependency for high-performance JPEG encoding using SIMD instructions.
-- **OS-specific Build Tools**: C++ build tools, WebKit/WebView development libraries (e.g., `libwebkit2gtk-4.1-dev`), and native screen capture utilities (like `grim` on Wayland or `ImageMagick` on X11).
+- **Node.js & npm** — frontend dependencies and dev scripts.
+- **Rust & Cargo** — compiles both the `epson-streamer` binary and the Tauri backend.
+- **NASM + CMake** — required by `turbojpeg-sys` for SIMD JPEG encoding.
+- **OS build tools** — C/C++ toolchain and, on Linux, WebKit/WebView dev libraries (e.g. `libwebkit2gtk-4.1-dev`).
+- **Wayland capture (Linux only)** — **PipeWire** and **xdg-desktop-portal** with a backend for your desktop (`xdg-desktop-portal-kde`, `-gnome`/`-gtk`, or `-wlr`/`-hyprland`). These ship with most modern desktops. `grim` is **no longer required**.
 
 ---
 
-## Installation Process
+## Installation
+
+The build is the same two steps on every platform once prerequisites are installed:
+
+```bash
+git clone https://github.com/MuazTPM-YT/libre-mp.git
+cd libre-mp
+
+# 1. Build the streamer binary (from the repo root — this is the workspace).
+cargo build --release            # produces target/release/epson-streamer
+
+# 2. Run the GUI.
+cd frontend
+npm install
+npm run tauri dev                # or: npm run tauri build   (for a release bundle)
+```
+
+Platform-specific prerequisites follow.
 
 ### 1. Arch Linux (Wayland / X11)
-**Prerequisites:**
 ```bash
-sudo pacman -S base-devel curl wget nodejs npm rustup nasm webkit2gtk-4.1 xdotool
-# For Wayland capture:
-sudo pacman -S grim
-# Install Rust toolchain:
+sudo pacman -S base-devel curl wget nodejs npm rustup nasm cmake webkit2gtk-4.1
+# Wayland capture (portal + PipeWire + a backend for your compositor):
+sudo pacman -S pipewire xdg-desktop-portal
+#   KDE:      sudo pacman -S xdg-desktop-portal-kde
+#   GNOME:    sudo pacman -S xdg-desktop-portal-gnome
+#   Hyprland/wlroots: sudo pacman -S xdg-desktop-portal-hyprland   # or -wlr
 rustup default stable
 ```
 
-**Clone and Build:**
-```bash
-git clone https://github.com/MuazTPM-YT/libre-mp.git
-cd libre-mp/frontend
-npm install
-npm run tauri dev
-```
-
 ### 2. Ubuntu / Debian
-**Prerequisites:**
 ```bash
 sudo apt update
-sudo apt install build-essential cmake curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev nasm imagemagick nodejs npm
+sudo apt install build-essential cmake curl wget file libssl-dev \
+  libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev nasm nodejs npm \
+  pipewire xdg-desktop-portal xdg-desktop-portal-gtk
 # Install Rust:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 ```
 
-**Clone and Build:**
-```bash
-git clone https://github.com/MuazTPM-YT/libre-mp.git
-cd libre-mp/frontend
-npm install
-npm run tauri dev
-```
-
 ### 3. Fedora
-**Prerequisites:**
 ```bash
-sudo dnf install rust cargo cmake nasm nodejs npm ImageMagick webkit2gtk4.1-devel
-# For Wayland capture:
-sudo dnf install grim
-```
-
-**Clone and Build:**
-```bash
-git clone https://github.com/MuazTPM-YT/libre-mp.git
-cd libre-mp/frontend
-npm install
-npm run tauri dev
+sudo dnf install rust cargo cmake nasm nodejs npm webkit2gtk4.1-devel \
+  pipewire xdg-desktop-portal
+# Desktop portal backend (KDE example): sudo dnf install xdg-desktop-portal-kde
 ```
 
 ### 4. macOS
-**Prerequisites:**
 ```bash
-# Install Xcode Command Line Tools
+# Xcode Command Line Tools
 xcode-select --install
-# Install dependencies via Homebrew
-brew install node nasm
-# Install Rust
+# Dependencies via Homebrew
+brew install node nasm cmake
+# Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
 ```
 
-**Clone and Build:**
-```bash
-git clone https://github.com/MuazTPM-YT/libre-mp.git
-cd libre-mp/frontend
-npm install
-npm run tauri dev
-```
-
 ### 5. Windows
-**Prerequisites:**
 1. Install **Node.js** from the official website.
-2. Install **Rust** via `rustup-init.exe` from the [official Rust website](https://rustup.rs/).
-3. Install the **Microsoft C++ Build Tools** (ensure "Desktop development with C++" is selected during installation).
-4. Install **CMake** from `cmake.org` and **NASM** from `nasm.us` (ensure both executables are added to your system `PATH`).
-5. Install **WebView2** (this is usually pre-installed on Windows 11).
+2. Install **Rust** via `rustup-init.exe` from [rustup.rs](https://rustup.rs/).
+3. Install the **Microsoft C++ Build Tools** ("Desktop development with C++").
+4. Install **CMake** (`cmake.org`) and **NASM** (`nasm.us`); add both to your `PATH`.
+5. Install **WebView2** (pre-installed on Windows 11).
 
-**Clone and Build (PowerShell as Admin):**
-```powershell
-git clone https://github.com/MuazTPM-YT/libre-mp.git
-cd libre-mp/frontend
-npm install
-npm run tauri dev
+Then run the two build steps from the **Installation** section in PowerShell.
+
+---
+
+## Command-line usage (optional)
+
+The streamer can run standalone without the GUI — useful for testing against a
+projector. Build it (`cargo build --release`) and run from the repo root so it
+can find `windows_perfect_stream.bin`:
+
+```bash
+./target/release/epson-streamer --skip-wifi --ssid <PROJECTOR_SSID> --password <MAC_HEX>
 ```
+
+Flags:
+- `--skip-wifi` — assume you are already on the projector's network.
+- `--ssid <name>` — the projector SSID (its prefix is used as the display name).
+- `--password <hex>` — the EasyMP auth token (usually the projector's wired MAC, hex, no separators).
+- `--projector-ip <ip>` — override the projector address (otherwise auto-detected from the default gateway).
+
+The capture backend is auto-detected; there is no `--os` selection.
