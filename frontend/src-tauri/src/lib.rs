@@ -2,11 +2,14 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use regex::Regex;
 use lazy_static::lazy_static;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub struct AppState {
     pub child_process: Arc<Mutex<Option<std::process::Child>>>,
+    /// Set by `cancel_camera_scan` to stop an in-progress live scan.
+    pub scan_cancel: Arc<AtomicBool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -357,6 +360,67 @@ async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String
         password: qr.wifi_password().unwrap_or_default().to_string(),
         ip: qr.ip.to_string(),
     })
+}
+
+/// Live-scan the projector QR from the default camera, natively (V4L2 /
+/// AVFoundation / Media Foundation) — NOT via the webview, whose getUserMedia
+/// path segfaults WebKitGTK. Blocks up to ~20s or until cancelled.
+#[tauri::command]
+async fn scan_qr_camera(state: tauri::State<'_, AppState>) -> Result<QrProjector, String> {
+    let cancel = state.scan_cancel.clone();
+    cancel.store(false, Ordering::SeqCst);
+    tokio::task::spawn_blocking(move || scan_camera_blocking(&cancel))
+        .await
+        .map_err(|e| format!("Scan task failed: {e}"))?
+}
+
+/// Cancels an in-progress `scan_qr_camera`.
+#[tauri::command]
+async fn cancel_camera_scan(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    state.scan_cancel.store(true, Ordering::SeqCst);
+    Ok(())
+}
+
+fn scan_camera_blocking(cancel: &AtomicBool) -> Result<QrProjector, String> {
+    use nokhwa::pixel_format::RgbFormat;
+    use nokhwa::utils::{CameraIndex, RequestedFormat, RequestedFormatType};
+    use nokhwa::Camera;
+
+    let format = RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution);
+    let mut camera = Camera::new(CameraIndex::Index(0), format)
+        .map_err(|e| format!("Could not open the camera: {e}"))?;
+    camera
+        .open_stream()
+        .map_err(|e| format!("Could not start the camera: {e}"))?;
+
+    let start = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(20);
+    let mut last_err = String::new();
+
+    while start.elapsed() < timeout {
+        if cancel.load(Ordering::SeqCst) {
+            return Err("Scan cancelled.".into());
+        }
+        match camera.frame().and_then(|f| f.decode_image::<RgbFormat>()) {
+            Ok(img) => {
+                let (w, h) = (img.width(), img.height());
+                if let Some(qr) = libremp_core::qr::parse_from_rgb(w, h, &img.into_raw()) {
+                    return Ok(QrProjector {
+                        ssid: qr.ssid().unwrap_or_default().to_string(),
+                        password: qr.wifi_password().unwrap_or_default().to_string(),
+                        ip: qr.ip.to_string(),
+                    });
+                }
+            }
+            Err(e) => last_err = e.to_string(),
+        }
+    }
+
+    if last_err.is_empty() {
+        Err("No QR found. Hold the projector's QR steady in view and try again.".into())
+    } else {
+        Err(format!("No QR found ({last_err})."))
+    }
 }
 
 /// A projector the user has connected to before, persisted for one-click rejoin.
@@ -840,11 +904,14 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             child_process: Arc::new(Mutex::new(None)),
+            scan_cancel: Arc::new(AtomicBool::new(false)),
         })
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
             discover_projectors,
             decode_projector_qr,
+            scan_qr_camera,
+            cancel_camera_scan,
             list_saved_projectors,
             save_projector,
             forget_projector,

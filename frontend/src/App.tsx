@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  HelpCircle, X, QrCode, KeyRound, Sun, Moon, SlidersHorizontal,
+  HelpCircle, X, QrCode, KeyRound, Camera, Upload, Sun, Moon, SlidersHorizontal,
   RefreshCw, RotateCcw, Cast, Trash2, MonitorPlay, Radio,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -10,6 +10,7 @@ import { SettingsModal, type AppSettings, defaultSettings } from './components/S
 import { HelpModal } from './components/HelpModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ManualConnectModal } from './components/ManualConnectModal';
+import { LiveScanModal } from './components/LiveScanModal';
 
 interface QrResult {
   ssid: string;
@@ -86,6 +87,7 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isManualOpen, setIsManualOpen] = useState(false);
+  const [isLiveScanOpen, setIsLiveScanOpen] = useState(false);
   const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
 
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -352,20 +354,28 @@ function App() {
               Connect a projector <span className="lm-rule" />
             </p>
             <div className="lm-hero">
-              <button className="lm-hero-card" onClick={() => uploadRef.current?.click()}>
-                <span className="lm-hero-icon"><QrCode size={20} /></span>
-                <span className="lm-hero-title">Scan projector QR</span>
+              <button className="lm-hero-card" onClick={() => setIsLiveScanOpen(true)}>
+                <span className="lm-hero-icon"><Camera size={20} /></span>
+                <span className="lm-hero-title">Live scan</span>
                 <span className="lm-hero-sub">
-                  Choose or take a photo of the QR on the projector’s LAN screen. LibreMP reads
-                  the SSID and passphrase and connects — no typing.
+                  Point your camera at the QR on the projector’s LAN screen. LibreMP reads it
+                  live and connects — no typing.
+                </span>
+              </button>
+              <button className="lm-hero-card" onClick={() => uploadRef.current?.click()}>
+                <span className="lm-hero-icon"><Upload size={20} /></span>
+                <span className="lm-hero-title">Upload QR photo</span>
+                <span className="lm-hero-sub">
+                  Already have a picture of the projector’s QR? Choose the image and LibreMP
+                  does the rest.
                 </span>
               </button>
               <button className="lm-hero-card lm-hero-lamp" onClick={() => setIsManualOpen(true)}>
                 <span className="lm-hero-icon"><KeyRound size={20} /></span>
                 <span className="lm-hero-title">Enter details</span>
                 <span className="lm-hero-sub">
-                  No QR handy? Type the projector’s SSID and passphrase straight from its
-                  network screen.
+                  No QR? On the projector’s network screen, read its SSID and passphrase and
+                  type them here.
                 </span>
               </button>
             </div>
@@ -493,6 +503,14 @@ function App() {
       {/* modals */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
       <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+      <LiveScanModal
+        isOpen={isLiveScanOpen}
+        onClose={() => setIsLiveScanOpen(false)}
+        onDecoded={(r) => {
+          setIsLiveScanOpen(false);
+          handleQrDecoded(r);
+        }}
+      />
       <ManualConnectModal
         isOpen={isManualOpen}
         onClose={() => setIsManualOpen(false)}

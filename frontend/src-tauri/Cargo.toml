@@ -26,4 +26,7 @@ regex = "1.12.3"
 lazy_static = "1.5.0"
 tokio = { version = "1", features = ["full"] }
 libremp-core = { path = "../../core" }
+# Native camera capture for live QR scanning (V4L2 / AVFoundation / MediaFoundation).
+# Deliberately NOT the webview getUserMedia path, which segfaults WebKitGTK.
+nokhwa = { version = "0.10", features = ["input-native"] }
 

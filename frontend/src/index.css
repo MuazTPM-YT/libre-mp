@@ -159,7 +159,7 @@ body {
 .lm-section { margin-bottom: 34px; }
 
 /* ---------- hero: connect via QR ---------- */
-.lm-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.lm-hero { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .lm-hero-card {
   display: flex;
   flex-direction: column;
@@ -388,6 +388,20 @@ body {
 .lm-input-wrap .lm-iconbtn { width: 40px; }
 .lm-inline-err { display: flex; align-items: center; gap: 7px; color: var(--lm-danger); font-size: 0.8rem; margin-top: 10px; }
 
+/* live-scan modal */
+.lm-scan-state { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 12px 0; }
+.lm-scan-pulse {
+  width: 68px; height: 68px; border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--lm-signal);
+  background: color-mix(in srgb, var(--lm-signal) 14%, transparent);
+  box-shadow: 0 0 0 0 var(--lm-signal-glow);
+  animation: lm-pulse 1.6s ease-out infinite;
+}
+.lm-scan-glyph.err { color: var(--lm-lamp); }
+.lm-scan-copy { text-align: center; color: var(--lm-muted); font-size: 0.88rem; line-height: 1.5; margin: 0; max-width: 320px; }
+.lm-scan-hint { font-family: var(--lm-mono); font-size: 0.72rem; color: var(--lm-muted); letter-spacing: 0.06em; }
+
 .lm-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; }
 .lm-toggle + .lm-toggle { border-top: 1px solid var(--lm-line-soft); }
 .lm-toggle-txt strong { display: block; font-size: 0.9rem; }
@@ -409,8 +423,10 @@ body {
 
 :focus-visible { outline: 2px solid var(--lm-signal); outline-offset: 2px; }
 
-@media (max-width: 620px) {
+@media (max-width: 780px) {
   .lm-hero { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
   .lm-search { min-width: 0; flex: 1; }
 }
 

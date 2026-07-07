@@ -107,6 +107,23 @@ pub fn parse_from_image_bytes(bytes: &[u8]) -> Option<EpsonQr> {
     parse_from_luma(luma.width() as usize, luma.height() as usize, &luma)
 }
 
+/// Decode a QR from a raw interleaved RGB buffer (e.g. a live camera frame).
+pub fn parse_from_rgb(width: u32, height: u32, rgb: &[u8]) -> Option<EpsonQr> {
+    let n = (width as usize).checked_mul(height as usize)?;
+    if rgb.len() < n * 3 {
+        return None;
+    }
+    // Rec. 601 luma; QR decoders only need luminance.
+    let mut luma = vec![0u8; n];
+    for (i, px) in luma.iter_mut().enumerate() {
+        let r = rgb[i * 3] as u32;
+        let g = rgb[i * 3 + 1] as u32;
+        let b = rgb[i * 3 + 2] as u32;
+        *px = ((r * 299 + g * 587 + b * 114) / 1000) as u8;
+    }
+    parse_from_luma(width as usize, height as usize, &luma)
+}
+
 /// Decode a QR from an 8-bit grayscale buffer and parse it as an Epson record.
 pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<EpsonQr> {
     let mut quirc = quircs::Quirc::default();
