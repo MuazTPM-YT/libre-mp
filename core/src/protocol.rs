@@ -151,7 +151,7 @@ fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
 // ─── Protocol Payloads ───────────────────────────────────────────────────────
 
 /// Generates the initial registration network payload sent to the projector.
-fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
+pub fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     let mut p = Vec::with_capacity(68);
     p.extend_from_slice(b"EEMP0100");
     p.extend_from_slice(&ip_bytes(my_ip));
@@ -161,7 +161,7 @@ fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
 }
 
 /// Generates the authentication network payload containing the password MAC and SSID details.
-fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) -> Vec<u8> {
+pub fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) -> Vec<u8> {
     let my = ip_bytes(my_ip);
     let proj = ip_bytes(proj_ip);
     let mac = hex::decode(&password.replace([':', '-'], "").to_lowercase()).unwrap();
