@@ -1,61 +1,68 @@
 //! Decode & parse Epson iProjection "Quick Connect" QR codes.
 //!
 //! The QR payload is **not** the standard `WIFI:` schema — it is an Epson-specific
-//! binary record, lightly obfuscated by XOR-ing every byte with `0xE5`. Once
-//! de-obfuscated it is a short, length-prefixed structure carrying the
-//! projector's Direct-mode IP, MAC, and SSID/credential strings.
+//! binary record, lightly obfuscated by XOR-ing every byte with `0xE5`. Decode it
+//! with [`quircs`] (rqrr returns `EncodingError` on this byte mode); once
+//! de-obfuscated it is a short record: a length byte, an IPv4 address, the MAC,
+//! then length-prefixed ASCII fields (the credential and the SSID).
 //!
-//! Reverse-engineered from a RESEARCHLAB projector. Decoded layout:
+//! The exact header layout varies slightly between models (e.g. wired vs
+//! wireless-only projectors differ by a byte), so we do **not** rely on fixed
+//! offsets for the strings. Instead we scan for length-prefixed printable-ASCII
+//! fields and classify them:
+//!   * a 12-hex-digit field is the Wi-Fi passphrase (the MAC in hex), and
+//!   * a field containing `-` is the SSID.
 //!
-//! ```text
-//! 37 22            magic
-//! 02               record type
-//! c0 a8 58 01      IP        (192.168.88.1)
-//! a4 d7 3c cd af45 MAC       (A4:D7:3C:CD:AF:45)
-//! 0c <12 bytes>    len-prefixed ASCII MAC   "A4D73CCDAF45"
-//! 1b <27 bytes>    len-prefixed SSID/creds  "RESEARCHLAB-fE8DSypQz51AR2Q"
-//! 80               trailer
-//! ```
+//! Verified against two real projectors:
+//!   * RESEARCHLAB  → pw `A4D73CCDAF45`, ssid `RESEARCHLAB-fE8DSypQz51AR2Q`
+//!   * EBC0E9E5     → pw `381A52C0E9E5`, ssid `EBC0E9E5-EE81fImEdb09OeF`
 
 use std::net::Ipv4Addr;
 
 /// Epson's fixed obfuscation key for Quick Connect QR payloads.
 const XOR_KEY: u8 = 0xE5;
-/// Magic bytes that begin a decoded Epson QR record.
-const MAGIC: [u8; 2] = [0x37, 0x22];
+/// The Direct-mode address Epson projectors use when the record's IP is absent
+/// or implausible.
+const QUICK_CONNECT_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 88, 1);
 
 /// The structured contents of an Epson Quick Connect QR code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EpsonQr {
     /// Projector Direct-mode (Quick Connect) IPv4 address.
     pub ip: Ipv4Addr,
-    /// Projector MAC address (6 raw bytes).
-    pub mac: [u8; 6],
-    /// Length-prefixed ASCII fields after the header. Observed as
-    /// `["<MAC hex>", "<SSID + passphrase>"]`.
+    /// All length-prefixed ASCII fields found in the record, in order.
     pub fields: Vec<String>,
 }
 
 impl EpsonQr {
-    /// MAC as lowercase hex with no separators — used as the **EasyMP auth
-    /// token** in the streaming handshake (hex-decoded, so case is irrelevant).
-    pub fn mac_hex(&self) -> String {
-        self.mac.iter().map(|b| format!("{:02x}", b)).collect()
-    }
-
-    /// The Wi-Fi passphrase (first length-prefixed field), returned **verbatim**
-    /// — case is preserved because WPA passphrases are case-sensitive. On
-    /// observed projectors this is the MAC in uppercase hex (e.g. `A4D73CCDAF45`),
-    /// confirmed against the OS Wi-Fi settings.
+    /// The Wi-Fi passphrase: the 12-hex-digit field, returned **verbatim**
+    /// (WPA passphrases are case-sensitive). On observed projectors this equals
+    /// the MAC in uppercase hex; confirmed against the OS Wi-Fi settings.
     pub fn wifi_password(&self) -> Option<&str> {
-        self.fields.first().map(|s| s.as_str())
+        self.fields.iter().map(|s| s.as_str()).find(|s| is_mac_hex(s))
     }
 
-    /// The full network SSID (second length-prefixed field), e.g.
-    /// `RESEARCHLAB-fE8DSypQz51AR2Q`. Note the projector's on-screen SSID line
-    /// is often truncated; this is the untruncated value.
+    /// The full network SSID: the field containing a `-` separator (Epson SSIDs
+    /// are `<name>-<suffix>`). The projector's on-screen SSID line is often
+    /// truncated; this is the untruncated value.
     pub fn ssid(&self) -> Option<&str> {
-        self.fields.get(1).map(|s| s.as_str())
+        self.fields.iter().map(|s| s.as_str()).find(|s| s.contains('-'))
+    }
+
+    /// MAC as lowercase hex with no separators — the **EasyMP auth token** for
+    /// the streaming handshake (hex-decoded there, so case is irrelevant).
+    pub fn mac_hex(&self) -> Option<String> {
+        self.wifi_password().map(|p| p.to_ascii_lowercase())
+    }
+
+    /// The MAC as 6 raw bytes, derived from the hex passphrase.
+    pub fn mac_bytes(&self) -> Option<[u8; 6]> {
+        let p = self.wifi_password()?;
+        let mut m = [0u8; 6];
+        for (i, byte) in m.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(p.get(i * 2..i * 2 + 2)?, 16).ok()?;
+        }
+        Some(m)
     }
 }
 
@@ -71,32 +78,29 @@ pub fn parse(raw_payload: &[u8]) -> Option<EpsonQr> {
 
 /// Parse an already-de-obfuscated record.
 pub fn parse_deobfuscated(d: &[u8]) -> Option<EpsonQr> {
-    if d.len() < 13 || d[0..2] != MAGIC {
+    if d.len() < 8 {
         return None;
     }
-    let ip = Ipv4Addr::new(d[3], d[4], d[5], d[6]);
-    let mut mac = [0u8; 6];
-    mac.copy_from_slice(&d[7..13]);
+    // IPv4 sits at offset 3 in every observed record. Validate the first octet;
+    // fall back to the Quick Connect default if it looks wrong.
+    let ip = if (1..=223).contains(&d[3]) {
+        Ipv4Addr::new(d[3], d[4], d[5], d[6])
+    } else {
+        QUICK_CONNECT_IP
+    };
 
-    // Remaining bytes are a series of length-prefixed ASCII fields, terminated
-    // by a 0x80 (or 0x00) trailer.
-    let mut fields = Vec::new();
-    let mut pos = 13;
-    while pos < d.len() {
-        let len = d[pos] as usize;
-        if len == 0 || len == 0x80 || pos + 1 + len > d.len() {
-            break;
-        }
-        if let Ok(s) = std::str::from_utf8(&d[pos + 1..pos + 1 + len]) {
-            fields.push(s.to_string());
-        }
-        pos += 1 + len;
+    let fields = extract_ascii_fields(d);
+
+    // An Epson record always carries an SSID (which contains a '-'); if we found
+    // none, this is not an Epson Quick Connect QR.
+    if !fields.iter().any(|f| f.contains('-')) {
+        return None;
     }
-    Some(EpsonQr { ip, mac, fields })
+
+    Some(EpsonQr { ip, fields })
 }
 
-/// Decode a QR code from an 8-bit grayscale buffer and parse it as an Epson
-/// record. Returns `None` if no Epson QR is present.
+/// Decode a QR from an 8-bit grayscale buffer and parse it as an Epson record.
 pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<EpsonQr> {
     let mut quirc = quircs::Quirc::default();
     for code in quirc.identify(width, height, gray) {
@@ -111,4 +115,30 @@ pub fn parse_from_luma(width: usize, height: usize, gray: &[u8]) -> Option<Epson
         }
     }
     None
+}
+
+/// Scan for length-prefixed printable-ASCII fields: a byte `n` (4..=40) followed
+/// by exactly `n` printable bytes. Binary header regions (IP/MAC) contain
+/// non-printable bytes and are skipped, leaving just the real string fields.
+fn extract_ascii_fields(d: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut pos = 0;
+    while pos < d.len() {
+        let len = d[pos] as usize;
+        if (4..=40).contains(&len)
+            && pos + 1 + len <= d.len()
+            && d[pos + 1..pos + 1 + len].iter().all(|&b| (0x20..=0x7e).contains(&b))
+        {
+            out.push(String::from_utf8_lossy(&d[pos + 1..pos + 1 + len]).into_owned());
+            pos += 1 + len;
+        } else {
+            pos += 1;
+        }
+    }
+    out
+}
+
+/// True for a 12-hex-digit string (a MAC without separators).
+fn is_mac_hex(s: &str) -> bool {
+    s.len() == 12 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
