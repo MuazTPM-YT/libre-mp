@@ -711,16 +711,19 @@ async fn start_casting_async(ssid: String, password: String, os_mode: u32, state
 
 /// Locates the `epson-streamer` executable binary.
 fn find_streamer_binary() -> Option<std::path::PathBuf> {
-    // Try multiple locations relative to the running executable
+    // The streamer now builds into the workspace-shared target/ dir (Rust/ was retired).
     let candidates = [
-        // Development: relative to the project root
-        std::path::PathBuf::from("../../Rust/target/release/epson-streamer"),
-        std::path::PathBuf::from("../Rust/target/release/epson-streamer"),
-        std::path::PathBuf::from("Rust/target/release/epson-streamer"),
-        // Relative to the executable location
+        // Development: relative to the src-tauri cwd → workspace root target/.
+        std::path::PathBuf::from("../../target/release/epson-streamer"),
+        std::path::PathBuf::from("../target/release/epson-streamer"),
+        std::path::PathBuf::from("target/release/epson-streamer"),
+        // Fallback: cli crate's own target dir if built in isolation.
+        std::path::PathBuf::from("../../cli/target/release/epson-streamer"),
+        // Relative to the running executable, walking up to the workspace root.
         std::env::current_exe().ok().and_then(|p| {
-            p.parent()?.parent()?.parent()?.parent()
-                .map(|root| root.join("Rust/target/release/epson-streamer"))
+            // exe at <root>/frontend/src-tauri/target/{debug,release}/frontend
+            p.parent()?.parent()?.parent()?.parent()?.parent()
+                .map(|root| root.join("target/release/epson-streamer"))
         }).unwrap_or_default(),
     ];
 
