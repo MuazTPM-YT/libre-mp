@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Camera, RotateCcw, AlertCircle } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -23,28 +23,40 @@ interface Props {
 export function LiveScanModal({ isOpen, onClose, onDecoded }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
-
-  const runScan = useCallback(() => {
-    setError(null);
-    setScanning(true);
-    invoke<QrResult>('scan_qr_camera')
-      .then((r) => onDecoded(r))
-      .catch((e) => setError(typeof e === 'string' ? e : 'Camera scan failed.'))
-      .finally(() => setScanning(false));
-  }, [onDecoded]);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!isOpen) return;
-    runScan();
+    // `active` scopes this scan to its own effect run, so a scan superseded by
+    // this effect's cleanup (e.g. React StrictMode's double-invoke in dev)
+    // doesn't surface its expected cancellation as an error.
+    let active = true;
+    setError(null);
+    setScanning(true);
+    invoke<QrResult>('scan_qr_camera')
+      .then((r) => {
+        if (active) onDecoded(r);
+      })
+      .catch((e) => {
+        if (!active) return;
+        const msg = typeof e === 'string' ? e : 'Camera scan failed.';
+        if (/cancel|supersed/i.test(msg)) return; // expected preemption, not an error
+        setError(msg);
+      })
+      .finally(() => {
+        if (active) setScanning(false);
+      });
     return () => {
+      active = false;
       invoke('cancel_camera_scan').catch(() => {});
     };
-  }, [isOpen, runScan]);
+  }, [isOpen, attempt, onDecoded]);
 
   const close = () => {
     invoke('cancel_camera_scan').catch(() => {});
     onClose();
   };
+  const retry = () => setAttempt((a) => a + 1);
 
   if (!isOpen) return null;
 
@@ -86,7 +98,7 @@ export function LiveScanModal({ isOpen, onClose, onDecoded }: Props) {
             Cancel
           </button>
           {error && (
-            <button className="lm-btn signal" onClick={runScan}>
+            <button className="lm-btn signal" onClick={retry}>
               Try again <RotateCcw size={14} />
             </button>
           )}

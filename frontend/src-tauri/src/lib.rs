@@ -911,6 +911,15 @@ async fn stop_casting(state: tauri::State<'_, AppState>) -> Result<bool, String>
 /// Initializes and starts the Tauri application.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // WebKitGTK's DMABUF renderer crashes (SIGSEGV in libnvidia-gpucomp / EGL)
+    // on NVIDIA proprietary drivers. Disabling it forces a stable fallback path.
+    // Set before the webview starts; harmless on non-NVIDIA / non-Linux systems,
+    // and we respect an explicit user override.
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
