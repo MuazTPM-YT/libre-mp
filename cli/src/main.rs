@@ -1,9 +1,10 @@
-use std::io::{self, Write};
+use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use scrap::{Capturer, Display};
 
 use libremp_core::{capture, protocol, template, wifi, STREAM_W, STREAM_H};
+use libremp_core::capture::CaptureBackend;
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -37,27 +38,18 @@ fn main() {
     let (orig_uuid, ssid, password) = if skip_wifi {
         let ssid = cli_ssid.unwrap_or_default();
         let password = cli_password.unwrap_or_default();
-        eprintln!("[*] CLI mode: skip-wifi, ssid={}, os={}", ssid, cli_os.unwrap_or(3));
+        eprintln!("[*] CLI mode: skip-wifi, ssid={}", ssid);
         (None, ssid, password)
     } else {
         let (uuid, ssid, _bssid, password) = wifi::wifi_connect();
         (uuid, ssid, password)
     };
 
-    let os_mode = if let Some(os) = cli_os {
-        os
-    } else {
-        eprintln!("\n[*] Select your Operating System / Display Environment:");
-        eprintln!("    [1] Windows (Native DXGI)");
-        eprintln!("    [2] MacOS (Native CoreGraphics)");
-        eprintln!("    [3] Ubuntu / X11 (Native XShm)");
-        eprintln!("    [4] Arch Linux / Wayland (grim wlroots)");
-        eprint!("    Selection [1-4] (default 3): ");
-        io::stderr().flush().ok();
-        let mut os_sel = String::new();
-        io::stdin().read_line(&mut os_sel).unwrap_or(0);
-        os_sel.trim().parse::<u8>().unwrap_or(3)
-    };
+    // Screen-capture backend is auto-detected from the OS/session — no manual
+    // picker. `--os` is still accepted for backwards compatibility but ignored.
+    let _ = cli_os;
+    let backend = capture::detect_backend();
+    eprintln!("[*] Auto-detected capture backend: {:?}", backend);
 
     // Ctrl+C: set flag immediately (cross-platform via ctrlc crate)
     let running = Arc::new(AtomicBool::new(true));
@@ -105,14 +97,29 @@ fn main() {
             }
         };
 
-        let mut opt_capturer = if os_mode == 2 || os_mode == 3 {
-            let d = Display::primary().expect("No primary display found. Make sure you have a graphical session.");
-            Some(Capturer::new(d).expect("Couldn't begin screen capture."))
+        // X11 / macOS use scrap's direct grabber; Wayland uses xcap (portal).
+        let mut opt_capturer =
+            if matches!(backend, CaptureBackend::LinuxX11 | CaptureBackend::MacCoreGraphics) {
+                let d = Display::primary()
+                    .expect("No primary display found. Make sure you have a graphical session.");
+                Some(Capturer::new(d).expect("Couldn't begin screen capture."))
+            } else {
+                None
+            };
+        let mut wl_grabber = if matches!(backend, CaptureBackend::LinuxWaylandPortal) {
+            Some(capture::XcapGrabber::new())
         } else {
             None
         };
 
-        let reason = stream_loop(&mut client, &mut tpl, &mut opt_capturer, &running, os_mode);
+        let reason = stream_loop(
+            &mut client,
+            &mut tpl,
+            &mut opt_capturer,
+            &mut wl_grabber,
+            &running,
+            backend,
+        );
         if !running.load(Ordering::Relaxed) {
             eprintln!("\n[*] Ctrl+C received, shutting down...");
             break;
@@ -132,8 +139,9 @@ fn stream_loop(
     client: &mut protocol::EpsonClient,
     tpl: &mut template::Template,
     opt_capturer: &mut Option<Capturer>,
+    wl_grabber: &mut Option<capture::XcapGrabber>,
     running: &AtomicBool,
-    os_mode: u8,
+    backend: CaptureBackend,
 ) -> String {
     let mut frame_idx = 0u64;
     let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
@@ -145,49 +153,48 @@ fn stream_loop(
     while running.load(Ordering::Relaxed) {
         let t0 = Instant::now();
 
-        // 1. Capture (0-copy direct from GPU/OS, or grim)
-        let screen = if os_mode == 1 {
-            match capture::capture_windows() {
+        // 1. Capture — backend auto-selected: GDI (Windows), scrap (X11/macOS),
+        //    or xcap portal (Wayland: KDE/GNOME/wlroots).
+        let screen = match backend {
+            CaptureBackend::WindowsGdi => match capture::capture_windows() {
                 Some(s) => s,
                 None => {
                     std::thread::sleep(Duration::from_millis(16));
                     continue;
                 }
+            },
+            CaptureBackend::LinuxWaylandPortal => {
+                match wl_grabber.as_mut().and_then(|g| g.capture_rgb()) {
+                    Some(s) => s,
+                    None => {
+                        std::thread::sleep(Duration::from_millis(50));
+                        continue;
+                    }
+                }
             }
-        } else if os_mode == 4 {
-            match capture::capture_wayland() {
-                Some(s) => s,
-                None => {
+            CaptureBackend::LinuxX11 | CaptureBackend::MacCoreGraphics => {
+                if let Some(capturer) = opt_capturer.as_mut() {
+                    let w = capturer.width() as u32;
+                    let h = capturer.height() as u32;
+                    loop {
+                        match capturer.frame() {
+                            Ok(frame) => {
+                                break capture::resize_bgra_to_rgb(&frame, w, h, STREAM_W, STREAM_H);
+                            }
+                            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                                if !running.load(Ordering::Relaxed) {
+                                    return "Ctrl+C".to_string();
+                                }
+                                std::thread::sleep(Duration::from_millis(2));
+                            }
+                            Err(e) => return format!("Capture Error: {e}"),
+                        }
+                    }
+                } else {
                     std::thread::sleep(Duration::from_millis(50));
                     continue;
                 }
             }
-        } else if let Some(capturer) = opt_capturer.as_mut() {
-            let w = capturer.width() as u32;
-            let h = capturer.height() as u32;
-            loop {
-                match capturer.frame() {
-                    Ok(frame) => {
-                        break capture::resize_bgra_to_rgb(
-                            &frame,
-                            w,
-                            h,
-                            STREAM_W,
-                            STREAM_H,
-                        );
-                    }
-                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                        if !running.load(Ordering::Relaxed) {
-                            return "Ctrl+C".to_string();
-                        }
-                        std::thread::sleep(Duration::from_millis(2));
-                    }
-                    Err(e) => return format!("Capture Error: {e}"),
-                }
-            }
-        } else {
-            std::thread::sleep(Duration::from_millis(50));
-            continue;
         };
         let t_capture = t0.elapsed();
 
@@ -260,10 +267,11 @@ fn stream_loop(
                 fps,
             );
 
-            if non_zero_pixels == 0 && os_mode == 3 {
+            if non_zero_pixels == 0 && matches!(backend, CaptureBackend::LinuxX11) {
                 eprintln!("\n[!] CRITICAL WARNING: Entire screen capture is completely BLACK.");
-                eprintln!("    -> Are you running Ubuntu on Wayland? Traditional GPU grabbers cannot see Wayland windows!");
-                eprintln!("    -> SOLUTION: Restart the streamer and select Option [4], OR log out and use 'Ubuntu on Xorg'!\n");
+                eprintln!("    -> The X11 grabber cannot see the screen. If this is actually a");
+                eprintln!("       Wayland session, ensure WAYLAND_DISPLAY is set so the portal");
+                eprintln!("       backend is auto-selected, or log in to an Xorg session.\n");
             }
         }
     }

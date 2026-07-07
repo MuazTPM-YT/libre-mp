@@ -1,4 +1,3 @@
-use std::process::Command;
 use turbojpeg::{Compressor, Image, PixelFormat, Subsamp};
 
 use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
@@ -61,71 +60,65 @@ pub fn detect_backend() -> CaptureBackend {
     )
 }
 
-// ─── Wayland (grim) Capture ───────────────────────────────────────────────
+// ─── xcap Grabber (universal; used for Wayland: KDE / GNOME / wlroots) ──────
+//
+// Replaces the old `grim` path, which only worked on wlroots compositors. xcap
+// captures via the xdg-desktop-portal ScreenCast + PipeWire on Wayland, so it
+// works across all major desktops. The portal shows a one-time output-picker
+// dialog (a security feature we neither can nor should bypass).
 
-/// Captures the screen on Wayland using the `grim` utility.
-pub fn capture_wayland() -> Option<Vec<u8>> {
-    let output = Command::new("grim")
-        .args(["-c", "-t", "ppm", "-"])
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let (w, h, data_start) = parse_ppm_header(&output.stdout)?;
-    let expected = (w as usize) * (h as usize) * 3;
-    let rgb_data = &output.stdout[data_start..];
-
-    if rgb_data.len() < expected {
-        return None;
-    }
-
-    Some(resize_nearest(rgb_data, w, h, STREAM_W, STREAM_H))
+/// Stateful screen grabber backed by `xcap`. Holds the monitor handle so the
+/// portal/PipeWire session is negotiated once and reused across frames.
+pub struct XcapGrabber {
+    monitor: Option<xcap::Monitor>,
 }
 
-/// Parses the PPM image header to extract width, height, and pixel data offset.
-fn parse_ppm_header(data: &[u8]) -> Option<(u32, u32, usize)> {
-    if data.len() < 7 || data[0] != b'P' || data[1] != b'6' {
-        return None;
+impl Default for XcapGrabber {
+    fn default() -> Self {
+        Self::new()
     }
-    let mut pos = 3;
-    while pos < data.len() && data[pos] == b'#' {
-        while pos < data.len() && data[pos] != b'\n' { pos += 1; }
-        pos += 1;
-    }
-    let w_start = pos;
-    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
-    let w: u32 = std::str::from_utf8(&data[w_start..pos]).ok()?.parse().ok()?;
-    pos += 1;
-    let h_start = pos;
-    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
-    let h: u32 = std::str::from_utf8(&data[h_start..pos]).ok()?.parse().ok()?;
-    pos += 1;
-    while pos < data.len() && data[pos].is_ascii_digit() { pos += 1; }
-    pos += 1;
-    Some((w, h, pos))
 }
 
-/// Resizes an RGB image using fast nearest-neighbor interpolation.
-fn resize_nearest(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
-    let mut dst = vec![0u8; (dw * dh * 3) as usize];
-    let sw_usize = sw as usize;
-    for y in 0..dh {
-        let sy = ((y as u64 * sh as u64) / dh as u64) as usize;
-        let dst_row = (y as usize) * (dw as usize) * 3;
-        let src_row = sy * sw_usize * 3;
-        for x in 0..dw {
-            let sx = ((x as u64 * sw as u64) / dw as u64) as usize;
-            let si = src_row + sx * 3;
-            let di = dst_row + (x as usize) * 3;
-            dst[di] = src[si];
-            dst[di + 1] = src[si + 1];
-            dst[di + 2] = src[si + 2];
+impl XcapGrabber {
+    pub fn new() -> Self {
+        XcapGrabber { monitor: None }
+    }
+
+    /// Ensure a monitor handle exists; returns false if none can be acquired.
+    fn ensure_monitor(&mut self) -> bool {
+        if self.monitor.is_some() {
+            return true;
+        }
+        match xcap::Monitor::all() {
+            Ok(monitors) => {
+                self.monitor = monitors.into_iter().next(); // primary / first
+                self.monitor.is_some()
+            }
+            Err(_) => false,
         }
     }
-    dst
+
+    /// Capture the primary monitor as RGB at `STREAM_W` x `STREAM_H`.
+    /// Returns `None` on failure (caller should retry).
+    pub fn capture_rgb(&mut self) -> Option<Vec<u8>> {
+        if !self.ensure_monitor() {
+            return None;
+        }
+        let monitor = self.monitor.as_ref()?;
+        let rgba = match monitor.capture_image() {
+            Ok(img) => img,
+            Err(_) => {
+                // Drop the handle so the next call re-acquires (e.g. after a
+                // monitor hotplug or portal-session drop).
+                self.monitor = None;
+                return None;
+            }
+        };
+        let dynimg = image::DynamicImage::ImageRgba8(rgba);
+        let resized =
+            dynimg.resize_exact(STREAM_W, STREAM_H, image::imageops::FilterType::Triangle);
+        Some(resized.to_rgb8().into_raw())
+    }
 }
 
 // ─── High-Performance BGRA Resizer ─────────────────────────────────────────

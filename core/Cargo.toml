@@ -6,6 +6,10 @@ edition = "2021"
 [dependencies]
 turbojpeg = "1"
 byteorder = "1"
+# Universal screen capture — handles Wayland via xdg-desktop-portal + PipeWire
+# (works on KDE/GNOME/wlroots), plus X11/Windows/macOS.
+xcap = "0.9.3"
+image = "0.25"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
