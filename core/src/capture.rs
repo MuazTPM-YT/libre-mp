@@ -3,6 +3,64 @@ use turbojpeg::{Compressor, Image, PixelFormat, Subsamp};
 
 use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
 
+// ─── Capture Backend Auto-Detection ────────────────────────────────────────
+//
+// Replaces the manual "select your OS [1-4]" prompt. The right screen-grab API
+// is fully determined by the OS and, on Linux, the session type — so we detect
+// it instead of asking. Crucially, Wayland resolves to the xdg-desktop-portal
+// path, which works on KDE, GNOME, and wlroots alike (unlike `grim`, which only
+// works on wlroots compositors).
+
+/// The screen-capture backend chosen for the current environment.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum CaptureBackend {
+    /// Windows: GDI BitBlt (with cursor).
+    WindowsGdi,
+    /// macOS: CoreGraphics (via `scrap`).
+    MacCoreGraphics,
+    /// Linux/BSD on X11: XShm (via `scrap`).
+    LinuxX11,
+    /// Linux/BSD on Wayland: xdg-desktop-portal ScreenCast + PipeWire.
+    LinuxWaylandPortal,
+}
+
+/// Pure backend selection from environment signals. Separated from the real
+/// environment lookups so it can be unit-tested deterministically.
+///
+/// `os` is `std::env::consts::OS`; the remaining args come from the
+/// `XDG_SESSION_TYPE` and `WAYLAND_DISPLAY` environment variables.
+pub fn select_backend(
+    os: &str,
+    session_type: Option<&str>,
+    wayland_display: Option<&str>,
+) -> CaptureBackend {
+    match os {
+        "windows" => CaptureBackend::WindowsGdi,
+        "macos" => CaptureBackend::MacCoreGraphics,
+        // Linux, FreeBSD, and other unixes share the same X11/Wayland split.
+        _ => {
+            let is_wayland = matches!(session_type, Some(s) if s.eq_ignore_ascii_case("wayland"))
+                || wayland_display.map(|d| !d.is_empty()).unwrap_or(false);
+            if is_wayland {
+                CaptureBackend::LinuxWaylandPortal
+            } else {
+                CaptureBackend::LinuxX11
+            }
+        }
+    }
+}
+
+/// Auto-detect the capture backend for the current process.
+pub fn detect_backend() -> CaptureBackend {
+    let session_type = std::env::var("XDG_SESSION_TYPE").ok();
+    let wayland_display = std::env::var("WAYLAND_DISPLAY").ok();
+    select_backend(
+        std::env::consts::OS,
+        session_type.as_deref(),
+        wayland_display.as_deref(),
+    )
+}
+
 // ─── Wayland (grim) Capture ───────────────────────────────────────────────
 
 /// Captures the screen on Wayland using the `grim` utility.
