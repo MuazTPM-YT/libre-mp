@@ -3,18 +3,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use scrap::{Capturer, Display};
 
-mod hex;
-mod wifi;
-mod template;
-mod capture;
-mod protocol;
+use libremp_core::{capture, protocol, template, wifi, STREAM_W, STREAM_H};
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-pub const STREAM_W: u32 = 1024;
-pub const STREAM_H: u32 = 768;
-pub const JPEG_QUALITY: i32 = 95;
 const TARGET_FPS: u64 = 24;
 
 /// Main entry point for the Epson EasyMP Rust Streamer.
@@ -281,8 +274,9 @@ fn stream_loop(
 /// Locates the `windows_perfect_stream.bin` template file required for frame framing.
 fn find_template() -> String {
     for path in [
-        "../windows_perfect_stream.bin",
         "windows_perfect_stream.bin",
+        "../windows_perfect_stream.bin",
+        "../../windows_perfect_stream.bin",
     ] {
         if std::path::Path::new(path).exists() {
             return path.to_string();

@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+members = ["core", "cli"]
+# frontend/src-tauri is its own workspace (Tauri convention); it depends on core by path.
+
+[profile.release]
+opt-level = 3

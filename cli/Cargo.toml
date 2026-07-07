@@ -1,0 +1,13 @@
+[package]
+name = "epson-streamer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "epson-streamer"
+path = "src/main.rs"
+
+[dependencies]
+libremp-core = { path = "../core" }
+ctrlc = "3"
+scrap = "0.5.0"

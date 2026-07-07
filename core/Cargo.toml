@@ -1,21 +1,14 @@
 [package]
-name = "epson-streamer"
+name = "libremp-core"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 turbojpeg = "1"
 byteorder = "1"
-ctrlc = "3"
-xcap = "0.9.3"
-image = "0.25.10"
-scrap = "0.5.0"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winsock2", "ws2def", "mstcpip", "minwindef", "winuser", "wingdi", "errhandlingapi", "winbase", "memoryapi", "libloaderapi", "windef"] }
-
-[profile.release]
-opt-level = 3
