@@ -62,10 +62,9 @@ pub fn detect_backend() -> CaptureBackend {
 
 // ─── xcap Grabber (universal; used for Wayland: KDE / GNOME / wlroots) ──────
 //
-// Replaces the old `grim` path, which only worked on wlroots compositors. xcap
-// captures via the xdg-desktop-portal ScreenCast + PipeWire on Wayland, so it
-// works across all major desktops. The portal shows a one-time output-picker
-// dialog (a security feature we neither can nor should bypass).
+// One screenshot per call. On X11 this is a fast XGetImage; on Wayland xcap goes
+// through GNOME Shell / the Screenshot portal / wlroots screencopy, which is slow,
+// so on Wayland this is only the fallback behind `PipeWireGrabber`.
 
 /// Stateful screen grabber backed by `xcap`. Holds the monitor handle so the
 /// portal/PipeWire session is negotiated once and reused across frames.
@@ -175,11 +174,52 @@ impl FrameGrabber for XcapGrabber {
     }
 }
 
+/// Wayland: a live screen-share stream (portal ScreenCast + PipeWire), with the
+/// mouse pointer drawn in. See [`crate::screencast`] for why we drive the portal
+/// ourselves instead of using `xcap`'s recorder.
+#[cfg(target_os = "linux")]
+pub struct PipeWireGrabber {
+    stream: crate::screencast::PortalStream,
+    last: Option<Vec<u8>>,
+}
+
+#[cfg(target_os = "linux")]
+impl PipeWireGrabber {
+    /// Starts the screen-share session (shows the desktop's share dialog).
+    pub fn try_new() -> Result<Self, crate::screencast::PortalError> {
+        crate::screencast::PortalStream::start().map(|stream| PipeWireGrabber { stream, last: None })
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl FrameGrabber for PipeWireGrabber {
+    fn grab(&mut self) -> Option<Vec<u8>> {
+        // PipeWire only sends a frame when the screen changes, so keep the newest
+        // one and repeat it while nothing moves.
+        if let Some(f) = self.stream.take_latest() {
+            self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
+        } else if self.last.is_none() {
+            // First frame: give the compositor a moment to deliver one.
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            if let Some(f) = self.stream.take_latest() {
+                self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
+            }
+        }
+        self.last.clone()
+    }
+    fn name(&self) -> &'static str {
+        "portal screencast + PipeWire (cursor shown)"
+    }
+}
+
 /// Fast direct grabber for X11 (XShm) and macOS (CoreGraphics), via `scrap`.
 pub struct ScrapGrabber {
     capturer: scrap::Capturer,
     w: u32,
     h: u32,
+    /// X11 hands over the screen without the mouse pointer, so we draw it in.
+    #[cfg(target_os = "linux")]
+    cursor: Option<crate::x11_cursor::CursorSource>,
 }
 
 impl ScrapGrabber {
@@ -188,7 +228,13 @@ impl ScrapGrabber {
         let capturer = scrap::Capturer::new(display).ok()?;
         let w = capturer.width() as u32;
         let h = capturer.height() as u32;
-        Some(ScrapGrabber { capturer, w, h })
+        Some(ScrapGrabber {
+            capturer,
+            w,
+            h,
+            #[cfg(target_os = "linux")]
+            cursor: crate::x11_cursor::CursorSource::new(),
+        })
     }
 }
 
@@ -198,7 +244,13 @@ impl FrameGrabber for ScrapGrabber {
         for _ in 0..100 {
             match self.capturer.frame() {
                 Ok(frame) => {
-                    return Some(resize_bgra_to_rgb(&frame, self.w, self.h, STREAM_W, STREAM_H));
+                    #[allow(unused_mut)]
+                    let mut rgb = resize_bgra_to_rgb(&frame, self.w, self.h, STREAM_W, STREAM_H);
+                    #[cfg(target_os = "linux")]
+                    if let Some(c) = &self.cursor {
+                        c.draw_into_rgb(&mut rgb, STREAM_W, STREAM_H, self.w, self.h);
+                    }
+                    return Some(rgb);
                 }
                 Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                     std::thread::sleep(std::time::Duration::from_millis(2));
@@ -235,9 +287,11 @@ impl FrameGrabber for GdiGrabber {
 }
 
 /// Build the best available grabber for the current environment, trying proven
-/// backends in priority order and falling through to `xcap` if needed. Always
-/// returns a grabber (a lazy `xcap` one as the last resort).
-pub fn detect_grabber() -> Box<dyn FrameGrabber> {
+/// backends in priority order and falling through to `xcap` if needed.
+///
+/// Fails only when the user refuses screen sharing: every fallback would then
+/// project a black screen, so it is kinder to stop and say why.
+pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
     let backend = detect_backend();
     eprintln!("[*] Capture: {:?} session detected", backend);
 
@@ -246,7 +300,7 @@ pub fn detect_grabber() -> Box<dyn FrameGrabber> {
             $(
                 if let Some(g) = $ctor {
                     eprintln!("[+] Capture backend: {}", g.name());
-                    return Box::new(g);
+                    return Ok(Box::new(g));
                 }
             )+
         }};
@@ -268,7 +322,20 @@ pub fn detect_grabber() -> Box<dyn FrameGrabber> {
             // Wayland: the portal is the only correct primary; scrap can still
             // work under XWayland as a fallback.
             CaptureBackend::LinuxWaylandPortal => {
-                first_of!(XcapGrabber::try_new(), ScrapGrabber::try_new());
+                #[cfg(target_os = "linux")]
+                match PipeWireGrabber::try_new() {
+                    Ok(g) => {
+                        eprintln!("[+] Capture backend: {}", g.name());
+                        return Ok(Box::new(g));
+                    }
+                    Err(crate::screencast::PortalError::Cancelled) => {
+                        return Err("Screen sharing was refused. Allow it when your desktop asks, then cast again.".to_string());
+                    }
+                    Err(e) => eprintln!("[*] Screen sharing unavailable: {e}"),
+                }
+                // Then XWayland, and only last the screenshot-per-frame path
+                // (on KDE/GNOME that one can ask permission for every frame).
+                first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
             }
             // X11: fast direct grabber first, portal as fallback.
             _ => {
@@ -278,27 +345,32 @@ pub fn detect_grabber() -> Box<dyn FrameGrabber> {
     }
 
     eprintln!("[-] No capture backend initialized; retrying via lazy xcap.");
-    Box::new(XcapGrabber::new())
+    Ok(Box::new(XcapGrabber::new()))
 }
 
 // ─── High-Performance BGRA Resizer ─────────────────────────────────────────
 
 /// Resizes a BGRA image and converts it to RGB simultaneously.
 pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
+    resize_4ch_to_rgb(src, sw, sh, dw, dh, [2, 1, 0])
+}
+
+/// Nearest-neighbour resize of a 4-channel image to RGB. `rgb` gives the source
+/// byte offsets of R, G and B within each pixel.
+fn resize_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32, rgb: [usize; 3]) -> Vec<u8> {
     let mut dst = vec![0u8; (dw * dh * 3) as usize];
     let sw_usize = sw as usize;
     for y in 0..dh {
         let sy = ((y as u64 * sh as u64) / dh as u64) as usize;
         let dst_row = (y as usize) * (dw as usize) * 3;
-        let src_row = sy * sw_usize * 4; // 4 bytes per pixel for BGRA
+        let src_row = sy * sw_usize * 4; // 4 bytes per pixel
         for x in 0..dw {
             let sx = ((x as u64 * sw as u64) / dw as u64) as usize;
             let si = src_row + sx * 4;
             let di = dst_row + (x as usize) * 3;
-            // BGRA -> RGB
-            dst[di]     = src[si + 2]; // R
-            dst[di + 1] = src[si + 1]; // G
-            dst[di + 2] = src[si];     // B
+            dst[di] = src[si + rgb[0]];
+            dst[di + 1] = src[si + rgb[1]];
+            dst[di + 2] = src[si + rgb[2]];
         }
     }
     dst
@@ -384,7 +456,11 @@ pub fn capture_windows() -> Option<Vec<u8>> {
         ICONINFO,
     };
     use winapi::shared::minwindef::TRUE;
-    
+
+    // SAFETY: every GDI handle is null-checked or created here and released before
+    // return; `ci`/`ii`/`bmi` are zeroed plain-old-data structs with their size
+    // fields set as the API requires; `bgra_buf` holds exactly width*height*4
+    // bytes, matching the 32-bpp top-down DIB that GetDIBits writes into it.
     unsafe {
         let hdc_screen = GetDC(null_mut());
         if hdc_screen.is_null() {

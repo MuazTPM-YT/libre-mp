@@ -1,6 +1,6 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{self, Cursor, Read, Write};
-use std::net::{Ipv4Addr, TcpStream};
+use byteorder::{LittleEndian, WriteBytesExt};
+use std::io::{self, Read, Write};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
 use std::time::Duration;
 
 #[cfg(target_os = "linux")]
@@ -15,191 +15,244 @@ use std::process::Command;
 
 use crate::hex;
 
-/// Fallback projector address used only when gateway auto-detection fails.
-/// Historically this was the single hard-coded address the app supported.
+/// Epson's Quick Connect / Simple AP address, tried last when nothing else answers.
 const DEFAULT_PROJECTOR_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 88, 1);
 const PORT_CONTROL: u16 = 3620;
 const PORT_VIDEO: u16 = 3621;
+/// Bounded connects: a wrong address must fail in seconds, not the OS's ~2 minutes.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// Detects the default-gateway IPv4 address of the active network interface.
+/// EEMP commands seen in the Windows iProjection capture.
+const CMD_REGISTER: u32 = 0x0002;
+const CMD_REGISTER_INFO: u32 = 0x0003;
+const CMD_REGISTER_MAC: u32 = 0x0015;
+const CMD_AUTH_OK: u32 = 0x0102;
+const CMD_DISCONNECT: u32 = 0x0104;
+const CMD_STATUS_QUERY: u32 = 0x010E;
+const CMD_READY: u32 = 0x0110;
+
+/// All IPv4 default gateways, in routing-table order.
 ///
-/// In Epson "direct" Wi-Fi mode the projector itself is the access point and
-/// gateway, so its address always equals the default gateway — regardless of
-/// which subnet a particular model hands out (some use 192.168.88.x, others
-/// 192.168.1.x, 192.168.10.x, etc.). Detecting the gateway is what lets us
-/// connect to *any* Epson projector instead of one hard-coded address.
-fn detect_default_gateway() -> Option<Ipv4Addr> {
+/// In Epson Simple AP / Quick Connect mode the projector is the DHCP server and
+/// hands itself out as the router (confirmed in the captures), so its address is
+/// a default gateway. We return *all* of them because a laptop that is also on
+/// Ethernet or a VPN has several, and the first one is often not the projector.
+fn default_gateways() -> Vec<Ipv4Addr> {
+    let mut out = Vec::new();
     #[cfg(target_os = "linux")]
     {
-        // Parse /proc/net/route directly — dependency-free and works on every
-        // Linux distribution regardless of NetworkManager / iproute2 presence.
-        let table = std::fs::read_to_string("/proc/net/route").ok()?;
-        for line in table.lines().skip(1) {
-            let cols: Vec<&str> = line.split_whitespace().collect();
-            if cols.len() < 4 {
-                continue;
-            }
-            // Default route: destination 0.0.0.0 with the RTF_GATEWAY (0x2) flag.
-            let flags = u16::from_str_radix(cols[3], 16).unwrap_or(0);
-            if cols[1] == "00000000" && (flags & 0x2) != 0 {
+        // /proc/net/route: destination 0.0.0.0 with RTF_GATEWAY (0x2); hex, little-endian.
+        if let Ok(table) = std::fs::read_to_string("/proc/net/route") {
+            for line in table.lines().skip(1) {
+                let cols: Vec<&str> = line.split_whitespace().collect();
+                if cols.len() < 4 || cols[1] != "00000000" {
+                    continue;
+                }
+                let flags = u16::from_str_radix(cols[3], 16).unwrap_or(0);
                 if let Ok(gw) = u32::from_str_radix(cols[2], 16) {
-                    if gw != 0 {
-                        // The kernel stores the gateway little-endian.
-                        let o = gw.to_le_bytes();
-                        return Some(Ipv4Addr::new(o[0], o[1], o[2], o[3]));
+                    if gw != 0 && flags & 0x2 != 0 {
+                        out.push(Ipv4Addr::from(gw.to_le_bytes()));
                     }
                 }
             }
         }
-        None
     }
     #[cfg(target_os = "macos")]
     {
-        let out = Command::new("route").args(["-n", "get", "default"]).output().ok()?;
-        for line in String::from_utf8_lossy(&out.stdout).lines() {
-            if let Some(rest) = line.trim().strip_prefix("gateway:") {
-                if let Ok(ip) = rest.trim().parse::<Ipv4Addr>() {
-                    return Some(ip);
-                }
-            }
-        }
-        None
-    }
-    #[cfg(target_os = "windows")]
-    {
-        // `ipconfig` lists the default gateway per adapter; take the first valid IPv4.
-        let out = Command::new("ipconfig").output().ok()?;
-        // ipconfig output can be non-UTF8 on localized systems; lossy is fine here.
-        for line in String::from_utf8_lossy(&out.stdout).lines() {
-            let line = line.trim();
-            if line.starts_with("Default Gateway") {
-                if let Some(idx) = line.find(':') {
-                    if let Ok(ip) = line[idx + 1..].trim().parse::<Ipv4Addr>() {
-                        if !ip.is_unspecified() {
-                            return Some(ip);
-                        }
+        // `netstat -rn -f inet` lists every default route: "default  192.168.88.1  UGScg  en0".
+        if let Ok(o) = Command::new("netstat").args(["-rn", "-f", "inet"]).output() {
+            for line in String::from_utf8_lossy(&o.stdout).lines() {
+                let mut cols = line.split_whitespace();
+                if cols.next() == Some("default") {
+                    if let Some(ip) = cols.next().and_then(|s| s.parse().ok()) {
+                        out.push(ip);
                     }
                 }
             }
         }
-        None
     }
-    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "windows")]
     {
-        None
-    }
-}
-
-/// Resolves the projector address: explicit override → detected gateway → fallback.
-fn resolve_projector_ip(override_ip: Option<Ipv4Addr>) -> Ipv4Addr {
-    if let Some(ip) = override_ip {
-        eprintln!("[*] Using projector IP from --projector-ip: {ip}");
-        return ip;
-    }
-    match detect_default_gateway() {
-        Some(gw) => {
-            eprintln!("[*] Auto-detected projector (gateway) IP: {gw}");
-            gw
-        }
-        None => {
-            eprintln!("[*] Gateway detection failed; falling back to {DEFAULT_PROJECTOR_IP}");
-            DEFAULT_PROJECTOR_IP
+        // `route print -4` rows are numeric and locale-independent (unlike ipconfig's
+        // translated "Default Gateway" label): "0.0.0.0  0.0.0.0  192.168.88.1  192.168.88.2  35".
+        if let Ok(o) = Command::new("route").args(["print", "-4"]).output() {
+            for line in String::from_utf8_lossy(&o.stdout).lines() {
+                let cols: Vec<&str> = line.split_whitespace().collect();
+                if cols.len() >= 3 && cols[0] == "0.0.0.0" && cols[1] == "0.0.0.0" {
+                    if let Ok(ip) = cols[2].parse() {
+                        out.push(ip);
+                    }
+                }
+            }
         }
     }
+    out
 }
 
-/// Detects the local IPv4 address by routing a dummy datagram toward the projector.
-fn get_local_ip(proj_ip: Ipv4Addr) -> Ipv4Addr {
-    let fallback = Ipv4Addr::new(192, 168, 88, 2);
-    let sock = match std::net::UdpSocket::bind("0.0.0.0:0") {
-        Ok(s) => s,
-        Err(_) => return fallback,
-    };
-    match sock.connect((proj_ip, 80)).and_then(|_| sock.local_addr()) {
-        Ok(addr) => match addr.ip() {
-            std::net::IpAddr::V4(ip) => ip,
-            _ => fallback,
-        },
-        Err(_) => fallback,
-    }
+/// Where to look for the projector: explicit address (e.g. from the QR code)
+/// first, then every default gateway, then the Epson Simple AP default.
+fn projector_candidates(override_ip: Option<Ipv4Addr>) -> Vec<Ipv4Addr> {
+    let mut all: Vec<Ipv4Addr> = override_ip.into_iter().chain(default_gateways()).collect();
+    all.push(DEFAULT_PROJECTOR_IP);
+    let mut seen = std::collections::HashSet::new();
+    all.retain(|ip| seen.insert(*ip));
+    all
 }
 
-/// Converts an `Ipv4Addr` into a raw 4-byte array.
-fn ip_bytes(ip: Ipv4Addr) -> [u8; 4] {
-    ip.octets()
+/// Opens a tuned TCP connection (no Nagle, keepalive) with a bounded connect.
+fn open(ip: Ipv4Addr, port: u16) -> io::Result<TcpStream> {
+    let s = TcpStream::connect_timeout(&SocketAddr::from((ip, port)), CONNECT_TIMEOUT)?;
+    s.set_nodelay(true)?;
+    enable_tcp_keepalive(&s);
+    Ok(s)
 }
-
-/// Converts an `Ipv4Addr` into a reverse-ordered 4-byte array.
-fn ip_bytes_rev(ip: Ipv4Addr) -> [u8; 4] {
-    let o = ip.octets();
-    [o[3], o[2], o[1], o[0]]
-}
-
 
 /// Single recv call — reads whatever is available right now (up to 4096).
-/// Matches the Python `socket.recv(1024)` pattern.
 fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
     stream.set_read_timeout(Some(timeout)).ok();
     let mut buf = vec![0u8; 4096];
     match stream.read(&mut buf) {
-        Ok(0) => Vec::new(),
         Ok(n) => buf[..n].to_vec(),
         Err(_) => Vec::new(),
     }
 }
 
+/// Splits a buffer into `(cmd, payload)` EEMP messages. Stops at the first
+/// non-EEMP byte; a truncated last payload is returned as far as it goes.
+fn eemp_messages(data: &[u8]) -> Vec<(u32, &[u8])> {
+    let mut out = Vec::new();
+    let mut off = 0;
+    while off + 20 <= data.len() && &data[off..off + 8] == b"EEMP0100" {
+        let cmd = u32::from_le_bytes(data[off + 12..off + 16].try_into().unwrap());
+        let len = u32::from_le_bytes(data[off + 16..off + 20].try_into().unwrap()) as usize;
+        let end = (off + 20).saturating_add(len);
+        out.push((cmd, &data[off + 20..end.min(data.len())]));
+        off = end;
+    }
+    out
+}
+
+/// 20-byte EEMP header: magic, sender IP, command, payload length (LE).
+fn eemp_header(my_ip: Ipv4Addr, cmd: u32, payload_len: u32) -> Vec<u8> {
+    let mut h = Vec::with_capacity(20);
+    h.extend_from_slice(b"EEMP0100");
+    h.extend_from_slice(&my_ip.octets());
+    h.extend_from_slice(&cmd.to_le_bytes());
+    h.extend_from_slice(&payload_len.to_le_bytes());
+    h
+}
+
+/// Parses a MAC written as 12 hex digits, with or without `:`/`-` separators.
+fn mac_from_hex(s: &str) -> Option<[u8; 6]> {
+    let hex: String = s.chars().filter(|c| *c != ':' && *c != '-').collect();
+    if hex.len() != 12 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let mut mac = [0u8; 6];
+    for (i, b) in mac.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&hex[i * 2..i * 2 + 2], 16).ok()?;
+    }
+    Some(mac)
+}
+
 // ─── Protocol Payloads ───────────────────────────────────────────────────────
 
-/// Generates the initial registration network payload sent to the projector.
+/// Registration request (cmd 0x0002). Byte-identical to Windows iProjection.
 pub fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
-    let mut p = Vec::with_capacity(68);
-    p.extend_from_slice(b"EEMP0100");
-    p.extend_from_slice(&ip_bytes(my_ip));
-    p.extend_from_slice(&hex::decode("0200000030000000007f0000b0f8ef5314000000").unwrap());
-    p.extend_from_slice(&[0u8; 32]);
+    let mut p = eemp_header(my_ip, CMD_REGISTER, 48);
+    p.extend_from_slice(&hex::decode("007f0000b0f8ef5314000000").unwrap());
+    p.extend_from_slice(&[0u8; 36]);
     p
 }
 
-/// Generates the authentication network payload containing the password MAC and SSID details.
-pub fn auth_payload(my_ip: Ipv4Addr, proj_ip: Ipv4Addr, password: &str, ssid: &str) -> Vec<u8> {
-    let my = ip_bytes(my_ip);
-    let proj = ip_bytes(proj_ip);
-    let mac = hex::decode(&password.replace([':', '-'], "").to_lowercase()).unwrap();
+/// What the projector says about itself when we register.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ProjectorIdentity {
+    /// Projector name (cmd 0x0003), e.g. `RESEARCHLAB`.
+    pub name: Option<Vec<u8>>,
+    /// Projector MAC (cmd 0x0015, else cmd 0x0003) — the EasyMP auth key.
+    pub mac: Option<[u8; 6]>,
+}
 
-    // Extract projector name from SSID (e.g. "RESEARCHLAB-xxx" → "RESEARCHLAB")
-    let proj_name = ssid.split('-').next().unwrap_or(ssid);
-    let name_len = proj_name.len() as u32;
+/// Reads the projector's name and MAC from its registration replies. This is
+/// where the Windows client gets them, so no password or SSID guessing is needed.
+pub fn parse_registration_response(data: &[u8]) -> ProjectorIdentity {
+    let nonzero = |b: &[u8]| -> Option<[u8; 6]> {
+        let m: [u8; 6] = b.try_into().ok()?;
+        (m != [0; 6]).then_some(m)
+    };
+    let mut id = ProjectorIdentity::default();
+    let mut info_mac = None;
+    for (cmd, p) in eemp_messages(data) {
+        match cmd {
+            CMD_REGISTER_INFO if p.len() >= 36 => {
+                let name: Vec<u8> = p[4..36].iter().copied().take_while(|&b| b != 0).collect();
+                if !name.is_empty() {
+                    id.name = Some(name);
+                }
+                if p.len() >= 54 {
+                    info_mac = nonzero(&p[48..54]);
+                }
+            }
+            CMD_REGISTER_MAC if p.len() >= 6 => id.mac = nonzero(&p[..6]).or(id.mac),
+            _ => {}
+        }
+    }
+    id.mac = id.mac.or(info_mac);
+    id
+}
 
-    let mut p = Vec::with_capacity(264);
-    p.extend_from_slice(b"EEMP0100");
-    p.extend_from_slice(&my);
+/// Authentication request (cmd 0x0101). Byte-identical to Windows iProjection
+/// when `keyword` is `None`.
+///
+/// It is a TLV structure. `mac`, `proj_ip` and `name` identify the projector we
+/// are connecting to (the values it reported during registration).
+///
+/// `keyword` is the projector's 4-digit **Projector Keyword**, when that setting
+/// is on. It goes into the 16-byte field right after the MAC, which is all
+/// zeroes in our capture (that projector had the setting off).
+///
+/// ponytail: the keyword offset is inferred, not captured — the only session we
+/// have was keyword-free. If a keyword projector still refuses the connection,
+/// capture Epson iProjection connecting to it and compare the 0x0101 packet
+/// against `core/tests/handshake_snapshot.rs`. Everything else here is verified.
+pub fn auth_payload(
+    my_ip: Ipv4Addr,
+    proj_ip: Ipv4Addr,
+    mac: &[u8; 6],
+    name: &[u8],
+    keyword: Option<&str>,
+) -> Vec<u8> {
+    let my = my_ip.octets();
+    let proj = proj_ip.octets();
+
+    let mut p = eemp_header(my_ip, 0x0101, 244);
     p.extend_from_slice(
-        &hex::decode("01010000f40000000101000000380f000000000000ffffff0000000000020f0b0004000320200001ff00ff00ff00000810000000010e0000").unwrap(),
+        &hex::decode("0101000000380f000000000000ffffff0000000000020f0b0004000320200001ff00ff00ff00000810000000010e0000").unwrap(),
     );
-    p.extend_from_slice(&mac);
-    p.extend_from_slice(&[0u8; 16]);
+    p.extend_from_slice(mac);
+    let mut keyword_field = [0u8; 16];
+    if let Some(k) = keyword {
+        let b = k.as_bytes();
+        let n = b.len().min(16);
+        keyword_field[..n].copy_from_slice(&b[..n]);
+    }
+    p.extend_from_slice(&keyword_field);
     p.extend_from_slice(&proj);
-    p.extend_from_slice(
-        &hex::decode("a600000005000000380000000200000004000000").unwrap(),
-    );
+    p.extend_from_slice(&hex::decode("a600000005000000380000000200000004000000").unwrap());
     p.extend_from_slice(&my);
-    // Split the hex blob: everything before the length field, then dynamic length, then rest
+    // TLVs: 0x0C=0, 0x01="PC", 0x0B=0, 0x1C=(empty). 0x0B is a fixed tag, not a length.
+    p.extend_from_slice(&hex::decode("0c0000000400000000000000010000000400000050004300").unwrap());
+    p.extend_from_slice(&hex::decode("0b0000000400000000000000").unwrap());
     p.extend_from_slice(
-        &hex::decode("0c0000000400000000000000010000000400000050004300").unwrap(),
+        &hex::decode("1c00000000000000040000003600000001000000030000002a000000").unwrap(),
     );
-    // Dynamic length descriptor (was hardcoded 0x0B = 11 for "RESEARCHLAB")
-    p.extend_from_slice(&name_len.to_le_bytes());
-    p.extend_from_slice(
-        &hex::decode("04000000000000001c00000000000000040000003600000001000000030000002a000000").unwrap(),
-    );
-    p.extend_from_slice(&mac);
+    p.extend_from_slice(mac);
     p.extend_from_slice(&proj);
-    // Projector name from SSID prefix, padded to 32 bytes
-    let mut ssid_buf = [0u8; 32];
-    let name_bytes = proj_name.as_bytes();
-    let copy_len = name_bytes.len().min(32);
-    ssid_buf[..copy_len].copy_from_slice(&name_bytes[..copy_len]);
-    p.extend_from_slice(&ssid_buf);
+    let mut name_buf = [0u8; 32];
+    let n = name.len().min(32);
+    name_buf[..n].copy_from_slice(&name[..n]);
+    p.extend_from_slice(&name_buf);
     p.extend_from_slice(
         &hex::decode("0f00000004000000320000000d000000040000000200000026000000080000000010000000100000").unwrap(),
     );
@@ -227,8 +280,7 @@ pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     );
     let mut raw = hex::decode(pcap_hex).unwrap();
     let old_ip: [u8; 4] = [192, 168, 88, 2];
-    let new_ip = ip_bytes(my_ip);
-    // Replace all occurrences of old IP
+    let new_ip = my_ip.octets();
     let mut i = 0;
     while i + 3 < raw.len() {
         if raw[i..i + 4] == old_ip {
@@ -241,26 +293,16 @@ pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     raw
 }
 
-/// Generates the initialization payload for the video control channel.
-fn video_init_ctrl(my_ip: Ipv4Addr) -> Vec<u8> {
+/// Generates the initialization payload for a video-port channel
+/// (`channel` 0 = video, 1 = aux/audio).
+fn video_init(my_ip: Ipv4Addr, channel: u8) -> Vec<u8> {
+    let o = my_ip.octets();
     let mut p = Vec::with_capacity(36);
     p.extend_from_slice(b"EPRD0600");
-    p.extend_from_slice(&ip_bytes(my_ip));
+    p.extend_from_slice(&o);
     p.extend_from_slice(&hex::decode("0000000010000000d0000000").unwrap());
-    p.extend_from_slice(&ip_bytes_rev(my_ip));
-    p.extend_from_slice(&[0u8; 8]);
-    p
-}
-
-/// Generates the initialization payload for the auxiliary data channel.
-fn video_init_data(my_ip: Ipv4Addr) -> Vec<u8> {
-    let mut p = Vec::with_capacity(36);
-    p.extend_from_slice(b"EPRD0600");
-    p.extend_from_slice(&ip_bytes(my_ip));
-    p.extend_from_slice(&hex::decode("0000000010000000d0000000").unwrap());
-    p.extend_from_slice(&ip_bytes_rev(my_ip));
-    // byte 28 = 0x01 for data channel
-    p.push(0x01);
+    p.extend_from_slice(&[o[3], o[2], o[1], o[0]]);
+    p.push(channel);
     p.extend_from_slice(&[0u8; 7]);
     p
 }
@@ -285,49 +327,100 @@ pub struct EpsonClient {
 }
 
 impl EpsonClient {
-    pub fn connect(password: &str, ssid: &str, proj_ip_override: Option<Ipv4Addr>) -> io::Result<Self> {
-        let proj_ip = resolve_projector_ip(proj_ip_override);
-        let my_ip = get_local_ip(proj_ip);
+    /// Runs the full EasyMP handshake.
+    ///
+    /// * `password` — only a fallback auth key (projector MAC as 12 hex digits) for
+    ///   projectors that do not report their MAC during registration.
+    /// * `ssid` — only a fallback name source (`<name>-<suffix>`).
+    /// * `proj_ip_override` — tried first (e.g. the IP from the QR code).
+    /// * `keyword` — the projector's 4-digit Projector Keyword, if it shows one.
+    pub fn connect(
+        password: &str,
+        ssid: &str,
+        proj_ip_override: Option<Ipv4Addr>,
+        keyword: Option<&str>,
+    ) -> io::Result<Self> {
+        // ── 1. Registration: find the projector on the first address that answers
+        let candidates = projector_candidates(proj_ip_override);
+        eprintln!("[*] 1. Looking for the projector on port {PORT_CONTROL}: {candidates:?}");
+        let mut found = None;
+        for ip in &candidates {
+            match open(*ip, PORT_CONTROL) {
+                Ok(s) => {
+                    found = Some((*ip, s));
+                    break;
+                }
+                Err(e) => eprintln!("[*]    {ip}: {e}"),
+            }
+        }
+        let (proj_ip, mut s_reg) = found.ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("no Epson projector answered on port {PORT_CONTROL} (tried {candidates:?})"),
+            )
+        })?;
+        // Our address on the interface that actually reaches the projector.
+        let my_ip = match s_reg.local_addr()?.ip() {
+            IpAddr::V4(ip) => ip,
+            IpAddr::V6(_) => return Err(io::Error::new(io::ErrorKind::Unsupported, "IPv6 is not supported")),
+        };
         eprintln!("[*] Local IP: {my_ip}, Projector: {proj_ip}");
 
-        // ── 1. Registration ──────────────────────────────────────────────
-        eprintln!("[*] 1. Registration on port {PORT_CONTROL}...");
-        let mut s_auth = TcpStream::connect((proj_ip, PORT_CONTROL))?;
-        s_auth.set_nodelay(true)?;
-        s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
-        enable_tcp_keepalive(&s_auth);
-        s_auth.write_all(&registration_payload(my_ip))?;
+        s_reg.write_all(&registration_payload(my_ip))?;
+        let mut reg = recv_one(&mut s_reg, Duration::from_secs(5));
+        reg.extend(recv_one(&mut s_reg, Duration::from_secs(1)));
+        eprintln!("[+]    Registration reply: {} bytes", reg.len());
+        let id = parse_registration_response(&reg);
+        drop(s_reg);
 
-        // Python: recv resp1, then try recv resp2 with 1s timeout
-        let resp1 = recv_one(&mut s_auth, Duration::from_secs(5));
-        eprintln!("[+]    Registration Resp 1: {} bytes", resp1.len());
-        let resp2 = recv_one(&mut s_auth, Duration::from_secs(1));
-        if !resp2.is_empty() {
-            eprintln!("[+]    Registration Resp 2: {} bytes", resp2.len());
-        }
-
-        // Close registration connection and open fresh auth connection
-        eprintln!("[*]    Closing Registration channel, opening Auth channel...");
-        drop(s_auth);
+        let given_mac = mac_from_hex(password);
+        let mac = match (id.mac, given_mac) {
+            (Some(m), g) => {
+                if g.is_some_and(|g| g != m) {
+                    eprintln!("[*]    Note: password is not the projector MAC; using the MAC the projector reported.");
+                }
+                m
+            }
+            (None, Some(g)) => g,
+            (None, None) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "projector did not report its MAC, and --password is not a 12-hex-digit MAC",
+                ))
+            }
+        };
+        let name = id.name.clone().unwrap_or_else(|| {
+            ssid.rsplit_once('-').map_or(ssid, |(n, _)| n).as_bytes().to_vec()
+        });
+        eprintln!(
+            "[+]    Projector: '{}' MAC {}",
+            String::from_utf8_lossy(&name),
+            mac.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        );
         std::thread::sleep(Duration::from_millis(100));
 
         // ── 2. Authentication ────────────────────────────────────────────
         eprintln!("[*]    Authenticating...");
-        let mut s_auth = TcpStream::connect((proj_ip, PORT_CONTROL))?;
-        s_auth.set_nodelay(true)?;
-        s_auth.set_read_timeout(Some(Duration::from_secs(5)))?;
-        enable_tcp_keepalive(&s_auth);
-        s_auth.write_all(&auth_payload(my_ip, proj_ip, password, ssid))?;
-
-        // Python: single recv(1024) for auth response
+        let mut s_auth = open(proj_ip, PORT_CONTROL)?;
+        s_auth.write_all(&auth_payload(my_ip, proj_ip, &mac, &name, keyword))?;
         let auth_resp = recv_one(&mut s_auth, Duration::from_secs(5));
-        if auth_resp.len() >= 50 {
-            eprintln!("[+]    Auth status: 0x{:02x}", auth_resp[50]);
+        // Status byte 51 (payload offset 30) of the 0x0102 reply is 0 on success
+        // (confirmed in the Windows capture; polarity per Rhino Security Labs).
+        for (cmd, p) in eemp_messages(&auth_resp) {
+            eprintln!("[+]    Auth reply cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
+            if cmd == CMD_AUTH_OK && p.len() > 30 && p[30] != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    if keyword.is_some() {
+                        "projector rejected the connection (wrong keyword, or another device is connected)"
+                    } else {
+                        "projector rejected the connection — if it shows a 4-digit keyword on screen, pass it with --keyword"
+                    },
+                ));
+            }
         }
-        if auth_resp.len() == 296 {
-            eprintln!("[+]    Perfect 296-byte auth response! We are IN.");
-        } else {
-            eprintln!("[*]    Auth response: {} bytes", auth_resp.len());
+        if auth_resp.is_empty() {
+            eprintln!("[*]    No auth reply (projector may be busy)");
         }
 
         // ── 3. Post-auth handshake ───────────────────────────────────────
@@ -335,83 +428,49 @@ impl EpsonClient {
         s_auth.set_read_timeout(Some(Duration::from_secs(3))).ok();
         let mut responded = false;
         let mut ready = false;
-
         for _ in 0..10 {
             let mut buf = vec![0u8; 4096];
-            match s_auth.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => {
-                    let data = &buf[..n];
-                    eprintln!("[*]    Post-auth recv: {} bytes", n);
-                    let mut offset = 0;
-                    while offset + 20 <= data.len() {
-                        if &data[offset..offset + 8] != b"EEMP0100" {
-                            break;
-                        }
-                        let mut c = Cursor::new(&data[offset + 12..offset + 16]);
-                        let cmd = c.read_u32::<LittleEndian>().unwrap();
-                        let mut c = Cursor::new(&data[offset + 16..offset + 20]);
-                        let payload_len = c.read_u32::<LittleEndian>().unwrap() as usize;
-                        let msg_len = 20 + payload_len;
-
-                        eprintln!("[+]    Post-auth cmd=0x{cmd:04x}, {} bytes", msg_len);
-
-                        if cmd == 0x010E && !responded {
-                            s_auth.write_all(&response_0x0108(my_ip))?;
-                            responded = true;
-                            eprintln!("[+]    Sent 0x0108 response");
-                        } else if cmd == 0x010E && responded {
-                            eprintln!("[*]    Ignoring subsequent 0x010E");
-                        } else if cmd == 0x0110 {
-                            eprintln!("[+]    Received 0x0110 'Ready to Stream'!");
-                            ready = true;
-                            break;
-                        }
-                        offset += msg_len;
-                    }
-                    if ready {
-                        break;
-                    }
+            let n = match s_auth.read(&mut buf) {
+                Ok(0) | Err(_) => break,
+                Ok(n) => n,
+            };
+            for (cmd, p) in eemp_messages(&buf[..n]) {
+                eprintln!("[+]    Post-auth cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
+                if cmd == CMD_STATUS_QUERY && !responded {
+                    s_auth.write_all(&response_0x0108(my_ip))?;
+                    responded = true;
+                    eprintln!("[+]    Sent 0x0108 response");
+                } else if cmd == CMD_READY {
+                    eprintln!("[+]    Received 0x0110 'Ready to Stream'!");
+                    ready = true;
+                    break;
                 }
-                Err(_) => break,
+            }
+            if ready {
+                break;
             }
         }
-
         s_auth.set_read_timeout(Some(Duration::from_secs(5))).ok();
-
-        if ready {
-            eprintln!("[+]    Post-auth handshake complete. Projector is ready!");
-        } else {
+        if !ready {
             eprintln!("[*]    No explicit ready signal, continuing...");
         }
 
         // ── 4. Open video channels ───────────────────────────────────────
         eprintln!("[*] 2. Opening video channels on port {PORT_VIDEO}...");
         std::thread::sleep(Duration::from_millis(300));
-
-        let mut s_video = TcpStream::connect((proj_ip, PORT_VIDEO))?;
-        s_video.set_nodelay(true)?;
-        s_video.set_read_timeout(None)?;
-        enable_tcp_keepalive(&s_video);
-        s_video.write_all(&video_init_ctrl(my_ip))?;
+        let mut s_video = open(proj_ip, PORT_VIDEO)?;
+        s_video.write_all(&video_init(my_ip, 0))?;
         eprintln!("[+]    Video channel OPEN (byte28=0x00)");
-
-        let mut s_aux = TcpStream::connect((proj_ip, PORT_VIDEO))?;
-        s_aux.set_nodelay(true)?;
-        s_aux.set_read_timeout(None)?;
-        enable_tcp_keepalive(&s_aux);
-        s_aux.write_all(&video_init_data(my_ip))?;
+        let mut s_aux = open(proj_ip, PORT_VIDEO)?;
+        s_aux.write_all(&video_init(my_ip, 1))?;
         eprintln!("[+]    Aux channel OPEN (byte28=0x01)");
 
         // ── 5. Wait for 0x0016 ───────────────────────────────────────────
         eprintln!("[*] 3. Waiting for 0x0016 streaming signal...");
         let data = recv_one(&mut s_auth, Duration::from_secs(10));
-        if data.len() >= 20 && &data[..8] == b"EEMP0100" {
-            let mut c = Cursor::new(&data[12..16]);
-            let cmd = c.read_u32::<LittleEndian>().unwrap();
-            eprintln!("[+]    Received cmd=0x{cmd:04x} ({} bytes)", data.len());
-        } else {
-            eprintln!("[*]    No 0x0016 received, continuing...");
+        match eemp_messages(&data).first() {
+            Some((cmd, _)) => eprintln!("[+]    Received cmd=0x{cmd:04x} ({} bytes)", data.len()),
+            None => eprintln!("[*]    No 0x0016 received, continuing..."),
         }
 
         // ── 6. Warmup buffers ────────────────────────────────────────────
@@ -419,72 +478,61 @@ impl EpsonClient {
         for size in [7276u32, 2646, 1764] {
             s_aux.write_all(&aux_header(size))?;
             s_aux.write_all(&vec![0u8; size as usize])?;
-            eprintln!("[+]    Warmup: {size} zeros");
             std::thread::sleep(Duration::from_millis(50));
         }
         std::thread::sleep(Duration::from_millis(500));
 
         eprintln!("\n[+] BINGO! Ready for video stream!");
+        Ok(EpsonClient { my_ip, proj_ip, s_auth, s_video, s_aux })
+    }
 
-        Ok(EpsonClient {
-            my_ip,
-            proj_ip,
-            s_auth,
-            s_video,
-            s_aux,
-        })
+    /// Says goodbye (cmd 0x0104) like the Windows client does on stop, so the
+    /// projector frees the session at once instead of waiting for a timeout.
+    pub fn disconnect(&mut self) {
+        if self.s_auth.write_all(&eemp_header(self.my_ip, CMD_DISCONNECT, 0)).is_ok() {
+            let _ = recv_one(&mut self.s_auth, Duration::from_secs(1)); // 0x0105
+        }
     }
 }
 
-/// Send keepalive on aux channel (prevents projector RST timeout).
-/// Windows PCAP shows 2646+1764 zero buffers sent periodically.
+/// Send one 100 ms slice of silent audio on the aux channel. The Windows client
+/// alternates 2646- and 1764-byte zero buffers every 50 ms; call this every 100 ms.
 pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     s_aux.write_all(&aux_header(2646))?;
-    s_aux.write_all(&vec![0u8; 2646])?;
+    s_aux.write_all(&[0u8; 2646])?;
     s_aux.write_all(&aux_header(1764))?;
-    s_aux.write_all(&vec![0u8; 1764])?;
+    s_aux.write_all(&[0u8; 1764])?;
     Ok(())
 }
 
-/// Drain and respond to projector heartbeat queries on auth channel (port 3620).
-/// The projector sends periodic 0x010E queries during streaming.
-/// If we don't respond, it RSTs the connection after ~50 seconds.
-pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) {
-    // Non-blocking read
-    s_auth.set_read_timeout(Some(Duration::from_millis(1))).ok();
-    let mut buf = vec![0u8; 4096];
-    match s_auth.read(&mut buf) {
-        Ok(0) => {}
-        Ok(n) => {
-            let data = &buf[..n];
-            let mut offset = 0;
-            while offset + 20 <= data.len() {
-                if &data[offset..offset + 8] != b"EEMP0100" {
-                    break;
-                }
-                let mut c = Cursor::new(&data[offset + 12..offset + 16]);
-                let cmd = c.read_u32::<LittleEndian>().unwrap();
-                let mut c = Cursor::new(&data[offset + 16..offset + 20]);
-                let payload_len = c.read_u32::<LittleEndian>().unwrap() as usize;
-                let msg_len = 20 + payload_len;
-
-                if cmd == 0x010E {
-                    // Respond with 0x0108
-                    let _ = s_auth.write_all(&response_0x0108(my_ip));
-                }
-                offset += msg_len;
-            }
+/// Answer pending projector heartbeat queries (0x010E) on the control channel.
+/// Unanswered, the projector resets the session after ~50 seconds.
+///
+/// Uses a non-blocking read rather than a tiny read timeout: on Windows a timed-out
+/// socket read leaves the socket in an undefined state. Returns an error when the
+/// projector has closed the control channel.
+pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) -> io::Result<()> {
+    let mut buf = [0u8; 4096];
+    s_auth.set_nonblocking(true)?;
+    let r = s_auth.read(&mut buf);
+    s_auth.set_nonblocking(false)?;
+    let n = match r {
+        Ok(0) => return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "projector closed the control channel")),
+        Ok(n) => n,
+        Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    for (cmd, _) in eemp_messages(&buf[..n]) {
+        if cmd == CMD_STATUS_QUERY {
+            s_auth.write_all(&response_0x0108(my_ip))?;
         }
-        Err(_) => {} // timeout = no data = fine
     }
+    Ok(())
 }
 
-/// Send video frame data. Uses write_all for maximum throughput.
-/// TCP handles segmentation naturally. Frame limiter in main.rs
-/// prevents buffer buildup.
+/// Send video frame data.
 pub fn send_frame(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
-    stream.write_all(data)?;
-    Ok(())
+    stream.write_all(data)
 }
 
 // ─── Custom EPRD Frame Builder ───────────────────────────────────────────────
@@ -500,6 +548,17 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x06, 0x40, 0x03, 0x84, 0x00, 0x00, 0x00, 0x60,
     0x04, 0x00, 0x02, 0x40, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+];
+
+/// The Windows client's keyframe layout at 1024x768, from `windows_perfect_stream.bin`:
+/// `(x, y, w, h, ts, jpeg_budget)`. `ts` is copied verbatim (proven on hardware).
+/// `jpeg_budget` is the JPEG size Windows used for that tile; we aim for it so the
+/// bitrate stays where the old template kept it, but never cut a JPEG to fit.
+pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
+    (0, 0, 624, 416, 2429847810, 34004),
+    (624, 0, 400, 416, 2430131968, 12248),
+    (0, 416, 624, 352, 2428173568, 16058),
+    (624, 416, 400, 352, 2429283840, 14155),
 ];
 
 /// One JPEG-encoded region of a video frame, with its placement and timestamp.
@@ -576,6 +635,9 @@ pub fn build_video_frame(
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
     let fd = stream.as_raw_fd();
+    // SAFETY: `fd` is a valid open socket owned by `stream`, which outlives this
+    // call. Each option pointer refers to a live stack `c_int` and the passed
+    // length is exactly `size_of::<c_int>()`, so setsockopt reads in bounds.
     unsafe {
         let val: libc::c_int = 1;
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
@@ -597,6 +659,9 @@ fn enable_tcp_keepalive(stream: &TcpStream) {
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
     let fd = stream.as_raw_fd();
+    // SAFETY: `fd` is a valid open socket owned by `stream`, which outlives this
+    // call. Each option pointer refers to a live stack `c_int` and the passed
+    // length is exactly `size_of::<c_int>()`, so setsockopt reads in bounds.
     unsafe {
         let val: libc::c_int = 1;
         setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE,
@@ -620,6 +685,9 @@ fn enable_tcp_keepalive(stream: &TcpStream) {
     use winapi::um::winsock2::setsockopt;
     use winapi::shared::ws2def::{SOL_SOCKET, SO_KEEPALIVE};
     let sock = stream.as_raw_socket() as usize;
+    // SAFETY: `sock` is a valid open socket owned by `stream`, which outlives this
+    // call. The option pointer refers to a live stack `i32` and the passed length
+    // is exactly `size_of::<i32>()`, so setsockopt reads in bounds.
     unsafe {
         let val: i32 = 1;
         setsockopt(sock, SOL_SOCKET as i32, SO_KEEPALIVE as i32,

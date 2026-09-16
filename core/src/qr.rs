@@ -43,10 +43,12 @@ impl EpsonQr {
     }
 
     /// The full network SSID: the field containing a `-` separator (Epson SSIDs
-    /// are `<name>-<suffix>`). The projector's on-screen SSID line is often
+    /// are `<name>-<suffix>`), else the first field that is not the passphrase
+    /// (e.g. a custom SSID). The projector's on-screen SSID line is often
     /// truncated; this is the untruncated value.
     pub fn ssid(&self) -> Option<&str> {
-        self.fields.iter().map(|s| s.as_str()).find(|s| s.contains('-'))
+        let mut fields = self.fields.iter().map(|s| s.as_str());
+        fields.clone().find(|s| s.contains('-')).or_else(|| fields.find(|s| !is_mac_hex(s)))
     }
 
     /// MAC as lowercase hex with no separators — the **EasyMP auth token** for
@@ -91,9 +93,9 @@ pub fn parse_deobfuscated(d: &[u8]) -> Option<EpsonQr> {
 
     let fields = extract_ascii_fields(d);
 
-    // An Epson record always carries an SSID (which contains a '-'); if we found
-    // none, this is not an Epson Quick Connect QR.
-    if !fields.iter().any(|f| f.contains('-')) {
+    // An Epson record carries a `<name>-<suffix>` SSID or the 12-hex-digit
+    // passphrase; with neither, this is not an Epson Quick Connect QR.
+    if !fields.iter().any(|f| f.contains('-') || is_mac_hex(f)) {
         return None;
     }
 

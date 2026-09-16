@@ -2,8 +2,11 @@
 
 pub mod hex;
 pub mod wifi;
-pub mod template;
 pub mod capture;
+#[cfg(target_os = "linux")]
+pub mod screencast;
+#[cfg(target_os = "linux")]
+pub mod x11_cursor;
 pub mod protocol;
 pub mod config;
 pub mod qr;

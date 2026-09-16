@@ -1,21 +1,22 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use libremp_core::capture::FrameGrabber;
-use libremp_core::{capture, protocol, template, wifi};
+use libremp_core::protocol::{VideoTile, KEYFRAME_TILES};
+use libremp_core::{capture, protocol, wifi};
 
-use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 const TARGET_FPS: u64 = 24;
+/// Silent-audio slice cadence on the aux channel (matches the Windows client).
+const AUDIO_SLICE: Duration = Duration::from_millis(100);
 
 /// Main entry point for the Epson EasyMP Rust Streamer.
 /// Handles CLI arguments, prompts, and manages the main application lifecycle.
 fn main() {
     eprintln!("=== Epson EasyMP Rust Streamer ===\n");
 
-    // Parse CLI args: --skip-wifi --ssid <SSID> --password <PWD> --os <1-4>
     let args: Vec<String> = std::env::args().collect();
     let has_flag = |f: &str| args.iter().any(|a| a == f);
     let get_arg = |f: &str| -> Option<String> {
@@ -28,10 +29,13 @@ fn main() {
     let skip_wifi = has_flag("--skip-wifi");
     let cli_ssid = get_arg("--ssid");
     let cli_password = get_arg("--password");
-    let cli_os: Option<u8> = get_arg("--os").and_then(|v| v.parse().ok());
-    // Optional explicit projector address; otherwise auto-detected from the gateway.
+    // Optional explicit projector address; otherwise found via the default gateway(s).
     let cli_proj_ip: Option<std::net::Ipv4Addr> =
         get_arg("--projector-ip").and_then(|v| v.parse().ok());
+    // The 4-digit "Projector Keyword" some projectors show on screen.
+    let cli_keyword = get_arg("--keyword");
+    // `--os` is still accepted for backwards compatibility but ignored: the
+    // capture backend is auto-detected.
 
     // Determine credentials: CLI args or interactive
     let (orig_uuid, ssid, password) = if skip_wifi {
@@ -44,11 +48,7 @@ fn main() {
         (uuid, ssid, password)
     };
 
-    // Capture backend is auto-detected per environment (see detect_grabber).
-    // `--os` is still accepted for backwards compatibility but ignored.
-    let _ = cli_os;
-
-    // Ctrl+C: set flag immediately (cross-platform via ctrlc crate)
+    // Ctrl+C / SIGTERM: stop the loop so we can say goodbye to the projector.
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     ctrlc::set_handler(move || {
@@ -56,35 +56,52 @@ fn main() {
     })
     .expect("Error setting Ctrl+C handler");
 
-    let mut tpl = match template::Template::load(&find_template()) {
-        Ok(t) => t,
+    // The GUI stops us by closing our stdin (works the same on every OS).
+    if has_flag("--stop-on-stdin-eof") {
+        let r = running.clone();
+        std::thread::spawn(move || {
+            let _ = std::io::stdin().read_to_end(&mut Vec::new());
+            r.store(false, Ordering::Relaxed);
+        });
+    }
+
+    eprintln!("[*] Config: {} tiles/frame, target {}fps", KEYFRAME_TILES.len(), TARGET_FPS);
+
+    // Pick the capture backend once, before connecting: on Wayland this shows the
+    // share dialog, and a reconnect must not ask again.
+    let mut grabber = match capture::detect_grabber() {
+        Ok(g) => g,
         Err(e) => {
-            eprintln!("[-] Template load failed: {e}");
+            eprintln!("[-] {e}");
             wifi::wifi_restore(orig_uuid);
-            std::process::exit(1);
+            std::process::exit(3);
         }
     };
 
-    eprintln!(
-        "[*] Config: {} tiles/frame, {}KB/frame, target {}fps",
-        tpl.first_frame_slots,
-        tpl.first_frame_end / 1024,
-        TARGET_FPS,
-    );
-    for i in 0..tpl.first_frame_slots {
-        let s = &tpl.slots[i];
-        eprintln!(
-            "    Tile {}: ({}x{} @ {},{}) slot={}B",
-            i, s.w, s.h, s.x, s.y, s.size
-        );
-    }
+    // Consecutive failed connects before exiting with status 2 (unset = retry forever).
+    let give_up_after: Option<u32> = get_arg("--give-up-after").and_then(|v| v.parse().ok());
+    let mut failures = 0u32;
 
-    // Auto-reconnect loop — runs until Ctrl+C
+    // Auto-reconnect loop — runs until stopped
     while running.load(Ordering::Relaxed) {
-        let mut client = match protocol::EpsonClient::connect(&password, &ssid, cli_proj_ip) {
-            Ok(c) => c,
+        let mut client = match protocol::EpsonClient::connect(
+            &password,
+            &ssid,
+            cli_proj_ip,
+            cli_keyword.as_deref(),
+        ) {
+            Ok(c) => {
+                failures = 0;
+                c
+            }
             Err(e) => {
                 eprintln!("[-] Connection failed: {e}");
+                failures += 1;
+                if give_up_after.is_some_and(|n| failures >= n) {
+                    eprintln!("[-] Giving up after {failures} failed attempts.");
+                    wifi::wifi_restore(orig_uuid);
+                    std::process::exit(2);
+                }
                 if !running.load(Ordering::Relaxed) {
                     break;
                 }
@@ -94,13 +111,10 @@ fn main() {
             }
         };
 
-        // Build the best available grabber for this environment (fresh per
-        // connection so it re-negotiates the portal/display each time).
-        let mut grabber = capture::detect_grabber();
-
-        let reason = stream_loop(&mut client, &mut tpl, grabber.as_mut(), &running);
+        let reason = stream_loop(&mut client, grabber.as_mut(), &running);
         if !running.load(Ordering::Relaxed) {
-            eprintln!("\n[*] Ctrl+C received, shutting down...");
+            eprintln!("\n[*] Stop requested, disconnecting...");
+            client.disconnect();
             break;
         }
         eprintln!("[-] Stream ended: {reason}");
@@ -112,17 +126,14 @@ fn main() {
     wifi::wifi_restore(orig_uuid);
 }
 
-/// The core streaming loop. Manages screen capture, JPEG encoding, frame rate, 
-/// and network transmission over the established projector connection.
+/// The core streaming loop: keeps the session alive, captures, encodes, and sends.
 fn stream_loop(
     client: &mut protocol::EpsonClient,
-    tpl: &mut template::Template,
     grabber: &mut dyn FrameGrabber,
     running: &AtomicBool,
 ) -> String {
     let mut frame_idx = 0u64;
-    let mut jpeg_cache: HashMap<(u16, u16, u16, u16), Vec<u8>> = HashMap::new();
-    let mut last_keepalive = Instant::now();
+    let mut last_audio = Instant::now();
     let mut last_auth_heartbeat = Instant::now();
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
     let my_ip = client.my_ip;
@@ -130,65 +141,56 @@ fn stream_loop(
     while running.load(Ordering::Relaxed) {
         let t0 = Instant::now();
 
-        // 1. Capture — the grabber is whatever detect_grabber() selected for
-        //    this environment (GDI / scrap / xcap portal), with fallback baked in.
+        // 1. Session upkeep first, so it keeps running even while capture fails
+        //    (e.g. a Wayland share prompt that is still open).
+        if let Err(e) = protocol::drain_auth(&mut client.s_auth, my_ip) {
+            return format!("Control channel: {e}");
+        }
+        if last_auth_heartbeat.elapsed() > Duration::from_secs(30) {
+            let _ = client.s_auth.write_all(&protocol::response_0x0108(my_ip));
+            last_auth_heartbeat = Instant::now();
+        }
+        if last_audio.elapsed() > Duration::from_secs(1) {
+            last_audio = Instant::now() - AUDIO_SLICE; // too far behind: don't burst
+        }
+        while last_audio.elapsed() >= AUDIO_SLICE {
+            if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
+                return format!("Keepalive: {e}");
+            }
+            last_audio += AUDIO_SLICE;
+        }
+
+        // 2. Capture
         let screen = match grabber.grab() {
             Some(s) => s,
             None => {
-                if !running.load(Ordering::Relaxed) {
-                    return "Ctrl+C".to_string();
-                }
                 std::thread::sleep(Duration::from_millis(20));
                 continue;
             }
         };
         let t_capture = t0.elapsed();
 
-        // 2. Encode + swap — adaptive quality per tile
-        jpeg_cache.clear();
-        for idx in 0..tpl.first_frame_slots {
-            let slot = tpl.slots[idx].clone();
-            let key = (slot.x, slot.y, slot.w, slot.h);
-
-            let jpeg_raw = jpeg_cache
-                .entry(key)
-                .or_insert_with(|| {
-                    capture::encode_tile_adaptive(
-                        &screen, slot.x, slot.y, slot.w, slot.h, slot.size,
-                    )
-                })
-                .clone();
-
-            let padded = template::pad_jpeg(&jpeg_raw, slot.size);
-            tpl.swap(idx, &padded);
-        }
+        // 3. Encode tiles and build the frame. Windows re-sends the META block
+        //    with every keyframe, and so do we (byte-identical to the old template).
+        let jpegs: Vec<Vec<u8>> = KEYFRAME_TILES
+            .iter()
+            .map(|&(x, y, w, h, _, budget)| capture::encode_tile_adaptive(&screen, x, y, w, h, budget))
+            .collect();
+        let tiles: Vec<VideoTile> = KEYFRAME_TILES
+            .iter()
+            .zip(&jpegs)
+            .map(|(&(x, y, w, h, ts, _), jpeg)| VideoTile { jpeg, x, y, w, h, ts })
+            .collect();
+        let frame = protocol::build_video_frame(my_ip, &tiles, 4, true);
         let t_encode = t0.elapsed();
 
-        // 3. Send frame
-        if let Err(e) = protocol::send_frame(&mut client.s_video, &tpl.buf[0..tpl.first_frame_end])
-        {
+        // 4. Send
+        if let Err(e) = protocol::send_frame(&mut client.s_video, &frame) {
             return format!("{e}");
         }
         let t_send = t0.elapsed();
 
-        // 4. Drain auth channel
-        protocol::drain_auth(&mut client.s_auth, my_ip);
-
-        // 5. Proactive auth heartbeat every 30s
-        if last_auth_heartbeat.elapsed() > Duration::from_secs(30) {
-            let _ = client.s_auth.write_all(&protocol::response_0x0108(my_ip));
-            last_auth_heartbeat = Instant::now();
-        }
-
-        // 6. Aux keepalive every 3s
-        if last_keepalive.elapsed() > Duration::from_secs(3) {
-            if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
-                return format!("Keepalive: {e}");
-            }
-            last_keepalive = Instant::now();
-        }
-
-        // 7. Frame rate limiter
+        // 5. Frame rate limiter
         let elapsed = t0.elapsed();
         if elapsed < frame_budget {
             std::thread::sleep(frame_budget - elapsed);
@@ -197,44 +199,25 @@ fn stream_loop(
         frame_idx += 1;
         if frame_idx <= 5 || frame_idx % 100 == 0 {
             let total_time_ms = t0.elapsed().as_millis().max(1) as f64;
-            let fps = 1000.0 / total_time_ms;
-            
-            // Wayland black screen detector! 
-            // If the buffer is completely pitch black (0 bytes), it guarantees standard OS security is blocking it!
-            let non_zero_pixels = screen.iter().take(10000).filter(|&&b| b > 0).count();
-
             eprintln!(
-                "  Frame {}: cap={:.0}ms enc={:.0}ms send={:.0}ms total={:.0}ms ({:.1}fps)",
+                "  Frame {}: cap={}ms enc={}ms send={}ms total={:.0}ms ({:.1}fps, {}KB)",
                 frame_idx,
                 t_capture.as_millis(),
                 (t_encode - t_capture).as_millis(),
                 (t_send - t_encode).as_millis(),
                 total_time_ms,
-                fps,
+                1000.0 / total_time_ms,
+                frame.len() / 1024,
             );
 
-            if non_zero_pixels == 0 {
+            // An all-black frame almost always means the OS blocked the capture.
+            if screen.iter().take(10000).all(|&b| b == 0) {
                 eprintln!("\n[!] WARNING: the captured frame is entirely black.");
                 eprintln!("    -> On Wayland, approve the screen-share prompt when it appears.");
-                eprintln!("       On X11, make sure you're in a graphical session.\n");
+                eprintln!("    -> On macOS, allow Screen Recording in System Settings > Privacy.\n");
             }
         }
     }
 
-    "Ctrl+C".to_string()
-}
-
-/// Locates the `windows_perfect_stream.bin` template file required for frame framing.
-fn find_template() -> String {
-    for path in [
-        "windows_perfect_stream.bin",
-        "../windows_perfect_stream.bin",
-        "../../windows_perfect_stream.bin",
-    ] {
-        if std::path::Path::new(path).exists() {
-            return path.to_string();
-        }
-    }
-    eprintln!("[-] Cannot find windows_perfect_stream.bin!");
-    std::process::exit(1);
+    "Stopped".to_string()
 }

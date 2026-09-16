@@ -1211,6 +1211,7 @@ dependencies = [
  "byteorder",
  "image",
  "libc",
+ "pipewire",
  "quircs",
  "scrap",
  "serde",
@@ -1218,6 +1219,8 @@ dependencies = [
  "turbojpeg",
  "winapi 0.3.9",
  "xcap",
+ "xcb",
+ "zbus",
 ]
 
 [[package]]

@@ -20,5 +20,13 @@ scrap = "0.5.0"
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
+# Wayland screen capture: xdg-desktop-portal ScreenCast (zbus) + PipeWire.
+# Both are already pulled in by xcap, so they cost no extra build time.
+[target.'cfg(target_os = "linux")'.dependencies]
+pipewire = "0.9"
+zbus = "5"
+# XFixes, to draw the mouse pointer into X11 captures (XShm does not include it).
+xcb = { version = "1.5", features = ["xfixes"] }
+
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winsock2", "ws2def", "mstcpip", "minwindef", "winuser", "wingdi", "errhandlingapi", "winbase", "memoryapi", "libloaderapi", "windef"] }

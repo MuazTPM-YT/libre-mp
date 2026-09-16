@@ -133,16 +133,21 @@ fn connect_to_network(net: &WifiNetwork, password: &str) -> bool {
 }
 
 
-/// Retrieves the active Wi-Fi connection UUID using nmcli on Linux.
+/// Retrieves the active *Wi-Fi* connection UUID using nmcli on Linux.
+///
+/// Filtering by type matters: `connection show --active` also lists loopback,
+/// Ethernet and VPN connections, and restoring one of those does nothing.
 #[cfg(target_os = "linux")]
 fn get_current_connection_id() -> Option<String> {
-    Command::new("nmcli")
-        .args(["-t", "-f", "UUID", "connection", "show", "--active"])
+    let out = Command::new("nmcli")
+        .args(["-t", "-f", "UUID,TYPE", "connection", "show", "--active"])
         .output()
-        .ok()
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.lines().next().unwrap_or("").to_string())
-        .filter(|s| !s.is_empty())
+        .ok()?;
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.rsplit_once(':'))
+        .find(|(_, kind)| kind.contains("wireless"))
+        .map(|(uuid, _)| uuid.to_string())
 }
 
 /// Displays the currently connected Wi-Fi network to the user on Linux.
