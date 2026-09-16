@@ -43,7 +43,8 @@ interface SavedProjector {
   ip: string;
 }
 
-const projName = (ssid: string) => ssid.split('-')[0] || ssid;
+// Epson SSIDs are `<projector name>-<random suffix>`; the name itself may contain '-'.
+const projName = (ssid: string) => (ssid.includes('-') ? ssid.slice(0, ssid.lastIndexOf('-')) : ssid);
 const signalLevel = (s: number) => (s > 80 ? 5 : s > 60 ? 4 : s > 40 ? 3 : s > 20 ? 2 : 1);
 const signalClass = (s: number) => (s > 60 ? 'high' : s > 30 ? 'mid' : 'low');
 
@@ -93,6 +94,7 @@ function App() {
   const uploadRef = useRef<HTMLInputElement>(null);
   const scanningRef = useRef(false);
   const autoReconnectTried = useRef(false);
+  const stoppingRef = useRef(false);
 
   const notify = useCallback(
     (message: string, type: 'success' | 'info' | 'error' = 'info') => {
@@ -176,7 +178,8 @@ function App() {
   const startCasting = useCallback(
     async (name: string, ssid: string, password: string, ip: string) => {
       setStatusDetail('Starting cast…');
-      await invoke('start_casting_async', { ssid, password });
+      stoppingRef.current = false;
+      await invoke('start_casting_async', { ssid, password, ip: ip || null });
       setIsCasting(true);
       setCastName(name);
       notify(`Casting to ${name}`, 'success');
@@ -189,14 +192,19 @@ function App() {
   );
 
   const connectProjector = useCallback(
-    async (name: string, ssid: string, password: string, ip: string) => {
+    async (name: string, ssid: string, password: string, ip: string, joinWifi = true) => {
       setConnectingSSID(ssid);
       setConnectionError(null);
-      setStatusDetail(`Joining ${name}…`);
+      setStatusDetail(`Looking for ${name}…`);
       try {
-        await new Promise((r) => setTimeout(r, 250));
-        const ok = await invoke<boolean>('connect_to_wifi', { ssid, password });
-        if (!ok) throw new Error('Could not join the network.');
+        // Already reachable (same LAN, or already on its Wi-Fi)? Then don't touch Wi-Fi.
+        const reachable = !!ip && (await invoke<boolean>('probe_projector', { ip }));
+        if (!reachable) {
+          if (!joinWifi) throw new Error(`${name} is not answering at ${ip}. Is it on and on this network?`);
+          setStatusDetail(`Joining ${name}…`);
+          const ok = await invoke<boolean>('connect_to_wifi', { ssid, password });
+          if (!ok) throw new Error('Could not join the network.');
+        }
         setConnectedSSID(ssid);
         await startCasting(name, ssid, password, ip);
         return true;
@@ -212,6 +220,7 @@ function App() {
   );
 
   const stopCasting = useCallback(async () => {
+    stoppingRef.current = true;
     try {
       await invoke('stop_casting');
     } catch { /* already stopped */ }
@@ -220,6 +229,20 @@ function App() {
     notify('Casting stopped.', 'info');
   }, [notify]);
 
+  // The streamer exits if the projector never answers or it crashes; reflect that.
+  useEffect(() => {
+    if (!isCasting) return;
+    const id = setInterval(async () => {
+      const alive = await invoke<boolean>('casting_alive').catch(() => false);
+      if (!alive && !stoppingRef.current) {
+        setIsCasting(false);
+        setCastName('');
+        setConnectionError('Casting stopped: the projector did not answer. Check that it is on and in range, then try again.');
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [isCasting]);
+
   const disconnect = useCallback(async () => {
     if (isCasting) await stopCasting();
     setConnectedSSID(null);
@@ -227,7 +250,10 @@ function App() {
 
   const handleRowClick = (net: NetworkItem) => {
     const known = saved.find((s) => s.ssid === net.ssid);
-    if (known) {
+    if (net.id.startsWith('proj-') && net.ip) {
+      // Found by LAN discovery: there is no Wi-Fi network to join.
+      connectProjector(net.name, net.ssid, known?.password || '', net.ip, false);
+    } else if (known) {
       connectProjector(known.name || projName(known.ssid), known.ssid, known.password, known.ip);
     } else if (!net.is_projector && net.security === 'Open') {
       connectProjector(net.name, net.ssid, '', net.ip || '');

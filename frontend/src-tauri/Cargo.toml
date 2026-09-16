@@ -1,8 +1,8 @@
 [package]
-name = "frontend"
+name = "libremp-app"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "LibreMP — cross-platform Epson projector streamer"
+authors = ["LibreMP"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ edition = "2021"
 [workspace]
 
 [lib]
-name = "frontend_lib"
+name = "libremp_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

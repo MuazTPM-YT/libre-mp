@@ -9,15 +9,21 @@ Many projectors available today rely on proprietary software (like Epson EasyMP)
 Our team, **LibreMP**, built a lightweight, highly compatible cross-platform desktop application designed to interact seamlessly with Epson projectors across all major operating systems. We reverse-engineered the EasyMP protocol from raw packet captures and built a solution capable of discovering available projectors on the network, bypassing the vendor's restrictive single-OS software. Our application allows Linux, macOS, and Windows users to easily manage, connect, and stream to projectors at 24fps.
 
 ### How It Works
-1. **Scan the QR**: On the projector's LAN screen there's a QR code. Use **Scan with camera** or **Upload QR photo** — LibreMP decodes the Epson QR (it's an XOR-obfuscated binary record, not a standard Wi-Fi QR), extracts the SSID + passphrase, and connects with **no typing**. Projectors you've used are **saved** for one-tap reconnect (and optional auto-reconnect on launch). You can also connect to discovered LAN projectors or Wi-Fi networks directly from the list.
-2. **Auto-detected capture**: The screen-capture backend is chosen automatically from your OS and session — there is **no manual OS picker**. Windows uses GDI (with cursor), macOS uses CoreGraphics, Linux X11 uses XShm, and **Linux Wayland uses the xdg-desktop-portal + PipeWire** path so it works on KDE, GNOME, and wlroots compositors alike.
+1. **Scan the QR**: On the projector's LAN screen there's a QR code. Use **Live scan** (take a photo with your webcam), **Upload QR photo**, or **Enter details** — LibreMP decodes the Epson QR (it's an XOR-obfuscated binary record, not a standard Wi-Fi QR), extracts the SSID + passphrase, and connects with **no typing**. Projectors you've used are **saved** for one-tap reconnect (and optional auto-reconnect on launch). You can also connect to discovered LAN projectors or Wi-Fi networks directly from the list.
+2. **Auto-detected capture**: The screen-capture backend is chosen automatically from your OS and session — there is **no manual OS picker**. Windows uses GDI (with cursor), macOS uses CoreGraphics, Linux X11 uses XShm, and **Linux Wayland uses xdg-desktop-portal ScreenCast + PipeWire**, so it works on KDE, GNOME and wlroots compositors alike. On Wayland the mouse pointer is included in the picture, and LibreMP asks the desktop to remember your choice so it need not ask again (where the desktop supports that). On X11 the pointer is fetched through XFixes and drawn into the picture, because an X11 screen grab never contains it.
 3. **Stream**: The frame is encoded into JPEG tiles with TurboJPEG (SIMD) and sent to the projector using the native EasyMP video protocol.
 
-> **Note on projector credentials:** On many Epson Direct-mode projectors the Wi-Fi
-> password and the EasyMP auth token are both the projector's **wired MAC address**
-> in hex (no separators). If a projector shows a keyword/password on the projected
-> screen, use that. LibreMP cannot bypass a network's Wi-Fi encryption — that is
+> **Note on projector credentials:** On Epson Quick Connect / Simple AP projectors the
+> default Wi-Fi password is the projector's **MAC address** in hex (no separators).
+> The EasyMP login itself does not need a password: like Epson's Windows client,
+> LibreMP reads the projector's name and MAC from its registration reply. If the
+> projector is already reachable on your current network, LibreMP casts without
+> switching Wi-Fi. LibreMP cannot bypass a network's Wi-Fi encryption — that is
 > cryptography, not a software limitation.
+>
+> **Not supported yet:** the projector setting **Projector Keyword** (a 4-digit code
+> shown on screen). Turn it off in the projector's network menu, or send us a packet
+> capture of Epson iProjection connecting with a keyword so it can be added.
 
 ## Architecture
 LibreMP is a Cargo **workspace** with a shared core library:
@@ -40,7 +46,29 @@ at the repo root) **before** the "Cast" button will work.
 - **Rust & Cargo** — compiles both the `epson-streamer` binary and the Tauri backend.
 - **NASM + CMake** — required by `turbojpeg-sys` for SIMD JPEG encoding.
 - **OS build tools** — C/C++ toolchain and, on Linux, WebKit/WebView dev libraries (e.g. `libwebkit2gtk-4.1-dev`).
-- **Wayland capture (Linux only)** — **PipeWire** and **xdg-desktop-portal** with a backend for your desktop (`xdg-desktop-portal-kde`, `-gnome`/`-gtk`, or `-wlr`/`-hyprland`). These ship with most modern desktops. `grim` is **no longer required**.
+- **Wayland capture (Linux only)** — **PipeWire** and **xdg-desktop-portal** with a backend for your desktop (`xdg-desktop-portal-kde`, `-gnome`/`-gtk`, or `-wlr`/`-hyprland`). These ship with most modern desktops. `grim` is **no longer required**, and neither is XWayland.
+
+### Projector Keyword
+Some projectors show a 4-digit **Projector Keyword** on screen and demand it. Pass it
+with `--keyword 1234`. If the projector still refuses, LibreMP says so clearly rather
+than hanging.
+
+The field it goes in is **inferred, not captured** — the packet capture we reverse
+engineered came from a projector with the setting switched off. Everything else in the
+handshake is byte-verified against Epson's own Windows client. If `--keyword` does not
+work on your projector, capture Epson iProjection connecting to it and compare its
+`0x0101` packet with `core/tests/handshake_snapshot.rs`; the fix is then a one-line
+offset change. Until then, switching the keyword off in the projector's network menu
+always works.
+
+### Known limitations
+- Windows and macOS builds have not been re-tested since the Linux-focused rewrite.
+
+### Checking screen capture without a projector
+```bash
+cargo run --release -p libremp-core --example portal_probe out.png
+```
+This captures one frame exactly as the projector would receive it and writes `out.png`.
 
 ---
 
@@ -117,8 +145,7 @@ Then run the two build steps from the **Installation** section in PowerShell.
 ## Command-line usage (optional)
 
 The streamer can run standalone without the GUI — useful for testing against a
-projector. Build it (`cargo build --release`) and run from the repo root so it
-can find `windows_perfect_stream.bin`:
+projector. Build it (`cargo build --release`) and run it:
 
 ```bash
 ./target/release/epson-streamer --skip-wifi --ssid <PROJECTOR_SSID> --password <MAC_HEX>
@@ -126,8 +153,11 @@ can find `windows_perfect_stream.bin`:
 
 Flags:
 - `--skip-wifi` — assume you are already on the projector's network.
-- `--ssid <name>` — the projector SSID (its prefix is used as the display name).
-- `--password <hex>` — the EasyMP auth token (usually the projector's wired MAC, hex, no separators).
-- `--projector-ip <ip>` — override the projector address (otherwise auto-detected from the default gateway).
+- `--ssid <name>` — the projector SSID. Only a fallback name source; the projector reports its own name.
+- `--password <hex>` — the projector MAC (hex). Only a fallback; the projector reports its own MAC.
+- `--projector-ip <ip>` — try this address first (otherwise every default gateway, then `192.168.88.1`).
+- `--keyword <digits>` — the projector's 4-digit Projector Keyword, if it shows one (see above).
+- `--give-up-after <n>` — exit with status 2 after `n` failed connection attempts in a row.
+- `--stop-on-stdin-eof` — disconnect cleanly when stdin closes (used by the GUI).
 
 The capture backend is auto-detected; there is no `--os` selection.

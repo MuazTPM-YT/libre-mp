@@ -21,7 +21,7 @@ export function HelpModal({ isOpen, onClose }: Props) {
     [
       'Scan or upload it',
       <>
-        Use <strong>Scan with camera</strong> to point at the QR, or{' '}
+        Use <strong>Live scan</strong> to take a photo of the QR, or{' '}
         <strong>Upload QR photo</strong> to pick a picture of it. LibreMP reads the SSID
         and passphrase automatically.
       </>,

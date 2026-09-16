@@ -3,5 +3,5 @@
 
 /// Application entry point.
 fn main() {
-    frontend_lib::run()
+    libremp_lib::run()
 }

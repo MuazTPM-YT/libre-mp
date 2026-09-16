@@ -16,6 +16,9 @@ enum CamCmd {
 
 pub struct AppState {
     pub child_process: Arc<Mutex<Option<std::process::Child>>>,
+    /// The Wi-Fi we were on before joining a projector, restored when casting
+    /// stops. Linux: a NetworkManager UUID. macOS: an SSID.
+    prev_wifi: Arc<Mutex<Option<String>>>,
     /// Sender to the camera worker thread. `None` until a scan opens the camera;
     /// reset to `None` by `camera_stop`.
     cam_tx: Arc<Mutex<Option<std::sync::mpsc::Sender<CamCmd>>>>,
@@ -45,6 +48,77 @@ lazy_static! {
     static ref AUTH_RE: Regex = Regex::new(r"Authentication\s+:\s+([^\r\n]+)").unwrap();
 }
 
+/// `Command::new` that does not flash a console window on Windows. The GUI runs
+/// netsh every scan (every 12 s), so without this a black window blinks each time.
+fn hidden_cmd<S: AsRef<std::ffi::OsStr>>(program: S) -> Command {
+    #[allow(unused_mut)]
+    let mut cmd = Command::new(program);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
+/// The Wi-Fi connection we are on right now: a NetworkManager UUID on Linux, the
+/// SSID on macOS. Wired and loopback connections are ignored on purpose — only a
+/// Wi-Fi connection can be replaced by joining a projector.
+fn current_wifi_id() -> Option<String> {
+    #[cfg(target_os = "macos")]
+    {
+        let device = macos_wifi_device()?;
+        let out = hidden_cmd("networksetup").args(["-getairportnetwork", &device]).output().ok()?;
+        let text = String::from_utf8_lossy(&out.stdout);
+        return text
+            .split_once("Current Wi-Fi Network: ")
+            .map(|(_, n)| n.trim().to_string())
+            .filter(|n| !n.is_empty());
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let out = hidden_cmd("nmcli")
+            .args(["-t", "-f", "UUID,TYPE", "connection", "show", "--active"])
+            .output()
+            .ok()?;
+        for line in String::from_utf8_lossy(&out.stdout).lines() {
+            if let Some((uuid, kind)) = line.rsplit_once(':') {
+                if kind.contains("wireless") {
+                    return Some(uuid.to_string());
+                }
+            }
+        }
+        None
+    }
+    #[cfg(target_os = "windows")]
+    {
+        None // Windows restore is not wired up yet.
+    }
+}
+
+/// Rejoins the network saved by [`current_wifi_id`]. Best-effort: if it fails the
+/// user is simply left on the projector's network, as before.
+fn restore_wifi(id: &str) {
+    #[cfg(target_os = "macos")]
+    if let Some(device) = macos_wifi_device() {
+        let _ = hidden_cmd("networksetup").args(["-setairportnetwork", &device, id]).output();
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = hidden_cmd("nmcli").args(["connection", "up", "uuid", id]).output();
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = id;
+    }
+}
+
+/// Escapes text for an XML element (Wi-Fi names and passphrases may contain `&`, `<`, ...).
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&apos;")
+}
+
 /// Heuristic for flagging an SSID as a likely projector (Epson direct-mode, etc.).
 fn is_projector_ssid(ssid: &str) -> bool {
     let l = ssid.to_lowercase();
@@ -59,7 +133,7 @@ fn is_projector_ssid(ssid: &str) -> bool {
 /// The Wi-Fi port is NOT always en0, so we look it up instead of assuming.
 #[cfg(target_os = "macos")]
 fn macos_wifi_device() -> Option<String> {
-    let out = Command::new("networksetup")
+    let out = hidden_cmd("networksetup")
         .arg("-listallhardwareports")
         .output()
         .ok()?;
@@ -113,7 +187,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
     // removed in macOS 14). This requires Location Services to see SSIDs.
     #[cfg(target_os = "macos")]
     {
-        let output = Command::new("system_profiler")
+        let output = hidden_cmd("system_profiler")
             .args(["SPAirPortDataType", "-json"])
             .output()
             .map_err(|e| format!("Failed to execute system_profiler: {}", e))?;
@@ -184,7 +258,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 
     // ── Linux (NetworkManager) ──
     if !cfg!(target_os = "windows") && !cfg!(target_os = "macos") {
-        let output = Command::new("nmcli")
+        let output = hidden_cmd("nmcli")
             .args(["-t", "-f", "SSID,BSSID,SECURITY,SIGNAL", "dev", "wifi"])
             .output()
             .map_err(|e| format!("Failed to execute nmcli: {}", e))?;
@@ -230,7 +304,7 @@ async fn scan_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
         return Ok(result);
     }
 
-    let output = Command::new("netsh")
+    let output = hidden_cmd("netsh")
         .args(["wlan", "show", "networks", "mode=bssid"])
         .output()
         .map_err(|e| format!("Failed to execute netsh: {}", e))?;
@@ -561,9 +635,16 @@ async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
     // 1. ESC/VP.net broadcast on port 3629
     // 2. EEMP protocol probe on port 3620
     
-    // Method 1: ESC/VP.net discovery (port 3629)
+    // Method 1: ESC/VP.net (port 3629). HELLO (type 0x01) is the discovery request;
+    // CONNECT (0x03) is the TCP session opener, sent too for older firmware.
+    let escvp_hello = b"ESC/VP.net\x10\x01\x00\x00\x00\x00";
     let escvp_msg = b"ESC/VP.net\x10\x03\x00\x00\x00\x00";
-    let _ = socket.send_to(escvp_msg, "255.255.255.255:3629").await;
+    let mut broadcasts: Vec<String> = vec!["255.255.255.255".into()];
+    broadcasts.extend(local_broadcasts().iter().map(|b| b.to_string()));
+    for b in &broadcasts {
+        let _ = socket.send_to(escvp_hello, format!("{b}:3629")).await;
+        let _ = socket.send_to(escvp_msg, format!("{b}:3629")).await;
+    }
     
     // Method 2: EEMP registration probe (port 3620) - same as what Epson app sends
     // This is a simplified UDP probe; the real handshake is TCP but projectors
@@ -608,6 +689,33 @@ async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
     }
 
     Ok(projectors)
+}
+
+/// Broadcast addresses of the directly connected IPv4 subnets. `255.255.255.255`
+/// only leaves through the default-route interface, which is often not the one
+/// the projector is on. Linux reads the routing table; elsewhere this is empty
+/// and the fixed subnet guesses above still apply.
+fn local_broadcasts() -> Vec<std::net::Ipv4Addr> {
+    let mut out = Vec::new();
+    #[cfg(target_os = "linux")]
+    if let Ok(table) = std::fs::read_to_string("/proc/net/route") {
+        for line in table.lines().skip(1) {
+            let c: Vec<&str> = line.split_whitespace().collect();
+            if c.len() < 8 || c[1] == "00000000" || c[0] == "lo" {
+                continue;
+            }
+            if let (Ok(dst), Ok(mask)) = (u32::from_str_radix(c[1], 16), u32::from_str_radix(c[7], 16)) {
+                if mask != 0 && mask != u32::MAX {
+                    // Kernel stores both little-endian; OR-ing the inverted mask works the same.
+                    let b = std::net::Ipv4Addr::from((dst | !mask).to_le_bytes());
+                    if !out.contains(&b) {
+                        out.push(b);
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Extract a human-readable projector name from discovery response data
@@ -663,8 +771,17 @@ fn try_extract_ascii_name(data: &[u8]) -> Option<String> {
 /// Connects to a specific Wi-Fi network using OS-native tools.
 #[tauri::command]
 #[allow(unreachable_code)]
-async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool, String> {
+async fn connect_to_wifi(ssid: String, password: Option<String>, state: tauri::State<'_, AppState>) -> Result<bool, String> {
     println!("Connecting to network: {} (password provided: {})", ssid, password.is_some());
+
+    // Remember where we came from so casting can put it back (only the first
+    // switch: a reconnect must not overwrite it with the projector itself).
+    {
+        let mut prev = state.prev_wifi.lock().await;
+        if prev.is_none() {
+            *prev = current_wifi_id();
+        }
+    }
 
     // ── macOS ── `nmcli` is unavailable; use networksetup on the detected Wi-Fi port.
     #[cfg(target_os = "macos")]
@@ -678,7 +795,7 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
             }
         }
 
-        let output = Command::new("networksetup")
+        let output = hidden_cmd("networksetup")
             .args(&args)
             .output()
             .map_err(|e| format!("Failed to execute networksetup: {}", e))?;
@@ -734,18 +851,18 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
         </security>
     </MSM>
 </WLANProfile>"#,
-                    ssid = ssid,
-                    pwd = pwd
+                    ssid = xml_escape(&ssid),
+                    pwd = xml_escape(pwd)
                 );
 
                 // Write profile to a temp file
                 let temp_dir = std::env::temp_dir();
-                let profile_path = temp_dir.join(format!("libremp_wifi_{}.xml", ssid.replace(' ', "_")));
+                let profile_path = temp_dir.join("libremp_wifi_profile.xml");
                 std::fs::write(&profile_path, &profile_xml)
                     .map_err(|e| format!("Failed to write Wi-Fi profile: {}", e))?;
 
                 // Add the profile
-                let add_output = Command::new("netsh")
+                let add_output = hidden_cmd("netsh")
                     .args(["wlan", "add", "profile", &format!("filename={}", profile_path.display())])
                     .output()
                     .map_err(|e| format!("Failed to add Wi-Fi profile: {}", e))?;
@@ -762,7 +879,7 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
         }
 
         // Now connect using the profile name (which matches the SSID)
-        let connect_output = Command::new("netsh")
+        let connect_output = hidden_cmd("netsh")
             .args(["wlan", "connect", &format!("name={}", ssid)])
             .output()
             .map_err(|e| format!("Failed to connect: {}", e))?;
@@ -786,7 +903,7 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             
             // Check current connection status via netsh
-            let status_output = Command::new("netsh")
+            let status_output = hidden_cmd("netsh")
                 .args(["wlan", "show", "interfaces"])
                 .output();
             
@@ -855,7 +972,7 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
             }
         }
         
-        let output = Command::new("nmcli")
+        let output = hidden_cmd("nmcli")
             .args(&args)
             .output()
             .map_err(|e| format!("Failed to connect: {}", e))?;
@@ -871,37 +988,36 @@ async fn connect_to_wifi(ssid: String, password: Option<String>) -> Result<bool,
 
 
 /// Spawns the Rust Epson streamer process to begin casting.
+///
+/// `ip` (e.g. from the QR code or LAN discovery) is tried first; the streamer
+/// falls back to the default gateways and 192.168.88.1 on its own.
 #[tauri::command]
-async fn start_casting_async(ssid: String, password: String, state: tauri::State<'_, AppState>) -> Result<bool, String> {
+async fn start_casting_async(ssid: String, password: String, ip: Option<String>, state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut child_guard = state.child_process.lock().await;
-    if child_guard.is_some() {
-        return Err("Already streaming".into());
+    // A streamer that already exited (crash, bad binary) must not block a new cast.
+    if let Some(child) = child_guard.as_mut() {
+        if matches!(child.try_wait(), Ok(None)) {
+            return Err("Already streaming".into());
+        }
+        *child_guard = None;
     }
 
-    // Find the epson-streamer binary
-    let binary = find_streamer_binary()
-        .ok_or_else(|| "Could not find epson-streamer binary. Run `cargo build --release` in the Rust/ directory first.".to_string())?;
+    let binary = find_streamer_binary().ok_or_else(|| {
+        "Could not find the epson-streamer program. Run `cargo build --release` at the repository root first.".to_string()
+    })?;
 
-    // Convert to absolute path so that setting current_dir doesn't break the executable lookup
-    let binary = std::fs::canonicalize(&binary).unwrap_or(binary);
+    // --give-up-after: exit (so the UI can say so) if the projector never answers.
+    let mut args = vec!["--skip-wifi", "--stop-on-stdin-eof", "--give-up-after", "3", "--ssid", &ssid, "--password", &password];
+    let ip = ip.filter(|ip| ip.parse::<std::net::Ipv4Addr>().is_ok());
+    if let Some(ip) = &ip {
+        args.extend(["--projector-ip", ip.as_str()]);
+    }
+    println!("[+] Spawning streamer: {:?} (ssid {}, ip {:?})", binary, ssid, ip);
 
-    // Derive the Rust/ directory from the binary path (binary is at Rust/target/release/epson-streamer)
-    let rust_dir = binary.parent()   // target/release/
-        .and_then(|p| p.parent())    // target/
-        .and_then(|p| p.parent())    // Rust/
-        .ok_or_else(|| "Could not determine Rust project directory".to_string())?;
-
-    println!("[+] Spawning streamer: {:?}", binary);
-    println!("[+] Working dir: {:?}", rust_dir);
-    println!("[+] Args: --skip-wifi --ssid {} (capture backend auto-detected)", ssid);
-
-    let child = Command::new(&binary)
-        .current_dir(rust_dir)
-        .args([
-            "--skip-wifi",
-            "--ssid", &ssid,
-            "--password", &password,
-        ])
+    let child = hidden_cmd(&binary)
+        .args(&args)
+        // Closing stdin is the cross-platform "stop" signal (see stop_casting).
+        .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::inherit())
         .stderr(std::process::Stdio::inherit())
         .spawn()
@@ -913,30 +1029,29 @@ async fn start_casting_async(ssid: String, password: String, state: tauri::State
 
 /// Locates the `epson-streamer` executable binary.
 fn find_streamer_binary() -> Option<std::path::PathBuf> {
-    // The streamer now builds into the workspace-shared target/ dir (Rust/ was retired).
+    // `epson-streamer.exe` on Windows; without the suffix the file is never found there.
+    let name = format!("epson-streamer{}", std::env::consts::EXE_SUFFIX);
+    let exe = std::env::current_exe().ok();
     let candidates = [
-        // Development: relative to the src-tauri cwd → workspace root target/.
-        std::path::PathBuf::from("../../target/release/epson-streamer"),
-        std::path::PathBuf::from("../target/release/epson-streamer"),
-        std::path::PathBuf::from("target/release/epson-streamer"),
-        // Fallback: cli crate's own target dir if built in isolation.
-        std::path::PathBuf::from("../../cli/target/release/epson-streamer"),
-        // Relative to the running executable, walking up to the workspace root.
-        std::env::current_exe().ok().and_then(|p| {
-            // exe at <root>/frontend/src-tauri/target/{debug,release}/frontend
-            p.parent()?.parent()?.parent()?.parent()?.parent()
-                .map(|root| root.join("target/release/epson-streamer"))
-        }).unwrap_or_default(),
+        // Installed next to the app.
+        exe.as_ref().and_then(|p| p.parent()).map(|d| d.join(&name)),
+        // Development: exe at <root>/frontend/src-tauri/target/{debug,release}/libremp-app.
+        exe.as_ref()
+            .and_then(|p| p.parent()?.parent()?.parent()?.parent()?.parent())
+            .map(|root| root.join("target/release").join(&name)),
+        // Development: relative to the src-tauri cwd.
+        Some(std::path::Path::new("../../target/release").join(&name)),
     ];
 
-    for path in &candidates {
+    for path in candidates.into_iter().flatten() {
         if path.exists() {
-            return Some(path.clone());
+            return Some(std::fs::canonicalize(&path).unwrap_or(path));
         }
     }
 
     // Try finding via PATH
-    if let Ok(output) = Command::new("which").arg("epson-streamer").output() {
+    #[cfg(not(windows))]
+    if let Ok(output) = hidden_cmd("which").arg("epson-streamer").output() {
         if output.status.success() {
             let path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
             if !path_str.is_empty() {
@@ -948,16 +1063,55 @@ fn find_streamer_binary() -> Option<std::path::PathBuf> {
     None
 }
 
-/// Kills the active streaming process to stop casting.
+/// Stops casting. Closing the streamer's stdin makes it send the EasyMP
+/// disconnect, so the projector frees the session at once; kill only if it hangs.
 #[tauri::command]
 async fn stop_casting(state: tauri::State<'_, AppState>) -> Result<bool, String> {
     let mut child_guard = state.child_process.lock().await;
     if let Some(mut child) = child_guard.take() {
-        let _ = child.kill();
-        let _ = child.wait();
-        println!("[+] Streamer process killed");
+        drop(child.stdin.take());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while matches!(child.try_wait(), Ok(None)) && std::time::Instant::now() < deadline {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+        if matches!(child.try_wait(), Ok(None)) {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        println!("[+] Streamer stopped");
+    }
+    drop(child_guard);
+
+    if let Some(id) = state.prev_wifi.lock().await.take() {
+        println!("[+] Restoring the previous Wi-Fi network");
+        let _ = tokio::task::spawn_blocking(move || restore_wifi(&id)).await;
     }
     Ok(true)
+}
+
+/// Whether the streamer is still running (it exits on fatal errors).
+#[tauri::command]
+async fn casting_alive(state: tauri::State<'_, AppState>) -> Result<bool, String> {
+    let mut child_guard = state.child_process.lock().await;
+    let alive = child_guard.as_mut().is_some_and(|c| matches!(c.try_wait(), Ok(None)));
+    if !alive {
+        *child_guard = None;
+    }
+    Ok(alive)
+}
+
+/// True if an EasyMP projector accepts connections at `ip` right now — i.e. we
+/// can cast over the current network without switching Wi-Fi.
+#[tauri::command]
+async fn probe_projector(ip: String) -> Result<bool, String> {
+    let Ok(ip) = ip.parse::<std::net::Ipv4Addr>() else {
+        return Ok(false);
+    };
+    tokio::task::spawn_blocking(move || {
+        std::net::TcpStream::connect_timeout(&(ip, 3620).into(), std::time::Duration::from_millis(800)).is_ok()
+    })
+    .await
+    .map_err(|e| e.to_string())
 }
 
 /// Initializes and starts the Tauri application.
@@ -976,6 +1130,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             child_process: Arc::new(Mutex::new(None)),
+            prev_wifi: Arc::new(Mutex::new(None)),
             cam_tx: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
@@ -991,7 +1146,9 @@ pub fn run() {
             forget_projector,
             connect_to_wifi,
             start_casting_async,
-            stop_casting
+            stop_casting,
+            casting_alive,
+            probe_projector
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

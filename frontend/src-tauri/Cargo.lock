@@ -1528,23 +1528,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "frontend"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "lazy_static",
- "libremp-core",
- "nokhwa",
- "regex",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-opener",
- "tokio",
-]
-
-[[package]]
 name = "futf"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2717,12 +2700,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "libremp-app"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "lazy_static",
+ "libremp-core",
+ "nokhwa",
+ "regex",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-opener",
+ "tokio",
+]
+
+[[package]]
 name = "libremp-core"
 version = "0.1.0"
 dependencies = [
  "byteorder",
  "image",
  "libc",
+ "pipewire",
  "quircs",
  "scrap",
  "serde",
@@ -2730,6 +2731,8 @@ dependencies = [
  "turbojpeg",
  "winapi 0.3.9",
  "xcap",
+ "xcb",
+ "zbus",
 ]
 
 [[package]]
