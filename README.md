@@ -78,8 +78,8 @@ rustup default stable
 ```bash
 sudo apt update
 sudo apt install build-essential cmake curl wget file libssl-dev \
-  libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev nasm nodejs npm \
-  pipewire xdg-desktop-portal xdg-desktop-portal-gtk
+  libwebkit2gtk-4.1-dev libappindicator3-dev libpipewire-0.3-dev librsvg2-dev nasm
+  nodejs npm pipewire xdg-desktop-portal xdg-desktop-portal-gtk
 # Install Rust:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source $HOME/.cargo/env
