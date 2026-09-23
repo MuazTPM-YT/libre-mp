@@ -15,11 +15,10 @@
         "title": "LibreMP",
         "width": 920,
         "height": 760,
-        "minWidth": 720,
-        "minHeight": 560,
-        "resizable": true,
+        "resizable": false,
         "fullscreen": false,
-        "center": true
+        "center": true,
+        "maximizable": false
       }
     ],
     "security": {

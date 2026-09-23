@@ -117,7 +117,8 @@ button, .lm-toolbar, .lm-group-head, .lm-switch, .lm-seg { -webkit-user-select: 
   background: var(--bg);
   flex-shrink: 0;
 }
-.lm-toolbar-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-right: auto; }
+.lm-toolbar-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-right: auto; cursor: default; }
+.lm-close { margin-left: 4px; }
 
 .lm-search {
   display: flex;
@@ -190,6 +191,7 @@ button, .lm-toolbar, .lm-group-head, .lm-switch, .lm-seg { -webkit-user-select: 
   .lm-btn.primary:hover:not(:disabled) { background: var(--accent-hover); }
   .lm-icon-btn:hover:not(:disabled) { background: var(--fill); color: var(--label); }
   .lm-disclosure:hover { background: var(--fill); }
+  .lm-close:hover:not(:disabled) { background: var(--red-tint); color: var(--red); }
 }
 
 /* ---------- status card ---------- */

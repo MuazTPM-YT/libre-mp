@@ -79,6 +79,27 @@ npm run tauri dev                # or: npm run tauri build   (release bundle)
 
 The CLI is optional: `cargo build --release` at the repository root produces `target/release/epson-streamer`.
 
+### Install as an app (Linux)
+
+One command builds LibreMP and adds it to your app launcher (rofi, fuzzel, GNOME, KDE, quickshell, …), with its icon:
+
+```bash
+./scripts/install-linux.sh              # build + install for this user (no sudo)
+./scripts/install-linux.sh --uninstall  # remove it again (saved projectors are kept)
+```
+
+It installs `~/.local/bin/libremp-app`, `~/.local/share/applications/libremp-app.desktop` and the icons under `~/.local/share/icons/hicolor/`. Run it again after `git pull` to update.
+
+The window has a fixed size (920×760) and its own title bar. Tiling window managers float it automatically, because its size cannot change. On Hyprland you can also centre it:
+
+```lua
+-- ~/.config/hypr/custom/rules.lua (Lua config)
+hl.window_rule({match = {class = "^(libremp-app)$" }, float = true})
+hl.window_rule({match = {class = "^(libremp-app)$" }, center = true})
+```
+
+With the classic `hyprland.conf`, use `windowrule = float, class:^(libremp-app)$` and `windowrule = center, class:^(libremp-app)$`.
+
 Platform-specific prerequisites follow.
 
 ### 1. Arch Linux (Wayland / X11)

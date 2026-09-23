@@ -70,6 +70,11 @@ Checked against `windows_perfect_stream.bin`: the reassembled video channel of t
 - Events: `cast-event` (sharing, connecting, casting, reconnecting) and `cast-end` (with a typed error). Each is tagged with a UI-chosen id, so late events from an old cast are ignored.
 - On quit, the app stops the cast (so the goodbye reaches the projector) and restores the previous Wi-Fi.
 - **The camera runs in Rust (`nokhwa`), not through `getUserMedia`.** WebKitGTK's PipeWire camera path crashes the web process. `nokhwa` runs without default features, because its `mozjpeg` copy of libjpeg collided with libjpeg-turbo when linking with `rust-lld` (the default linker since Rust 1.90). MJPEG camera frames are decoded by core's libjpeg-turbo instead.
+- **The Linux window** (`tauri.linux.conf.json`) has no GTK title bar. The app's toolbar drags the window and has its own close button; there is no double-click maximize.
+  - The size is fixed with min = max = 920×760, not with `resizable: false`. On Wayland, `resizable: false` made GTK open the window 48 px bigger in each direction.
+  - Hyprland floats windows whose size cannot change.
+  - macOS and Windows keep their native title bar and `resizable: false`.
+- **App id.** The Wayland window class is the program's file name, `libremp-app`. `scripts/install-linux.sh` keeps that name, so the desktop entry (`StartupWMClass`), the icon name and window-manager rules all match.
 - `WEBKIT_DISABLE_DMABUF_RENDERER=1` is set on Linux. WebKitGTK's DMABUF renderer crashes on NVIDIA drivers.
 
 ## Wi-Fi (`core/src/wifi.rs`)

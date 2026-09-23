@@ -1,0 +1,20 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "LibreMP",
+        "width": 920,
+        "height": 760,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "maximizable": false,
+        "decorations": false,
+        "minWidth": 920,
+        "maxWidth": 920,
+        "minHeight": 760,
+        "maxHeight": 760
+      }
+    ]
+  }
+}

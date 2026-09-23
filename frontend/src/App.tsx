@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Camera, ChevronRight, CircleAlert, CircleHelp, LoaderCircle, Lock, Projector, RefreshCw, Router, Search, Settings,
-  Trash2,
+  Trash2, X,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import './index.css';
 
 import { SettingsModal, type AppSettings, defaultSettings } from './components/SettingsModal';
@@ -151,6 +152,22 @@ function App() {
   const autoTried = useRef(false);
 
   const busy = status.kind === 'working' || status.kind === 'casting';
+  // no os title bar (linux): toolbar drags window and has close
+  const [ownChrome, setOwnChrome] = useState(false);
+
+  useEffect(() => {
+    getCurrentWindow()
+      .isDecorated()
+      .then((decorated) => setOwnChrome(!decorated))
+      .catch(() => {});
+  }, []);
+
+  // drag window by toolbar blank space; single press only, so no double-click maximize
+  const dragWindow = (e: React.MouseEvent) => {
+    if (!ownChrome || e.button !== 0 || e.detail > 1) return;
+    if ((e.target as HTMLElement).closest('button, input, label')) return;
+    getCurrentWindow().startDragging().catch(() => {});
+  };
 
   // appearance: follow os unless forced
   useEffect(() => {
@@ -401,7 +418,7 @@ function App() {
 
   return (
     <div className="lm-app">
-      <header className="lm-toolbar">
+      <header className="lm-toolbar" onMouseDown={dragWindow}>
         <span className="lm-toolbar-title">LibreMP</span>
         <label className="lm-search">
           <Search size={14} aria-hidden="true" />
@@ -422,6 +439,17 @@ function App() {
         <button type="button" className="lm-icon-btn" onClick={() => setSheet('help')} title="Help" aria-label="Help">
           <CircleHelp size={16} />
         </button>
+        {ownChrome && (
+          <button
+            type="button"
+            className="lm-icon-btn lm-close"
+            onClick={() => getCurrentWindow().close()}
+            title="Close"
+            aria-label="Close LibreMP"
+          >
+            <X size={16} />
+          </button>
+        )}
       </header>
 
       <main className="lm-main">
