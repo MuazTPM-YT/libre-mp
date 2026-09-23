@@ -10,6 +10,7 @@ pub mod x11_cursor;
 pub mod protocol;
 pub mod config;
 pub mod qr;
+pub mod session;
 
 /// Streaming frame width negotiated with Epson projectors.
 pub const STREAM_W: u32 = 1024;

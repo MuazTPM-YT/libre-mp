@@ -13,9 +13,7 @@
 //!   * a 12-hex-digit field is the Wi-Fi passphrase (the MAC in hex), and
 //!   * a field containing `-` is the SSID.
 //!
-//! Verified against two real projectors:
-//!   * RESEARCHLAB  → pw `A4D73CCDAF45`, ssid `RESEARCHLAB-fE8DSypQz51AR2Q`
-//!   * EBC0E9E5     → pw `381A52C0E9E5`, ssid `EBC0E9E5-EE81fImEdb09OeF`
+//! Verified against two real projectors (a wired and a wireless-only model).
 
 use std::net::Ipv4Addr;
 

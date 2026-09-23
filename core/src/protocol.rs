@@ -317,10 +317,10 @@ fn aux_header(size: u32) -> Vec<u8> {
 
 // ─── Protocol Client ─────────────────────────────────────────────────────────
 
-#[allow(dead_code)]
 pub struct EpsonClient {
     pub my_ip: Ipv4Addr,
     pub proj_ip: Ipv4Addr,
+    pub name: String,
     pub s_auth: TcpStream,
     pub s_video: TcpStream,
     pub s_aux: TcpStream,
@@ -411,11 +411,7 @@ impl EpsonClient {
             if cmd == CMD_AUTH_OK && p.len() > 30 && p[30] != 0 {
                 return Err(io::Error::new(
                     io::ErrorKind::PermissionDenied,
-                    if keyword.is_some() {
-                        "projector rejected the connection (wrong keyword, or another device is connected)"
-                    } else {
-                        "projector rejected the connection — if it shows a 4-digit keyword on screen, pass it with --keyword"
-                    },
+                    "projector refused the connection (wrong or missing Projector Keyword, or another device is presenting)",
                 ));
             }
         }
@@ -483,7 +479,8 @@ impl EpsonClient {
         std::thread::sleep(Duration::from_millis(500));
 
         eprintln!("\n[+] BINGO! Ready for video stream!");
-        Ok(EpsonClient { my_ip, proj_ip, s_auth, s_video, s_aux })
+        let name = String::from_utf8_lossy(&name).into_owned();
+        Ok(EpsonClient { my_ip, proj_ip, name, s_auth, s_video, s_aux })
     }
 
     /// Says goodbye (cmd 0x0104) like the Windows client does on stop, so the
@@ -588,17 +585,12 @@ pub struct VideoTile<'a> {
 ///
 /// Note the endianness split confirmed from the capture: the META block's size
 /// field is little-endian, the JPEG block's size field is big-endian.
-pub fn build_video_frame(
-    my_ip: Ipv4Addr,
-    tiles: &[VideoTile],
-    frame_type: u32,
-    first_frame: bool,
-) -> Vec<u8> {
+pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) -> Vec<u8> {
     let ip = my_ip.octets();
     let mut buf = Vec::with_capacity(16384);
 
     // First frame: prepend the META EPRD block (size is little-endian here).
-    if first_frame {
+    if with_meta {
         buf.extend_from_slice(b"EPRD0600");
         buf.extend_from_slice(&ip);
         buf.extend_from_slice(&0u32.to_le_bytes()); // msg_id
@@ -608,7 +600,7 @@ pub fn build_video_frame(
 
     // JPEG payload: frame_type(4) + N × (16-byte region descriptor + jpeg data).
     let mut payload = Vec::new();
-    payload.extend_from_slice(&frame_type.to_be_bytes());
+    payload.extend_from_slice(&(tiles.len() as u32).to_be_bytes());
 
     for t in tiles {
         payload.extend_from_slice(&t.x.to_be_bytes());

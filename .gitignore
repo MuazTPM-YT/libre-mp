@@ -16,3 +16,6 @@ projectors.json
 .DS_Store
 *.orig
 *.rej
+
+# Local secrets
+.env

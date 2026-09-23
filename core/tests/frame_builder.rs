@@ -73,7 +73,7 @@ fn builder_reproduces_capture_first_frame_byte_for_byte() {
         .collect();
 
     // Client IP in the capture's EPRD header is 192.168.88.2.
-    let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, 4, false);
+    let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, false);
 
     assert_eq!(built.len(), expected.len(), "frame length mismatch");
     assert!(built == expected, "frame is not byte-identical to the Windows capture");
@@ -84,7 +84,60 @@ fn first_frame_meta_matches_capture() {
     let buf = capture();
     let dummy = [0xffu8, 0xd8, 0x00, 0xff, 0xd9];
     let tiles = [VideoTile { jpeg: &dummy, x: 0, y: 0, w: 8, h: 8, ts: 0 }];
-    let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, 4, true);
+    let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, true);
     // First 66 bytes = EPRD header (20) + META (46), independent of the tiles.
     assert_eq!(&built[..66], &buf[..66], "META display-config block mismatch vs capture");
+}
+
+// split one jpeg block payload into tiles: count, then 16-byte descriptor + jpeg each
+fn parse_tiles(p: &[u8]) -> (u32, Vec<(u16, u16, u16, u16, u32, u32, Vec<u8>)>) {
+    let count = u32::from_be_bytes(p[..4].try_into().unwrap());
+    let be16 = |i: usize| u16::from_be_bytes(p[i..i + 2].try_into().unwrap());
+    let be32 = |i: usize| u32::from_be_bytes(p[i..i + 4].try_into().unwrap());
+    let mut tiles = Vec::new();
+    let mut at = 4;
+    while at < p.len() {
+        let j = at + 16;
+        // jpeg end = ffd9 followed by payload end or next tile's ffd8
+        let mut e = j + 2;
+        loop {
+            e += p[e..].windows(2).position(|w| w == [0xff, 0xd9]).unwrap() + 2;
+            if e == p.len() || (e + 18 <= p.len() && p[e + 16..e + 18] == [0xff, 0xd8]) {
+                break;
+            }
+        }
+        tiles.push((be16(at), be16(at + 2), be16(at + 4), be16(at + 6), be32(at + 8), be32(at + 12), p[j..e].to_vec()));
+        at = e;
+    }
+    (count, tiles)
+}
+
+// every windows frame, whole and partial, rebuilt byte for byte; count field = tile count
+#[test]
+fn builder_reproduces_every_captured_frame() {
+    let buf = capture();
+    let mut at = 20 + 46; // skip first META block
+    let mut blocks = 0;
+    let mut partial = 0;
+    while at < buf.len() {
+        assert_eq!(&buf[at..at + 8], b"EPRD0600");
+        let size = u32::from_be_bytes(buf[at + 16..at + 20].try_into().unwrap()) as usize;
+        let block = &buf[at..at + 20 + size];
+        let (count, owned) = parse_tiles(&block[20..]);
+        assert_eq!(count as usize, owned.len(), "count field is the tile count");
+        assert!(owned.iter().all(|t| t.4 == 7), "descriptor flags always 7");
+        let tiles: Vec<VideoTile> = owned
+            .iter()
+            .map(|(x, y, w, h, _, ts, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h, ts: *ts })
+            .collect();
+        let covered: u32 = owned.iter().map(|t| t.2 as u32 * t.3 as u32).sum();
+        if covered < 1024 * 768 {
+            partial += 1;
+        }
+        assert!(build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, false) == block, "block {blocks} differs");
+        at += 20 + size;
+        blocks += 1;
+    }
+    assert_eq!(blocks, 105);
+    assert!(partial > 90, "windows sends mostly partial frames, got {partial}");
 }
