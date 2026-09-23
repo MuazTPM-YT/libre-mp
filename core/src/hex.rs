@@ -1,4 +1,4 @@
-/// Decodes a given hexadecimal string into a byte vector.
+// hex string to bytes
 pub fn decode(s: &str) -> Result<Vec<u8>, String> {
     if !s.len().is_multiple_of(2) {
         return Err("Odd length hex string".into());

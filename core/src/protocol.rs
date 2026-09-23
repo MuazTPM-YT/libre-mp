@@ -15,14 +15,14 @@ use std::process::Command;
 
 use crate::hex;
 
-/// Epson's Quick Connect / Simple AP address, tried last when nothing else answers.
+// epson simple ap address, tried last
 const DEFAULT_PROJECTOR_IP: Ipv4Addr = Ipv4Addr::new(192, 168, 88, 1);
 const PORT_CONTROL: u16 = 3620;
 const PORT_VIDEO: u16 = 3621;
-/// Bounded connects: a wrong address must fail in seconds, not the OS's ~2 minutes.
+// bounded connect: wrong address fail in seconds, not os ~2 min
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// EEMP commands seen in the Windows iProjection capture.
+// eemp commands seen in windows capture
 const CMD_REGISTER: u32 = 0x0002;
 const CMD_REGISTER_INFO: u32 = 0x0003;
 const CMD_REGISTER_MAC: u32 = 0x0015;
@@ -31,12 +31,7 @@ const CMD_DISCONNECT: u32 = 0x0104;
 const CMD_STATUS_QUERY: u32 = 0x010E;
 const CMD_READY: u32 = 0x0110;
 
-/// All IPv4 default gateways, in routing-table order.
-///
-/// In Epson Simple AP / Quick Connect mode the projector is the DHCP server and
-/// hands itself out as the router (confirmed in the captures), so its address is
-/// a default gateway. We return *all* of them because a laptop that is also on
-/// Ethernet or a VPN has several, and the first one is often not the projector.
+// every ipv4 default gateway, route-table order. projector often is one
 fn default_gateways() -> Vec<Ipv4Addr> {
     let mut out = Vec::new();
     #[cfg(target_os = "linux")]
@@ -73,8 +68,7 @@ fn default_gateways() -> Vec<Ipv4Addr> {
     }
     #[cfg(target_os = "windows")]
     {
-        // `route print -4` rows are numeric and locale-independent (unlike ipconfig's
-        // translated "Default Gateway" label): "0.0.0.0  0.0.0.0  192.168.88.1  192.168.88.2  35".
+        // `route print -4` rows: numeric, same in every locale
         if let Ok(o) = Command::new("route").args(["print", "-4"]).output() {
             for line in String::from_utf8_lossy(&o.stdout).lines() {
                 let cols: Vec<&str> = line.split_whitespace().collect();
@@ -89,8 +83,7 @@ fn default_gateways() -> Vec<Ipv4Addr> {
     out
 }
 
-/// Where to look for the projector: explicit address (e.g. from the QR code)
-/// first, then every default gateway, then the Epson Simple AP default.
+// where to look: given ip, then gateways, then epson default
 fn projector_candidates(override_ip: Option<Ipv4Addr>) -> Vec<Ipv4Addr> {
     let mut all: Vec<Ipv4Addr> = override_ip.into_iter().chain(default_gateways()).collect();
     all.push(DEFAULT_PROJECTOR_IP);
@@ -99,7 +92,7 @@ fn projector_candidates(override_ip: Option<Ipv4Addr>) -> Vec<Ipv4Addr> {
     all
 }
 
-/// Opens a tuned TCP connection (no Nagle, keepalive) with a bounded connect.
+// tcp connect: no nagle, keepalive, bounded
 fn open(ip: Ipv4Addr, port: u16) -> io::Result<TcpStream> {
     let s = TcpStream::connect_timeout(&SocketAddr::from((ip, port)), CONNECT_TIMEOUT)?;
     s.set_nodelay(true)?;
@@ -107,7 +100,7 @@ fn open(ip: Ipv4Addr, port: u16) -> io::Result<TcpStream> {
     Ok(s)
 }
 
-/// Single recv call — reads whatever is available right now (up to 4096).
+// one recv, whatever is there (max 4096)
 fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
     stream.set_read_timeout(Some(timeout)).ok();
     let mut buf = vec![0u8; 4096];
@@ -117,8 +110,7 @@ fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
     }
 }
 
-/// Splits a buffer into `(cmd, payload)` EEMP messages. Stops at the first
-/// non-EEMP byte; a truncated last payload is returned as far as it goes.
+// split buffer into (cmd, payload) eemp messages; stop at junk
 fn eemp_messages(data: &[u8]) -> Vec<(u32, &[u8])> {
     let mut out = Vec::new();
     let mut off = 0;
@@ -132,7 +124,7 @@ fn eemp_messages(data: &[u8]) -> Vec<(u32, &[u8])> {
     out
 }
 
-/// 20-byte EEMP header: magic, sender IP, command, payload length (LE).
+// 20-byte eemp header: magic, sender ip, cmd, len (le)
 fn eemp_header(my_ip: Ipv4Addr, cmd: u32, payload_len: u32) -> Vec<u8> {
     let mut h = Vec::with_capacity(20);
     h.extend_from_slice(b"EEMP0100");
@@ -142,7 +134,7 @@ fn eemp_header(my_ip: Ipv4Addr, cmd: u32, payload_len: u32) -> Vec<u8> {
     h
 }
 
-/// Parses a MAC written as 12 hex digits, with or without `:`/`-` separators.
+// mac from 12 hex digits, ':' or '-' allowed
 fn mac_from_hex(s: &str) -> Option<[u8; 6]> {
     let hex: String = s.chars().filter(|c| *c != ':' && *c != '-').collect();
     if hex.len() != 12 || !hex.bytes().all(|b| b.is_ascii_hexdigit()) {
@@ -157,7 +149,7 @@ fn mac_from_hex(s: &str) -> Option<[u8; 6]> {
 
 // ─── Protocol Payloads ───────────────────────────────────────────────────────
 
-/// Registration request (cmd 0x0002). Byte-identical to Windows iProjection.
+// registration (0x0002), byte-same as windows
 pub fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     let mut p = eemp_header(my_ip, CMD_REGISTER, 48);
     p.extend_from_slice(&hex::decode("007f0000b0f8ef5314000000").unwrap());
@@ -165,17 +157,16 @@ pub fn registration_payload(my_ip: Ipv4Addr) -> Vec<u8> {
     p
 }
 
-/// What the projector says about itself when we register.
+// what projector says about itself
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct ProjectorIdentity {
-    /// Projector name (cmd 0x0003), e.g. `RESEARCHLAB`.
+    // name (0x0003)
     pub name: Option<Vec<u8>>,
-    /// Projector MAC (cmd 0x0015, else cmd 0x0003) — the EasyMP auth key.
+    // mac (0x0015, else 0x0003) = easymp auth key
     pub mac: Option<[u8; 6]>,
 }
 
-/// Reads the projector's name and MAC from its registration replies. This is
-/// where the Windows client gets them, so no password or SSID guessing is needed.
+// name + mac from registration reply, like windows client
 pub fn parse_registration_response(data: &[u8]) -> ProjectorIdentity {
     let nonzero = |b: &[u8]| -> Option<[u8; 6]> {
         let m: [u8; 6] = b.try_into().ok()?;
@@ -202,20 +193,7 @@ pub fn parse_registration_response(data: &[u8]) -> ProjectorIdentity {
     id
 }
 
-/// Authentication request (cmd 0x0101). Byte-identical to Windows iProjection
-/// when `keyword` is `None`.
-///
-/// It is a TLV structure. `mac`, `proj_ip` and `name` identify the projector we
-/// are connecting to (the values it reported during registration).
-///
-/// `keyword` is the projector's 4-digit **Projector Keyword**, when that setting
-/// is on. It goes into the 16-byte field right after the MAC, which is all
-/// zeroes in our capture (that projector had the setting off).
-///
-/// ponytail: the keyword offset is inferred, not captured — the only session we
-/// have was keyword-free. If a keyword projector still refuses the connection,
-/// capture Epson iProjection connecting to it and compare the 0x0101 packet
-/// against `core/tests/handshake_snapshot.rs`. Everything else here is verified.
+// login (0x0101), byte-same as windows w/o keyword. ponytail: keyword spot from rhino pin tool, untested on keyword hardware
 pub fn auth_payload(
     my_ip: Ipv4Addr,
     proj_ip: Ipv4Addr,
@@ -259,7 +237,7 @@ pub fn auth_payload(
     p
 }
 
-/// Constructs a response to the projector's 0x010E heartbeat queries.
+// reply to projector heartbeat query 0x010E
 pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     let pcap_hex = concat!(
         "45454d5030313030c0a858020801000048010000",
@@ -293,8 +271,7 @@ pub fn response_0x0108(my_ip: Ipv4Addr) -> Vec<u8> {
     raw
 }
 
-/// Generates the initialization payload for a video-port channel
-/// (`channel` 0 = video, 1 = aux/audio).
+// video port channel init (0 = video, 1 = aux audio)
 fn video_init(my_ip: Ipv4Addr, channel: u8) -> Vec<u8> {
     let o = my_ip.octets();
     let mut p = Vec::with_capacity(36);
@@ -307,7 +284,7 @@ fn video_init(my_ip: Ipv4Addr, channel: u8) -> Vec<u8> {
     p
 }
 
-/// Generates a header for the auxiliary stream indicating the size of the following buffer.
+// aux header: 0xC9 + size
 fn aux_header(size: u32) -> Vec<u8> {
     let mut h = Vec::with_capacity(5);
     h.push(0xC9);
@@ -327,13 +304,7 @@ pub struct EpsonClient {
 }
 
 impl EpsonClient {
-    /// Runs the full EasyMP handshake.
-    ///
-    /// * `password` — only a fallback auth key (projector MAC as 12 hex digits) for
-    ///   projectors that do not report their MAC during registration.
-    /// * `ssid` — only a fallback name source (`<name>-<suffix>`).
-    /// * `proj_ip_override` — tried first (e.g. the IP from the QR code).
-    /// * `keyword` — the projector's 4-digit Projector Keyword, if it shows one.
+    // full easymp handshake. password + ssid only fallbacks; ip override tried first
     pub fn connect(
         password: &str,
         ssid: &str,
@@ -359,7 +330,7 @@ impl EpsonClient {
                 format!("no Epson projector answered on port {PORT_CONTROL} (tried {candidates:?})"),
             )
         })?;
-        // Our address on the interface that actually reaches the projector.
+        // our ip on interface that reach projector
         let my_ip = match s_reg.local_addr()?.ip() {
             IpAddr::V4(ip) => ip,
             IpAddr::V6(_) => return Err(io::Error::new(io::ErrorKind::Unsupported, "IPv6 is not supported")),
@@ -404,8 +375,7 @@ impl EpsonClient {
         let mut s_auth = open(proj_ip, PORT_CONTROL)?;
         s_auth.write_all(&auth_payload(my_ip, proj_ip, &mac, &name, keyword))?;
         let auth_resp = recv_one(&mut s_auth, Duration::from_secs(5));
-        // Status byte 51 (payload offset 30) of the 0x0102 reply is 0 on success
-        // (confirmed in the Windows capture; polarity per Rhino Security Labs).
+        // 0x0102 byte 51 (payload 30) = 0 means ok
         for (cmd, p) in eemp_messages(&auth_resp) {
             eprintln!("[+]    Auth reply cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
             if cmd == CMD_AUTH_OK && p.len() > 30 && p[30] != 0 {
@@ -483,8 +453,7 @@ impl EpsonClient {
         Ok(EpsonClient { my_ip, proj_ip, name, s_auth, s_video, s_aux })
     }
 
-    /// Says goodbye (cmd 0x0104) like the Windows client does on stop, so the
-    /// projector frees the session at once instead of waiting for a timeout.
+    // goodbye (0x0104) like windows, so projector frees session now
     pub fn disconnect(&mut self) {
         if self.s_auth.write_all(&eemp_header(self.my_ip, CMD_DISCONNECT, 0)).is_ok() {
             let _ = recv_one(&mut self.s_auth, Duration::from_secs(1)); // 0x0105
@@ -492,8 +461,7 @@ impl EpsonClient {
     }
 }
 
-/// Send one 100 ms slice of silent audio on the aux channel. The Windows client
-/// alternates 2646- and 1764-byte zero buffers every 50 ms; call this every 100 ms.
+// 100ms silent audio on aux (2646 + 1764 zero bytes); call every 100ms
 pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     s_aux.write_all(&aux_header(2646))?;
     s_aux.write_all(&[0u8; 2646])?;
@@ -502,12 +470,7 @@ pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     Ok(())
 }
 
-/// Answer pending projector heartbeat queries (0x010E) on the control channel.
-/// Unanswered, the projector resets the session after ~50 seconds.
-///
-/// Uses a non-blocking read rather than a tiny read timeout: on Windows a timed-out
-/// socket read leaves the socket in an undefined state. Returns an error when the
-/// projector has closed the control channel.
+// answer heartbeat queries or projector resets after ~50s. nonblocking read, windows timeout breaks socket
 pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) -> io::Result<()> {
     let mut buf = [0u8; 4096];
     s_auth.set_nonblocking(true)?;
@@ -527,17 +490,14 @@ pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) -> io::Result<()> {
     Ok(())
 }
 
-/// Send video frame data.
+// send video frame bytes
 pub fn send_frame(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
     stream.write_all(data)
 }
 
-// ─── Custom EPRD Frame Builder ───────────────────────────────────────────────
-// Builds frames from scratch — no template needed, no COM padding, no gray boxes.
+// ─── eprd frame builder ─────────────────────────────────────────────────────
 
-/// 46-byte display config, captured from the Windows iProjection session and
-/// verified byte-for-byte against `windows_perfect_stream.bin`. Sent once, as
-/// the very first EPRD block, before any JPEG frame.
+// 46-byte display config from windows capture, sent with whole frames
 const META_DISPLAY_CONFIG: [u8; 46] = [
     0xcc, 0x00, 0x00, 0x00, 0x04, 0x00, 0x03, 0x00,
     0x20, 0x20, 0x00, 0x01, 0xff, 0x00, 0xff, 0x00,
@@ -547,10 +507,7 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-/// The Windows client's keyframe layout at 1024x768, from `windows_perfect_stream.bin`:
-/// `(x, y, w, h, ts, jpeg_budget)`. `ts` is copied verbatim (proven on hardware).
-/// `jpeg_budget` is the JPEG size Windows used for that tile; we aim for it so the
-/// bitrate stays where the old template kept it, but never cut a JPEG to fit.
+// windows 1024x768 whole-frame tiles: (x, y, w, h, ts, jpeg size aim)
 pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
     (0, 0, 624, 416, 2429847810, 34004),
     (624, 0, 400, 416, 2430131968, 12248),
@@ -558,11 +515,7 @@ pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
     (624, 416, 400, 352, 2429283840, 14155),
 ];
 
-/// One JPEG-encoded region of a video frame, with its placement and timestamp.
-///
-/// Mirrors the 16-byte region descriptor in the EasyMP video stream:
-/// `x, y, w, h` (big-endian `u16`) + `flags` (always `0x0000_0007`) + `ts`
-/// (big-endian `u32` timestamp), immediately followed by the raw JPEG bytes.
+// one jpeg tile + place + ts (16-byte descriptor on wire)
 pub struct VideoTile<'a> {
     pub jpeg: &'a [u8],
     pub x: u16,
@@ -572,24 +525,12 @@ pub struct VideoTile<'a> {
     pub ts: u32,
 }
 
-/// Build a complete EPRD video frame from JPEG tiles, entirely from scratch.
-///
-/// This reproduces the exact wire format Windows iProjection emits, so it works
-/// at whatever resolution and tile layout the projector negotiates — unlike the
-/// frozen `windows_perfect_stream.bin` template, which is welded to a single
-/// 1024x768 / 4-tile geometry.
-///
-/// * `frame_type` — `4` = full keyframe (tiles cover the whole screen); `3` or
-///   `1` = partial delta frames carrying only changed regions.
-/// * `first_frame` — when true, prepends the one-time META display-config block.
-///
-/// Note the endianness split confirmed from the capture: the META block's size
-/// field is little-endian, the JPEG block's size field is big-endian.
+// eprd frame from jpeg tiles, byte-same as windows. count field = tile count
 pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) -> Vec<u8> {
     let ip = my_ip.octets();
     let mut buf = Vec::with_capacity(16384);
 
-    // First frame: prepend the META EPRD block (size is little-endian here).
+    // meta block first when asked (size le)
     if with_meta {
         buf.extend_from_slice(b"EPRD0600");
         buf.extend_from_slice(&ip);
@@ -598,7 +539,7 @@ pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) 
         buf.extend_from_slice(&META_DISPLAY_CONFIG);
     }
 
-    // JPEG payload: frame_type(4) + N × (16-byte region descriptor + jpeg data).
+    // payload: tile count + per tile 16-byte descriptor + jpeg
     let mut payload = Vec::new();
     payload.extend_from_slice(&(tiles.len() as u32).to_be_bytes());
 
@@ -612,7 +553,7 @@ pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) 
         payload.extend_from_slice(t.jpeg);
     }
 
-    // JPEG EPRD header (size is big-endian here).
+    // jpeg eprd header (size be)
     buf.extend_from_slice(b"EPRD0600");
     buf.extend_from_slice(&ip);
     buf.extend_from_slice(&0u32.to_be_bytes()); // msg_id
@@ -622,7 +563,7 @@ pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) 
     buf
 }
 
-/// Linux TCP keepalive
+// linux tcp keepalive
 #[cfg(target_os = "linux")]
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
@@ -646,7 +587,7 @@ fn enable_tcp_keepalive(stream: &TcpStream) {
     }
 }
 
-/// macOS TCP keepalive — uses TCP_KEEPALIVE instead of TCP_KEEPIDLE
+// macos tcp keepalive (TCP_KEEPALIVE, not KEEPIDLE)
 #[cfg(target_os = "macos")]
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use libc::{setsockopt, SOL_SOCKET, SO_KEEPALIVE, IPPROTO_TCP};
@@ -671,7 +612,7 @@ fn enable_tcp_keepalive(stream: &TcpStream) {
     }
 }
 
-/// Windows TCP keepalive
+// windows tcp keepalive
 #[cfg(target_os = "windows")]
 fn enable_tcp_keepalive(stream: &TcpStream) {
     use winapi::um::winsock2::setsockopt;

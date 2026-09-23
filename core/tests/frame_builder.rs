@@ -1,14 +1,9 @@
-//! Proves the from-scratch EPRD frame builder reproduces the real Windows
-//! iProjection video stream captured in `windows_perfect_stream.bin`.
-//!
-//! If these pass, our dynamic builder emits byte-identical frames to the
-//! proprietary Windows client for the same tiles — the foundation for streaming
-//! at arbitrary resolutions instead of the frozen 1024x768 template.
+//! eprd builder vs real windows stream capture, byte for byte
 
 use std::net::Ipv4Addr;
 use libremp_core::protocol::{build_video_frame, VideoTile};
 
-/// Locate the capture file relative to the crate (tests run with CWD = `core/`).
+// find capture file (tests run in core/)
 fn capture() -> Vec<u8> {
     for p in ["../windows_perfect_stream.bin", "windows_perfect_stream.bin"] {
         if let Ok(b) = std::fs::read(p) {
@@ -18,8 +13,7 @@ fn capture() -> Vec<u8> {
     panic!("windows_perfect_stream.bin not found at workspace root");
 }
 
-/// Parse the tiles out of the capture's first full-frame block (block 1).
-/// Returns (x, y, w, h, ts, jpeg_bytes) per tile.
+// tiles of capture block 1 (first whole frame): x, y, w, h, ts, jpeg
 fn parse_block1_tiles(buf: &[u8]) -> Vec<(u16, u16, u16, u16, u32, Vec<u8>)> {
     // Block 0 = META (66 bytes). Block 1 JPEG payload starts at 86 (66 + 20 header).
     let ps = 86usize;

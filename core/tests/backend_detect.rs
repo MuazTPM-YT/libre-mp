@@ -1,6 +1,4 @@
-//! Backend auto-detection replaces the manual "select your OS [1-4]" picker.
-//! These lock the selection logic so KDE/GNOME/wlroots Wayland all resolve to
-//! the portal path and X11 stays on the direct grabber.
+//! backend auto-pick: wayland (any desktop) to portal, x11 to direct grabber
 
 use libremp_core::capture::{select_backend, CaptureBackend};
 

@@ -1,23 +1,14 @@
-//! Draws the mouse pointer into X11 captures.
-//!
-//! XShm (and every other X11 screen grab) copies the framebuffer, which does not
-//! contain the pointer — the X server composites it separately. Without this, an
-//! X11 user presenting cannot point at anything. Windows draws the cursor with
-//! `DrawIconEx`, and on Wayland the portal embeds it, so this closes the gap.
-//!
-//! The pointer is blended into the already-downscaled RGB frame, which keeps the
-//! work tiny (a ~24px cursor) and avoids copying the full-size capture.
+//! draw mouse pointer into x11 frames (xshm grab never has it)
 
 use xcb::{x, xfixes, Connection};
 
-/// Live X11 connection used to ask the server where the pointer is and what it
-/// looks like. `None` on a display where XFixes is missing.
+// x11 link for pointer place + look; none if no xfixes
 pub struct CursorSource {
     conn: Connection,
 }
 
 impl CursorSource {
-    /// Connects to the X display and enables XFixes.
+    // connect display, enable xfixes
     pub fn new() -> Option<Self> {
         let (conn, _) = Connection::connect_with_extensions(None, &[xcb::Extension::XFixes], &[]).ok()?;
         // XFixes requires a version handshake before any other request.
@@ -29,9 +20,7 @@ impl CursorSource {
         Some(CursorSource { conn })
     }
 
-    /// Blends the pointer into an RGB frame of `dw` x `dh` that was downscaled
-    /// from a screen of `sw` x `sh`. Silently does nothing if the server has no
-    /// cursor to report (e.g. the pointer is on another screen).
+    // blend pointer into downscaled rgb frame; no cursor = no-op
     pub fn draw_into_rgb(&self, dst: &mut [u8], dw: u32, dh: u32, sw: u32, sh: u32) {
         let Some(c) = self.cursor() else { return };
         if sw == 0 || sh == 0 || c.w == 0 || c.h == 0 {
@@ -102,8 +91,7 @@ type _X = x::Window;
 
 #[cfg(test)]
 mod tests {
-    /// The blend maths, checked without an X server: a fully opaque white pixel
-    /// must overwrite, and a transparent one must leave the frame untouched.
+    // blend math w/o x server: opaque overwrites, transparent leaves frame
     #[test]
     fn premultiplied_blend_is_src_over() {
         let blend = |src: u32, a: u32, dst: u8| -> u8 {

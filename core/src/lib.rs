@@ -1,4 +1,4 @@
-//! libremp-core: shared discovery, protocol, capture, and framing logic.
+//! libremp-core: epson protocol, capture, cast loop, wi-fi, qr, saved projectors
 
 pub mod hex;
 pub mod wifi;
@@ -12,9 +12,9 @@ pub mod config;
 pub mod qr;
 pub mod session;
 
-/// Streaming frame width negotiated with Epson projectors.
+// stream width epson wants
 pub const STREAM_W: u32 = 1024;
-/// Streaming frame height negotiated with Epson projectors.
+// stream height epson wants
 pub const STREAM_H: u32 = 768;
-/// Baseline JPEG quality before per-tile adaptive downscaling.
+// jpeg quality before per-tile step-down
 pub const JPEG_QUALITY: i32 = 95;

@@ -1,6 +1,4 @@
-//! Diagnostic: capture one frame exactly as the projector would receive it and
-//! save it as a PNG. Use it to check screen capture on a desktop without a
-//! projector: `cargo run --release -p libremp-core --example portal_probe out.png`
+//! grab one frame like projector gets it, save png: cargo run --release -p libremp-core --example portal_probe out.png
 fn main() {
     #[cfg(target_os = "linux")]
     {

@@ -1,5 +1,4 @@
-/* libremp look: apple system colours, one accent, solid surfaces, calm motion.
-   only transform + opacity move; enter 200ms, leave 150ms; hover behind real pointer. */
+/* libremp look: apple colours, one accent, solid surfaces; only transform + opacity move, enter 200ms, leave 150ms */
 
 :root {
   --bg: #f5f5f7;

@@ -1,18 +1,4 @@
-//! Wayland screen capture: xdg-desktop-portal ScreenCast + PipeWire.
-//!
-//! Why this exists instead of `xcap`'s recorder:
-//!
-//! 1. **The mouse pointer.** The portal hides it unless the session asks for
-//!    `cursor_mode = EMBEDDED`. A presentation without a pointer is useless, so
-//!    we ask for it. (The Windows GDI path draws the cursor for the same reason.)
-//! 2. **No X11.** `xcap::Monitor::all()` talks XCB, so it fails on a Wayland
-//!    session with XWayland switched off. The portal picks the output itself, so
-//!    nothing here needs an X server.
-//! 3. **Remembering the choice.** With `persist_mode` the compositor hands back a
-//!    restore token, so the second run casts without asking again.
-//!
-//! This works on any desktop with a portal backend: KDE, GNOME, wlroots
-//! (Hyprland/Sway), and anything else implementing `org.freedesktop.portal.ScreenCast`.
+//! wayland capture: portal screencast + pipewire by hand, for pointer, no x11, remembered choice
 
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -40,12 +26,11 @@ use zbus::{
     zvariant::{DeserializeDict, OwnedObjectPath, Type, Value},
 };
 
-/// Why a screen share could not start.
+// why share could not start
 pub enum PortalError {
-    /// The user said no (or closed the dialog). Falling back to another capture
-    /// method would project a black screen, so callers must give up instead.
+    // user said no. other grabbers give black screen, so stop
     Cancelled,
-    /// No portal, no PipeWire, or the desktop failed — another method may work.
+    // no portal / pipewire, or desktop failed; other grabber may work
     Unavailable(String),
 }
 
@@ -64,7 +49,7 @@ impl From<String> for PortalError {
     }
 }
 
-/// One captured frame, tightly packed RGBA.
+// one frame, packed rgba
 pub struct PortalFrame {
     pub width: u32,
     pub height: u32,
@@ -99,12 +84,11 @@ struct StartResponse {
 #[zvariant(signature = "dict")]
 struct EmptyResponse {}
 
-/// A running screen-share session. Dropping it stops the PipeWire loop.
+// live share session; drop stops pipewire loop
 pub struct PortalStream {
     latest: Arc<Mutex<Option<PortalFrame>>>,
     quit: pipewire::channel::Sender<()>,
-    /// The portal ties the session to this D-Bus connection: drop it and the
-    /// compositor closes the session, so it must outlive the stream.
+    // session tied to this dbus connection; must outlive stream
     _conn: Connection,
 }
 
@@ -115,8 +99,7 @@ impl Drop for PortalStream {
 }
 
 impl PortalStream {
-    /// Asks the desktop to share a screen, then starts receiving frames.
-    /// Blocks while the user answers the portal dialog.
+    // ask desktop to share screen, start frames. blocks on dialog
     pub fn start() -> Result<Self, PortalError> {
         let conn = Connection::session().map_err(|e| format!("no session D-Bus: {e}"))?;
         let proxy = Proxy::new(
@@ -141,8 +124,7 @@ impl PortalStream {
             .and_then(|s| s.first().map(|(id, _)| *id))
             .ok_or_else(|| "the desktop shared no screen".to_string())?;
 
-        // Portal-created nodes live on the PipeWire connection the portal hands
-        // us, not on the session's default one.
+        // portal nodes live on portal's pipewire fd, not default one
         let fd = open_pipewire_remote(&proxy, &session)?;
 
         let latest = Arc::new(Mutex::new(None));
@@ -150,13 +132,13 @@ impl PortalStream {
         Ok(PortalStream { latest, quit, _conn: conn })
     }
 
-    /// The newest frame since the last call, or `None` if nothing changed.
+    // newest frame since last call
     pub fn take_latest(&self) -> Option<PortalFrame> {
         self.latest.lock().ok()?.take()
     }
 }
 
-/// Turns the internal cancellation marker into the typed error.
+// cancel marker to typed error
 fn classify(e: String) -> PortalError {
     if e == CANCELLED {
         PortalError::Cancelled
@@ -167,15 +149,14 @@ fn classify(e: String) -> PortalError {
 
 // ─── Portal (D-Bus) ─────────────────────────────────────────────────────────
 
-/// Portal request/session handle tokens only have to be unique per connection.
+// handle tokens only need unique per connection
 fn token(kind: &str) -> String {
     use std::sync::atomic::{AtomicU32, Ordering};
     static N: AtomicU32 = AtomicU32::new(0);
     format!("libremp_{kind}_{}_{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed))
 }
 
-/// Proxy for the `Request` object a portal call will answer on. Created (and its
-/// signal match registered) *before* the call, so the reply cannot be missed.
+// request proxy made before call, so reply not missed
 fn request_proxy(conn: &Connection, handle_token: &str) -> Result<Proxy<'static>, String> {
     let unique = conn
         .unique_name()
@@ -191,10 +172,10 @@ fn request_proxy(conn: &Connection, handle_token: &str) -> Result<Proxy<'static>
     .map_err(|e| format!("portal request proxy: {e}"))
 }
 
-/// Marker the portal helpers use to report "the user said no" through `String`.
+// marker for 'user said no' through String
 const CANCELLED: &str = "@cancelled";
 
-/// Blocks until the portal answers, then decodes the reply.
+// block till portal answer, decode reply
 fn wait_response<T>(signals: &mut zbus::blocking::proxy::SignalIterator<'_>) -> Result<T, String>
 where
     T: for<'de> serde::Deserialize<'de> + Type,
@@ -282,7 +263,7 @@ fn start_session(
     wait_response(&mut signals)
 }
 
-/// The portal's own PipeWire connection.
+// portal's own pipewire connection
 fn open_pipewire_remote(
     proxy: &Proxy<'_>,
     session: &OwnedObjectPath,
@@ -294,7 +275,7 @@ fn open_pipewire_remote(
     Ok(fd.into())
 }
 
-/// Where the compositor's "share this screen again" token is kept.
+// where 'share again' token lives
 fn restore_token_path() -> Option<std::path::PathBuf> {
     Some(crate::config::config_path()?.with_file_name("screencast_token"))
 }
@@ -316,7 +297,7 @@ fn save_restore_token(token: &str) {
 
 // ─── PipeWire ───────────────────────────────────────────────────────────────
 
-/// Runs the PipeWire loop on its own thread, storing the newest frame.
+// pipewire loop on own thread, keep newest frame
 fn spawn_pipewire(
     fd: std::os::fd::OwnedFd,
     node_id: u32,
@@ -430,7 +411,7 @@ fn spawn_pipewire(
     Ok(quit_tx)
 }
 
-/// The formats we accept. The compositor picks one of them.
+// formats we accept; compositor picks
 fn format_pod() -> pod::Object {
     pod::object!(
         SpaTypes::ObjectParamFormat,
@@ -470,8 +451,7 @@ fn format_pod() -> pod::Object {
     )
 }
 
-/// Converts one PipeWire buffer into tightly packed RGBA, honouring the row
-/// stride (which is often wider than the image on real hardware).
+// pipewire buffer to packed rgba, honour stride
 fn to_rgba(bytes: &[u8], stride: usize, width: u32, height: u32, format: VideoFormat) -> Option<PortalFrame> {
     let (w, h) = (width as usize, height as usize);
     if w == 0 || h == 0 {
@@ -513,8 +493,7 @@ fn to_rgba(bytes: &[u8], stride: usize, width: u32, height: u32, format: VideoFo
 mod tests {
     use super::*;
 
-    /// Stride padding and byte order are the two things that silently produce a
-    /// skewed or blue-tinted projection, so pin them down.
+    // stride padding + byte order silently break picture, so pin them
     #[test]
     fn converts_padded_bgrx_rows_to_rgba() {
         // 2x2 image, stride padded by 4 bytes per row. Pixels are BGRx.

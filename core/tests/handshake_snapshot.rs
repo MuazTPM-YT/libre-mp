@@ -1,7 +1,4 @@
-//! Locks the control-channel handshake to the real Windows iProjection session
-//! (the `test.pcap` capture: client 192.168.88.2 -> RESEARCHLAB at 192.168.88.1).
-//! Every byte below was sent or received by Epson's own Windows client, so a
-//! byte-identical match means we speak exactly what the projector expects.
+//! handshake bytes locked to real windows session (test.pcap); real mac swapped for fake
 
 use std::net::Ipv4Addr;
 use libremp_core::protocol::{
@@ -51,8 +48,7 @@ fn auth_matches_windows_byte_for_byte() {
 
 #[test]
 fn auth_tag_0x0b_does_not_depend_on_name_length() {
-    // 0x0B at byte 142 is a TLV tag, not the name length. It happened to equal
-    // len("RESEARCHLAB") = 11, which hid the bug; other names must not change it.
+    // 0x0B at byte 142 is tlv tag, not name length (len RESEARCHLAB = 11 hid it)
     let p = auth_payload(MY_IP, PROJ_IP, &MAC, b"EBC0E9E5", None);
     assert_eq!(p.len(), 264);
     assert_eq!(&p[142..146], &[0x0b, 0, 0, 0]);

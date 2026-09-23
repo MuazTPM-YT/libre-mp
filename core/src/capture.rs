@@ -2,32 +2,22 @@ use turbojpeg::{Compressor, Image, PixelFormat, Subsamp};
 
 use crate::{STREAM_W, STREAM_H, JPEG_QUALITY};
 
-// ─── Capture Backend Auto-Detection ────────────────────────────────────────
-//
-// Replaces the manual "select your OS [1-4]" prompt. The right screen-grab API
-// is fully determined by the OS and, on Linux, the session type — so we detect
-// it instead of asking. Crucially, Wayland resolves to the xdg-desktop-portal
-// path, which works on KDE, GNOME, and wlroots alike (unlike `grim`, which only
-// works on wlroots compositors).
+// ─── backend pick ───────────────────────────────────────────────────────────
 
-/// The screen-capture backend chosen for the current environment.
+// which screen grabber this os + session need
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum CaptureBackend {
-    /// Windows: GDI BitBlt (with cursor).
+    // windows: gdi bitblt, cursor in
     WindowsGdi,
-    /// macOS: CoreGraphics (via `scrap`).
+    // macos: coregraphics via scrap
     MacCoreGraphics,
-    /// Linux/BSD on X11: XShm (via `scrap`).
+    // x11: xshm via scrap
     LinuxX11,
-    /// Linux/BSD on Wayland: xdg-desktop-portal ScreenCast + PipeWire.
+    // wayland: portal screencast + pipewire
     LinuxWaylandPortal,
 }
 
-/// Pure backend selection from environment signals. Separated from the real
-/// environment lookups so it can be unit-tested deterministically.
-///
-/// `os` is `std::env::consts::OS`; the remaining args come from the
-/// `XDG_SESSION_TYPE` and `WAYLAND_DISPLAY` environment variables.
+// pure pick from os + session env, so testable
 pub fn select_backend(
     os: &str,
     session_type: Option<&str>,
@@ -36,7 +26,7 @@ pub fn select_backend(
     match os {
         "windows" => CaptureBackend::WindowsGdi,
         "macos" => CaptureBackend::MacCoreGraphics,
-        // Linux, FreeBSD, and other unixes share the same X11/Wayland split.
+        // linux, bsd: same x11 / wayland split
         _ => {
             let is_wayland = matches!(session_type, Some(s) if s.eq_ignore_ascii_case("wayland"))
                 || wayland_display.map(|d| !d.is_empty()).unwrap_or(false);
@@ -49,7 +39,7 @@ pub fn select_backend(
     }
 }
 
-/// Auto-detect the capture backend for the current process.
+// pick backend for this process
 pub fn detect_backend() -> CaptureBackend {
     let session_type = std::env::var("XDG_SESSION_TYPE").ok();
     let wayland_display = std::env::var("WAYLAND_DISPLAY").ok();
@@ -60,14 +50,9 @@ pub fn detect_backend() -> CaptureBackend {
     )
 }
 
-// ─── xcap Grabber (universal; used for Wayland: KDE / GNOME / wlroots) ──────
-//
-// One screenshot per call. On X11 this is a fast XGetImage; on Wayland xcap goes
-// through GNOME Shell / the Screenshot portal / wlroots screencopy, which is slow,
-// so on Wayland this is only the fallback behind `PipeWireGrabber`.
+// ─── xcap grabber (last resort) ─────────────────────────────────────────────
 
-/// Stateful screen grabber backed by `xcap`. Holds the monitor handle so the
-/// portal/PipeWire session is negotiated once and reused across frames.
+// xcap grabber, keeps monitor handle between frames
 pub struct XcapGrabber {
     monitor: Option<xcap::Monitor>,
 }
@@ -83,7 +68,7 @@ impl XcapGrabber {
         XcapGrabber { monitor: None }
     }
 
-    /// Ensure a monitor handle exists; returns false if none can be acquired.
+    // get monitor handle; false if none
     fn ensure_monitor(&mut self) -> bool {
         if self.monitor.is_some() {
             return true;
@@ -97,8 +82,7 @@ impl XcapGrabber {
         }
     }
 
-    /// Capture the primary monitor as RGB at `STREAM_W` x `STREAM_H`.
-    /// Returns `None` on failure (caller should retry).
+    // grab main monitor as rgb at stream size; none = retry
     pub fn capture_rgb(&mut self) -> Option<Vec<u8>> {
         if !self.ensure_monitor() {
             return None;
@@ -107,8 +91,7 @@ impl XcapGrabber {
         let rgba = match monitor.capture_image() {
             Ok(img) => img,
             Err(_) => {
-                // Drop the handle so the next call re-acquires (e.g. after a
-                // monitor hotplug or portal-session drop).
+                // drop handle so next call re-acquires (hotplug, portal drop)
                 self.monitor = None;
                 return None;
             }
@@ -119,7 +102,7 @@ impl XcapGrabber {
         Some(resized.to_rgb8().into_raw())
     }
 
-    /// Construct only if at least one monitor can be enumerated.
+    // build only if a monitor exists
     pub fn try_new() -> Option<Self> {
         let mut g = XcapGrabber::new();
         if g.ensure_monitor() {
@@ -130,8 +113,7 @@ impl XcapGrabber {
     }
 }
 
-/// Encode an interleaved RGB buffer to JPEG (fast, via turbojpeg). Used to
-/// stream live camera frames to the UI as `data:` images.
+// rgb to jpeg via turbojpeg, for camera preview
 pub fn encode_jpeg(rgb: &[u8], w: u32, h: u32, quality: i32) -> Option<Vec<u8>> {
     if rgb.len() < (w as usize) * (h as usize) * 3 {
         return None;
@@ -161,19 +143,13 @@ pub fn decode_jpeg_rgb(jpeg: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
     Some((w as u32, h as u32, rgb))
 }
 
-// ─── Unified capture: one trait, an ordered fallback chain per platform ─────
-//
-// Every OS/desktop in the support matrix reduces to a display server (X11 vs
-// Wayland) plus, on Wayland, a portal backend. We don't special-case distros —
-// we pick the proven grabber for the detected environment and, if it can't
-// initialize, fall through to the next. `xcap` (portal/PipeWire) is the
-// universal fallback that works even when the fast path is unavailable.
+// ─── one trait, fallback chain per os ───────────────────────────────────────
 
-/// Yields RGB frames at `STREAM_W` x `STREAM_H`.
+// gives rgb frames at stream size
 pub trait FrameGrabber {
-    /// Grab one frame. `None` = transient failure; the caller should retry.
+    // one frame; none = try again
     fn grab(&mut self) -> Option<Vec<u8>>;
-    /// Human-readable backend name, for diagnostics.
+    // backend name for logs
     fn name(&self) -> &'static str;
 }
 
@@ -186,9 +162,7 @@ impl FrameGrabber for XcapGrabber {
     }
 }
 
-/// Wayland: a live screen-share stream (portal ScreenCast + PipeWire), with the
-/// mouse pointer drawn in. See [`crate::screencast`] for why we drive the portal
-/// ourselves instead of using `xcap`'s recorder.
+// wayland grabber: portal screencast + pipewire, pointer drawn in
 #[cfg(target_os = "linux")]
 pub struct PipeWireGrabber {
     stream: crate::screencast::PortalStream,
@@ -197,7 +171,7 @@ pub struct PipeWireGrabber {
 
 #[cfg(target_os = "linux")]
 impl PipeWireGrabber {
-    /// Starts the screen-share session (shows the desktop's share dialog).
+    // start share session (desktop may show share dialog)
     pub fn try_new() -> Result<Self, crate::screencast::PortalError> {
         crate::screencast::PortalStream::start().map(|stream| PipeWireGrabber { stream, last: None })
     }
@@ -206,12 +180,11 @@ impl PipeWireGrabber {
 #[cfg(target_os = "linux")]
 impl FrameGrabber for PipeWireGrabber {
     fn grab(&mut self) -> Option<Vec<u8>> {
-        // PipeWire only sends a frame when the screen changes, so keep the newest
-        // one and repeat it while nothing moves.
+        // pipewire only sends on change, so repeat newest
         if let Some(f) = self.stream.take_latest() {
             self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
         } else if self.last.is_none() {
-            // First frame: give the compositor a moment to deliver one.
+            // first frame: give compositor a moment
             std::thread::sleep(std::time::Duration::from_millis(50));
             if let Some(f) = self.stream.take_latest() {
                 self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
@@ -224,12 +197,12 @@ impl FrameGrabber for PipeWireGrabber {
     }
 }
 
-/// Fast direct grabber for X11 (XShm) and macOS (CoreGraphics), via `scrap`.
+// fast grabber for x11 (xshm) + macos (coregraphics) via scrap
 pub struct ScrapGrabber {
     capturer: scrap::Capturer,
     w: u32,
     h: u32,
-    /// X11 hands over the screen without the mouse pointer, so we draw it in.
+    // x11 frames lack pointer, so we draw it
     #[cfg(target_os = "linux")]
     cursor: Option<crate::x11_cursor::CursorSource>,
 }
@@ -252,7 +225,7 @@ impl ScrapGrabber {
 
 impl FrameGrabber for ScrapGrabber {
     fn grab(&mut self) -> Option<Vec<u8>> {
-        // scrap returns WouldBlock until the compositor delivers a frame.
+        // scrap says wouldblock till compositor has frame
         for _ in 0..100 {
             match self.capturer.frame() {
                 Ok(frame) => {
@@ -277,7 +250,7 @@ impl FrameGrabber for ScrapGrabber {
     }
 }
 
-/// Windows GDI grabber (captures the cursor). Windows-only.
+// windows gdi grabber, cursor in
 #[cfg(windows)]
 pub struct GdiGrabber;
 
@@ -298,11 +271,7 @@ impl FrameGrabber for GdiGrabber {
     }
 }
 
-/// Build the best available grabber for the current environment, trying proven
-/// backends in priority order and falling through to `xcap` if needed.
-///
-/// Fails only when the user refuses screen sharing: every fallback would then
-/// project a black screen, so it is kinder to stop and say why.
+// best grabber for this env in proven order, xcap last. err only when user refuse share
 pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
     let backend = detect_backend();
     eprintln!("[*] Capture: {:?} session detected", backend);
@@ -331,8 +300,7 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
     #[cfg(not(any(windows, target_os = "macos")))]
     {
         match backend {
-            // Wayland: the portal is the only correct primary; scrap can still
-            // work under XWayland as a fallback.
+            // wayland: portal first; scrap under xwayland as fallback
             CaptureBackend::LinuxWaylandPortal => {
                 #[cfg(target_os = "linux")]
                 match PipeWireGrabber::try_new() {
@@ -345,11 +313,10 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
                     }
                     Err(e) => eprintln!("[*] Screen sharing unavailable: {e}"),
                 }
-                // Then XWayland, and only last the screenshot-per-frame path
-                // (on KDE/GNOME that one can ask permission for every frame).
+                // then xwayland; screenshot-per-frame last (kde/gnome may ask every frame)
                 first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
             }
-            // X11: fast direct grabber first, portal as fallback.
+            // x11: direct grabber first, portal fallback
             _ => {
                 first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
             }
@@ -360,15 +327,14 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
     Ok(Box::new(XcapGrabber::new()))
 }
 
-// ─── High-Performance BGRA Resizer ─────────────────────────────────────────
+// ─── bgra resize ────────────────────────────────────────────────────────────
 
-/// Resizes a BGRA image and converts it to RGB simultaneously.
+// resize bgra to rgb in one pass
 pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
     resize_4ch_to_rgb(src, sw, sh, dw, dh, [2, 1, 0])
 }
 
-/// Nearest-neighbour resize of a 4-channel image to RGB. `rgb` gives the source
-/// byte offsets of R, G and B within each pixel.
+// nearest-neighbour resize 4-channel to rgb; `rgb` = r, g, b byte offsets
 fn resize_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32, rgb: [usize; 3]) -> Vec<u8> {
     let mut dst = vec![0u8; (dw * dh * 3) as usize];
     let sw_usize = sw as usize;
@@ -388,7 +354,7 @@ fn resize_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32, rgb: [usize
     dst
 }
 
-/// Extracts a bounded rectangular tile from the main RGB screen buffer.
+// copy one tile out of screen rgb
 fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let sw = STREAM_W;
     let sh = STREAM_H;
@@ -412,7 +378,7 @@ fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     rgb_buf
 }
 
-/// Encode a tile, adaptively reducing quality until JPEG fits in max_size.
+// encode tile, drop quality till jpeg fits max_size
 pub fn encode_tile_adaptive(
     screen: &[u8],
     x: u16,
@@ -453,10 +419,10 @@ pub fn encode_tile_adaptive(
     }
 }
 
-// ─── Windows GDI Capture (with cursor) ────────────────────────────────────
+// ─── windows gdi capture ────────────────────────────────────────────────────
 
 #[cfg(windows)]
-/// Captures the screen on Windows using GDI, including the mouse cursor.
+// windows screen via gdi, cursor drawn in
 pub fn capture_windows() -> Option<Vec<u8>> {
     use std::ptr::null_mut;
     use winapi::um::wingdi::{
@@ -561,7 +527,7 @@ pub fn capture_windows() -> Option<Vec<u8>> {
     }
 }
 #[cfg(not(windows))]
-/// Dummy implementation of Windows screen capture for non-Windows platforms.
+// non-windows stub
 pub fn capture_windows() -> Option<Vec<u8>> {
     None
 }
