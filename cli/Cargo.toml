@@ -9,4 +9,4 @@ path = "src/main.rs"
 
 [dependencies]
 libremp-core = { path = "../core" }
-ctrlc = { version = "3", features = ["termination"] }
+ctrlc = { version = "~3.5.2", features = ["termination"] }
