@@ -149,6 +149,18 @@ pub fn encode_jpeg(rgb: &[u8], w: u32, h: u32, quality: i32) -> Option<Vec<u8>> 
     comp.compress_to_vec(image).ok()
 }
 
+// jpeg bytes (camera mjpeg frame) to rgb. same libjpeg-turbo as streamer, no second jpeg lib
+pub fn decode_jpeg_rgb(jpeg: &[u8]) -> Option<(u32, u32, Vec<u8>)> {
+    let img = turbojpeg::decompress(jpeg, PixelFormat::RGB).ok()?;
+    let (w, h) = (img.width, img.height);
+    let rgb = if img.pitch == w * 3 {
+        img.pixels
+    } else {
+        img.pixels.chunks(img.pitch).flat_map(|row| &row[..w * 3]).copied().collect()
+    };
+    Some((w as u32, h as u32, rgb))
+}
+
 // ─── Unified capture: one trait, an ordered fallback chain per platform ─────
 //
 // Every OS/desktop in the support matrix reduces to a display server (X11 vs
@@ -428,7 +440,7 @@ pub fn encode_tile_adaptive(
         let _ = comp.set_quality(quality);
         let _ = comp.set_subsamp(Subsamp::Sub2x2); // 4:2:0 required
 
-        let jpeg = comp.compress_to_vec(image.clone()).unwrap_or_default();
+        let jpeg = comp.compress_to_vec(image).unwrap_or_default();
 
         if jpeg.len() <= max_size || quality <= 5 {
             return jpeg;

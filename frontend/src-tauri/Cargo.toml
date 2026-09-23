@@ -22,13 +22,12 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-regex = "1.12.3"
-lazy_static = "1.5.0"
 tokio = { version = "1", features = ["full"] }
 libremp-core = { path = "../../core" }
 # Native camera capture for live QR scanning (V4L2 / AVFoundation / MediaFoundation).
 # Deliberately NOT the webview getUserMedia path, which segfaults WebKitGTK.
-nokhwa = { version = "0.10", features = ["input-native"] }
+# No default features: its mozjpeg clashes with core's libjpeg-turbo at link time. MJPEG is decoded by core instead.
+nokhwa = { version = "0.10", default-features = false, features = ["input-native"] }
 # Encode camera frames as data: URLs to stream a live preview into an <img>.
 base64 = "0.22"
 

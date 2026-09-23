@@ -89,8 +89,11 @@ fn first_frame_meta_matches_capture() {
     assert_eq!(&built[..66], &buf[..66], "META display-config block mismatch vs capture");
 }
 
+// x, y, w, h, flags, ts, jpeg
+type Tile = (u16, u16, u16, u16, u32, u32, Vec<u8>);
+
 // split one jpeg block payload into tiles: count, then 16-byte descriptor + jpeg each
-fn parse_tiles(p: &[u8]) -> (u32, Vec<(u16, u16, u16, u16, u32, u32, Vec<u8>)>) {
+fn parse_tiles(p: &[u8]) -> (u32, Vec<Tile>) {
     let count = u32::from_be_bytes(p[..4].try_into().unwrap());
     let be16 = |i: usize| u16::from_be_bytes(p[i..i + 2].try_into().unwrap());
     let be32 = |i: usize| u32::from_be_bytes(p[i..i + 4].try_into().unwrap());

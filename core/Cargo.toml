@@ -15,6 +15,8 @@ quircs = "0.10"
 # direct grabber for X11/macOS. Both are used with a fallback chain.
 xcap = "0.9.3"
 image = "0.25"
+# Saved Wi-Fi passwords live in the OS keychain (Secret Service, Keychain, Credential Manager).
+keyring = "~4.2"
 scrap = "0.5.0"
 
 [target.'cfg(unix)'.dependencies]

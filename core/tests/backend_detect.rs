@@ -52,3 +52,15 @@ fn freebsd_shares_the_linux_split() {
     assert_eq!(select_backend("freebsd", Some("wayland"), None), CaptureBackend::LinuxWaylandPortal);
     assert_eq!(select_backend("freebsd", Some("x11"), None), CaptureBackend::LinuxX11);
 }
+
+// camera mjpeg decode: encode known rgb, decode back, same size and near same color
+#[test]
+fn jpeg_roundtrip_for_camera_frames() {
+    let (w, h) = (64u32, 48u32);
+    let rgb: Vec<u8> = (0..w * h).flat_map(|_| [200u8, 40, 90]).collect();
+    let jpeg = libremp_core::capture::encode_jpeg(&rgb, w, h, 90).unwrap();
+    let (dw, dh, back) = libremp_core::capture::decode_jpeg_rgb(&jpeg).unwrap();
+    assert_eq!((dw, dh, back.len()), (w, h, rgb.len()));
+    assert!(back.iter().zip(&rgb).all(|(a, b)| a.abs_diff(*b) < 12));
+    assert!(libremp_core::capture::decode_jpeg_rgb(b"not a jpeg").is_none());
+}

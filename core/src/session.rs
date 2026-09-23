@@ -21,8 +21,9 @@ const CELL: usize = 32;
 // biggest tile windows client ever sends
 const MAX_TILE_W: u16 = 624;
 const MAX_TILE_H: u16 = 416;
-// past this many parts or this much area, whole picture is cheaper
+// parts merged down to this many; past NOISE parts or this much area, whole picture is cheaper
 const MAX_RECTS: usize = 8;
+const NOISE_RECTS: usize = 64;
 const MAX_PARTIAL_AREA: f32 = 0.6;
 
 // what to cast to
@@ -234,7 +235,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                 return format!("{e}");
             }
             sent += 1;
-            if sent <= 5 || sent % 100 == 0 {
+            if sent <= 5 || sent.is_multiple_of(100) {
                 let total_ms = t0.elapsed().as_millis().max(1);
                 eprintln!(
                     "  Frame {sent}: {} cap={}ms enc={}ms send={}ms ({}KB)",
@@ -320,18 +321,39 @@ pub fn dirty_rects(prev: &[u8], cur: &[u8]) -> Option<Vec<Rect>> {
     let px = |v: usize| (v * CELL) as u16;
     let mut rects: Vec<Rect> =
         done.iter().map(|&(c0, c1, r0, r1)| Rect { x: px(c0), y: px(r0), w: px(c1 - c0), h: px(r1 - r0) }).collect();
-    let area = |rs: &[Rect]| rs.iter().map(|r| r.w as f32 * r.h as f32).sum::<f32>() / (w * h) as f32;
-    if rects.len() > MAX_RECTS {
-        let x0 = rects.iter().map(|r| r.x).min()?;
-        let y0 = rects.iter().map(|r| r.y).min()?;
-        let x1 = rects.iter().map(|r| r.x + r.w).max()?;
-        let y1 = rects.iter().map(|r| r.y + r.h).max()?;
-        rects = vec![Rect { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }];
+    if rects.len() > NOISE_RECTS {
+        return None;
     }
-    if area(&rects) > MAX_PARTIAL_AREA {
+    // ponytail: greedy o(n^3) merge, fine at <=64 parts; smarter packing if tiles ever matter more
+    while rects.len() > MAX_RECTS {
+        let mut best = (0, 1, u32::MAX);
+        for i in 0..rects.len() {
+            for j in i + 1..rects.len() {
+                let waste = rect_area(&union(&rects[i], &rects[j])).saturating_sub(rect_area(&rects[i]) + rect_area(&rects[j]));
+                if waste < best.2 {
+                    best = (i, j, waste);
+                }
+            }
+        }
+        let merged = union(&rects[best.0], &rects[best.1]);
+        rects.swap_remove(best.1);
+        rects[best.0] = merged;
+    }
+    if rects.iter().map(rect_area).sum::<u32>() as f32 > MAX_PARTIAL_AREA * (w * h) as f32 {
         return None;
     }
     Some(rects.iter().flat_map(split_tile).collect())
+}
+
+// pixel count of rect
+fn rect_area(r: &Rect) -> u32 {
+    r.w as u32 * r.h as u32
+}
+
+// smallest rect covering both
+fn union(a: &Rect, b: &Rect) -> Rect {
+    let (x, y) = (a.x.min(b.x), a.y.min(b.y));
+    Rect { x, y, w: (a.x + a.w).max(b.x + b.w) - x, h: (a.y + a.h).max(b.y + b.h) - y }
 }
 
 // cut rect into tiles no bigger than windows client sends
@@ -408,14 +430,41 @@ mod tests {
         assert_eq!(dirty_rects(&blank(), &cur), None);
     }
 
-    // many spots fold into one bounding part
+    // many spots merge down to few parts that still cover every spot
     #[test]
-    fn many_spots_fold() {
+    fn many_spots_merge() {
         let mut cur = blank();
         for i in 0..10 {
             paint(&mut cur, i * 64, 300, 4, 4);
         }
-        assert_eq!(dirty_rects(&blank(), &cur), Some(vec![Rect { x: 0, y: 288, w: 608, h: 32 }]));
+        let r = dirty_rects(&blank(), &cur).unwrap();
+        assert_eq!(r.len(), MAX_RECTS);
+        assert!((0..10).all(|i| r.iter().any(|p| p.x as usize <= i * 64 && i * 64 < (p.x + p.w) as usize && p.y == 288)));
+        assert_eq!(r.iter().map(rect_area).sum::<u32>(), 12 * 32 * 32);
+    }
+
+    // far corners stay two small parts, not one giant box
+    #[test]
+    fn corners_stay_small() {
+        let mut cur = blank();
+        for i in 0..6 {
+            paint(&mut cur, 10 + i * 64, 10, 4, 4);
+            paint(&mut cur, 1000 - i * 64, 740, 4, 4);
+        }
+        let r = dirty_rects(&blank(), &cur).unwrap();
+        assert!(r.iter().map(rect_area).sum::<u32>() < 20 * 32 * 32, "{r:?}");
+    }
+
+    // screen full of noise sends whole frame
+    #[test]
+    fn noise_is_full() {
+        let mut cur = blank();
+        for r in 0..24 {
+            for c in (0..32).step_by(2) {
+                paint(&mut cur, c * 32, r * 32, 2, 2);
+            }
+        }
+        assert_eq!(dirty_rects(&blank(), &cur), None);
     }
 
     // wide part cut at windows tile limits, all 16-aligned

@@ -4,6 +4,7 @@ import {
   RefreshCw, RotateCcw, Cast, Trash2, MonitorPlay, Radio,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import './index.css';
 
 import { SettingsModal, type AppSettings, defaultSettings } from './components/SettingsModal';
@@ -40,8 +41,11 @@ interface WifiNetwork {
 interface SavedProjector {
   name: string;
   ssid: string;
-  password: string;
   ip: string;
+}
+
+interface CastEnd {
+  error: { kind: 'capture' | 'rejected' | 'unreachable'; message: string } | null;
 }
 
 // Epson SSIDs are `<projector name>-<random suffix>`; the name itself may contain '-'.
@@ -182,7 +186,7 @@ function App() {
     async (name: string, ssid: string, password: string, ip: string) => {
       setStatusDetail('Starting cast…');
       stoppingRef.current = false;
-      await invoke('start_casting_async', { ssid, password, ip: ip || null });
+      await invoke('start_cast', { ssid, password, ip: ip || null, keyword: null });
       setIsCasting(true);
       setCastName(name);
       notify(`Casting to ${name}`, 'success');
@@ -205,8 +209,7 @@ function App() {
         if (!reachable) {
           if (!joinWifi) throw new Error(`${name} is not answering at ${ip}. Is it on and on this network?`);
           setStatusDetail(`Joining ${name}…`);
-          const ok = await invoke<boolean>('connect_to_wifi', { ssid, password });
-          if (!ok) throw new Error('Could not join the network.');
+          await invoke('connect_to_wifi', { ssid, password: password || null });
         }
         setConnectedSSID(ssid);
         await startCasting(name, ssid, password, ip);
@@ -225,26 +228,26 @@ function App() {
   const stopCasting = useCallback(async () => {
     stoppingRef.current = true;
     try {
-      await invoke('stop_casting');
+      await invoke('stop_cast');
     } catch { /* already stopped */ }
     setIsCasting(false);
     setCastName('');
     notify('Casting stopped.', 'info');
   }, [notify]);
 
-  // The streamer exits if the projector never answers or it crashes; reflect that.
+  // Cast thread ended by itself: show why, restore Wi-Fi.
   useEffect(() => {
-    if (!isCasting) return;
-    const id = setInterval(async () => {
-      const alive = await invoke<boolean>('casting_alive').catch(() => false);
-      if (!alive && !stoppingRef.current) {
-        setIsCasting(false);
-        setCastName('');
-        setConnectionError('Casting stopped: the projector did not answer. Check that it is on and in range, then try again.');
-      }
-    }, 3000);
-    return () => clearInterval(id);
-  }, [isCasting]);
+    const off = listen<CastEnd>('cast-end', ({ payload }) => {
+      if (stoppingRef.current) return;
+      setIsCasting(false);
+      setCastName('');
+      if (payload.error) setConnectionError(payload.error.message);
+      invoke('stop_cast').catch(() => {});
+    });
+    return () => {
+      off.then((f) => f());
+    };
+  }, []);
 
   const disconnect = useCallback(async () => {
     if (isCasting) await stopCasting();
@@ -255,9 +258,9 @@ function App() {
     const known = saved.find((s) => s.ssid === net.ssid);
     if (net.id.startsWith('proj-') && net.ip) {
       // Found by LAN discovery: there is no Wi-Fi network to join.
-      connectProjector(net.name, net.ssid, known?.password || '', net.ip, false);
+      connectProjector(net.name, net.ssid, '', net.ip, false);
     } else if (known) {
-      connectProjector(known.name || projName(known.ssid), known.ssid, known.password, known.ip);
+      connectProjector(known.name || projName(known.ssid), known.ssid, '', known.ip);
     } else if (!net.is_projector && net.security === 'Open') {
       connectProjector(net.name, net.ssid, '', net.ip || '');
     } else {
@@ -287,9 +290,9 @@ function App() {
     }
   };
 
-  const forgetSaved = async (ssid: string) => {
+  const forgetSaved = async (key: string) => {
     try {
-      await invoke('forget_projector', { ssid });
+      await invoke('forget_projector', { key });
       await loadSaved();
     } catch { /* ignore */ }
   };
@@ -299,7 +302,7 @@ function App() {
     if (autoReconnectTried.current || !appSettings.autoReconnect || saved.length === 0) return;
     autoReconnectTried.current = true;
     const p = saved[0];
-    connectProjector(p.name || projName(p.ssid), p.ssid, p.password, p.ip);
+    connectProjector(p.name || projName(p.ssid), p.ssid, '', p.ip);
   }, [appSettings.autoReconnect, saved, connectProjector]);
 
   // ---- derived ----
@@ -438,14 +441,14 @@ function App() {
                           className="lm-btn signal"
                           disabled={isConnecting}
                           aria-label={`Reconnect to ${p.name || projName(p.ssid)}`}
-                          onClick={() => connectProjector(p.name || projName(p.ssid), p.ssid, p.password, p.ip)}
+                          onClick={() => connectProjector(p.name || projName(p.ssid), p.ssid, '', p.ip)}
                         >
                           {isConnecting ? <RotateCcw size={14} className="lm-spin" /> : <><Cast size={14} /> Reconnect</>}
                         </button>
                       )}
                       <button
                         className="lm-iconbtn"
-                        onClick={() => forgetSaved(p.ssid)}
+                        onClick={() => forgetSaved(p.ssid || p.name)}
                         title="Forget"
                         aria-label={`Forget ${p.name || projName(p.ssid)}`}
                       >
