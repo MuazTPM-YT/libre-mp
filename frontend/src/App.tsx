@@ -7,6 +7,7 @@ import { invoke } from '@tauri-apps/api/core';
 import './index.css';
 
 import { SettingsModal, type AppSettings, defaultSettings } from './components/SettingsModal';
+import { Toast, type ToastData } from './components/Toast';
 import { HelpModal } from './components/HelpModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ManualConnectModal } from './components/ManualConnectModal';
@@ -83,7 +84,7 @@ function App() {
   const [isCasting, setIsCasting] = useState(false);
   const [castName, setCastName] = useState<string>('');
 
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
+  const [toast, setToast] = useState<ToastData | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -96,8 +97,10 @@ function App() {
   const autoReconnectTried = useRef(false);
   const stoppingRef = useRef(false);
 
+  const dismissToast = useCallback(() => setToast(null), []);
+
   const notify = useCallback(
-    (message: string, type: 'success' | 'info' | 'error' = 'info') => {
+    (message: string, type: ToastData['type'] = 'info') => {
       if (appSettings.showNotifications) setToast({ message, type });
     },
     [appSettings.showNotifications]
@@ -313,7 +316,7 @@ function App() {
   const lampLabel = isCasting ? 'Casting' : connectedSSID ? 'Connected' : 'Idle';
 
   return (
-    <div className="lm-app">
+    <div className={`lm-app ${isCasting ? 'is-casting' : ''}`.trim()}>
       <header className="lm-topbar">
         <div className="lm-brand">
           <span className="lm-brand-mark">Libre<b>MP</b></span>
@@ -329,6 +332,7 @@ function App() {
           <Radio size={15} />
           <input
             placeholder="Filter networks"
+            aria-label="Filter networks"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -354,7 +358,10 @@ function App() {
       </header>
 
       {(connectingSSID || connectionError) && (
-        <div className={`lm-banner ${connectionError ? 'error' : 'connecting'}`}>
+        <div
+          className={`lm-banner ${connectionError ? 'error' : 'connecting'}`}
+          role={connectionError ? 'alert' : 'status'}
+        >
           {connectionError ? (
             <>
               <X size={15} />
@@ -425,17 +432,23 @@ function App() {
                         <div className="lm-row-meta">{p.ip ? `${p.ip} · ` : ''}{p.ssid}</div>
                       </div>
                       {isConn && isCasting ? (
-                        <button className="lm-btn danger" onClick={stopCasting}>Stop cast</button>
+                        <button className="lm-btn danger" onClick={stopCasting} aria-label={`Stop casting to ${p.name || projName(p.ssid)}`}>Stop cast</button>
                       ) : (
                         <button
                           className="lm-btn signal"
                           disabled={isConnecting}
+                          aria-label={`Reconnect to ${p.name || projName(p.ssid)}`}
                           onClick={() => connectProjector(p.name || projName(p.ssid), p.ssid, p.password, p.ip)}
                         >
                           {isConnecting ? <RotateCcw size={14} className="lm-spin" /> : <><Cast size={14} /> Reconnect</>}
                         </button>
                       )}
-                      <button className="lm-iconbtn" onClick={() => forgetSaved(p.ssid)} title="Forget" aria-label="Forget projector">
+                      <button
+                        className="lm-iconbtn"
+                        onClick={() => forgetSaved(p.ssid)}
+                        title="Forget"
+                        aria-label={`Forget ${p.name || projName(p.ssid)}`}
+                      >
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -485,8 +498,9 @@ function App() {
                         <button className="lm-btn ghost" onClick={disconnect}>Disconnect</button>
                       ) : (
                         <button
-                          className={`lm-btn ${n.is_projector ? 'signal' : ''}`}
+                          className={`lm-btn ${n.is_projector ? 'signal' : ''}`.trim()}
                           disabled={isConnecting}
+                          aria-label={`Connect to ${n.name}`}
                           onClick={() => handleRowClick(n)}
                         >
                           {isConnecting ? <RotateCcw size={14} className="lm-spin" /> : 'Connect'}
@@ -563,14 +577,7 @@ function App() {
         }}
       />
 
-      {toast && (
-        <div className={`lm-toast ${toast.type === 'error' ? 'err' : ''}`}>
-          <span>{toast.message}</span>
-          <button className="lm-iconbtn" style={{ width: 26, height: 26 }} onClick={() => setToast(null)} aria-label="Dismiss">
-            <X size={14} />
-          </button>
-        </div>
-      )}
+      <Toast toast={toast} onDismiss={dismissToast} />
     </div>
   );
 }

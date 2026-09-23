@@ -2,6 +2,12 @@
    LibreMP — "AV signal console" design system
    Deep blue-slate booth · amber = projector lamp / casting
    · teal = signal / connected · mono for real network data
+
+   Motion rules used throughout this file:
+   · Only transform and opacity animate (they skip layout and paint).
+   · Entering and exiting use --lm-ease-out; exits are faster than entries.
+   · Hover motion is gated behind a real pointer; every control answers a press.
+   · Nothing repeats forever except the spinner and the casting lamp.
    ============================================================ */
 
 :root {
@@ -21,13 +27,18 @@
   --lm-signal: #32d3bf;
   --lm-signal-glow: rgba(50, 211, 191, 0.32);
   --lm-danger: #f26a60;
+  --lm-hover: rgba(255, 255, 255, 0.06);
 
   --lm-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
   --lm-mono: ui-monospace, "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
 
   --lm-radius: 14px;
   --lm-radius-sm: 9px;
-  --lm-spring: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Stronger than the built-in easings, which are too weak to read as intentional. */
+  --lm-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --lm-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
   --lm-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
 
@@ -48,6 +59,7 @@
   --lm-signal: #0e9c8b;
   --lm-signal-glow: rgba(14, 156, 139, 0.22);
   --lm-danger: #d64a40;
+  --lm-hover: rgba(10, 10, 20, 0.05);
   --lm-shadow: 0 18px 44px rgba(20, 20, 25, 0.14);
 }
 
@@ -67,6 +79,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Chrome — labels, buttons and chips — is not a document to select. */
+.lm-btn, .lm-iconbtn, .lm-hero-card, .lm-lamp, .lm-pill, .lm-eyebrow, .lm-switch {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* ---------- shell ---------- */
 .lm-app { display: flex; flex-direction: column; height: 100%; }
 
@@ -77,6 +95,7 @@ body {
   padding: 14px 22px;
   border-bottom: 1px solid var(--lm-line);
   background: color-mix(in srgb, var(--lm-bg) 82%, transparent);
+  -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   position: sticky;
   top: 0;
@@ -109,25 +128,37 @@ body {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--lm-muted);
+  transition: color 240ms ease, border-color 240ms ease;
 }
 .lm-lamp-dot {
+  position: relative;
   width: 9px; height: 9px; border-radius: 50%;
+  flex-shrink: 0;
   background: var(--lm-faint);
-  box-shadow: none;
-  transition: all 240ms var(--lm-spring);
+  transition: background-color 240ms ease, box-shadow 240ms ease;
 }
 .lm-lamp.is-connected { color: var(--lm-signal); border-color: color-mix(in srgb, var(--lm-signal) 40%, var(--lm-line)); }
 .lm-lamp.is-connected .lm-lamp-dot { background: var(--lm-signal); box-shadow: 0 0 10px var(--lm-signal-glow); }
 .lm-lamp.is-casting { color: var(--lm-lamp-2); border-color: color-mix(in srgb, var(--lm-lamp) 50%, var(--lm-line)); }
-.lm-lamp.is-casting .lm-lamp-dot {
+.lm-lamp.is-casting .lm-lamp-dot { background: var(--lm-lamp); }
+.lm-castbar .lm-lamp-dot { background: var(--lm-lamp); }
+
+/* The pulse is its own layer so it runs on the GPU. The old version animated
+   box-shadow, which repaints the whole chip every frame — forever, while
+   casting, on a machine that is also encoding 24 frames a second. */
+.lm-lamp.is-casting .lm-lamp-dot::after,
+.lm-castbar .lm-lamp-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
   background: var(--lm-lamp);
-  box-shadow: 0 0 0 0 var(--lm-lamp-glow);
-  animation: lm-pulse 1.6s ease-out infinite;
+  animation: lm-ping 1.8s var(--lm-ease-out) infinite;
+  pointer-events: none;
 }
-@keyframes lm-pulse {
-  0%   { box-shadow: 0 0 0 0 var(--lm-lamp-glow); }
-  70%  { box-shadow: 0 0 0 9px rgba(247, 168, 51, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(247, 168, 51, 0); }
+@keyframes lm-ping {
+  from { transform: scale(1); opacity: 0.5; }
+  to   { transform: scale(2.8); opacity: 0; }
 }
 
 /* ---------- body ---------- */
@@ -137,6 +168,16 @@ body {
   padding: 30px 22px 120px;
 }
 .lm-wrap { width: 100%; max-width: 940px; margin: 0 auto; }
+
+.lm-body::-webkit-scrollbar { width: 11px; }
+.lm-body::-webkit-scrollbar-track { background: transparent; }
+.lm-body::-webkit-scrollbar-thumb {
+  background: var(--lm-line);
+  border: 3px solid transparent;
+  background-clip: content-box;
+  border-radius: 999px;
+}
+.lm-body::-webkit-scrollbar-thumb:hover { background: var(--lm-faint); background-clip: content-box; }
 
 .lm-eyebrow {
   font-family: var(--lm-mono);
@@ -174,9 +215,14 @@ body {
   text-align: left;
   color: inherit;
   font-family: inherit;
-  transition: transform 220ms var(--lm-spring), border-color 220ms, box-shadow 220ms;
+  transition: transform 220ms var(--lm-ease-out), border-color 220ms ease, box-shadow 220ms ease;
+  /* First paint only: the three ways in arrive in reading order. */
+  animation: lm-enter 320ms var(--lm-ease-out) backwards;
 }
-.lm-hero-card:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--lm-signal) 45%, var(--lm-line)); box-shadow: var(--lm-shadow); }
+.lm-hero-card:nth-child(2) { animation-delay: 45ms; }
+.lm-hero-card:nth-child(3) { animation-delay: 90ms; }
+@keyframes lm-enter { from { opacity: 0; transform: translateY(6px); } }
+
 .lm-hero-card .lm-hero-icon {
   width: 42px; height: 42px; border-radius: 11px;
   display: grid; place-items: center;
@@ -198,9 +244,11 @@ body {
   border-radius: var(--lm-radius-sm);
   border: 1px solid var(--lm-line);
   background: var(--lm-panel);
-  transition: border-color 180ms, background 180ms;
+  transition: border-color 180ms ease, background-color 180ms ease;
+  /* Runs when a network first appears, not on every rescan: React keeps the
+     node alive across scans, so this never re-fires for a row already listed. */
+  animation: lm-enter 220ms var(--lm-ease-out) backwards;
 }
-.lm-row:hover { border-color: color-mix(in srgb, var(--lm-signal) 30%, var(--lm-line)); }
 .lm-row.is-projector { border-left: 2px solid var(--lm-signal); }
 .lm-row.is-connected { border-color: color-mix(in srgb, var(--lm-signal) 55%, var(--lm-line)); background: color-mix(in srgb, var(--lm-signal) 7%, var(--lm-panel)); }
 
@@ -230,7 +278,7 @@ body {
 
 /* signal bars */
 .lm-bars { display: flex; align-items: flex-end; gap: 2px; height: 16px; }
-.lm-bars .b { width: 3px; border-radius: 1px; background: var(--lm-line); }
+.lm-bars .b { width: 3px; border-radius: 1px; background: var(--lm-line); transition: background-color 200ms ease; }
 .lm-bars .b:nth-child(1) { height: 5px; }
 .lm-bars .b:nth-child(2) { height: 8px; }
 .lm-bars .b:nth-child(3) { height: 11px; }
@@ -255,13 +303,10 @@ body {
   align-items: center;
   gap: 7px;
   white-space: nowrap;
-  transition: transform 140ms var(--lm-spring), background 160ms, border-color 160ms, opacity 160ms;
+  transition: transform 140ms var(--lm-ease-out), background-color 160ms ease,
+    border-color 160ms ease, opacity 160ms ease;
 }
-.lm-btn:hover { transform: translateY(-1px); }
-.lm-btn:active { transform: translateY(0); }
-.lm-btn:disabled { opacity: 0.5; cursor: default; transform: none; }
 .lm-btn.signal { background: var(--lm-signal); border-color: var(--lm-signal); color: #04231f; }
-.lm-btn.lamp { background: var(--lm-lamp); border-color: var(--lm-lamp); color: #241703; }
 .lm-btn.danger { background: transparent; border-color: color-mix(in srgb, var(--lm-danger) 55%, var(--lm-line)); color: var(--lm-danger); }
 .lm-btn.ghost { background: transparent; }
 
@@ -273,9 +318,35 @@ body {
   background: transparent;
   color: var(--lm-muted);
   cursor: pointer;
-  transition: background 160ms, color 160ms, border-color 160ms;
+  transition: transform 140ms var(--lm-ease-out), background-color 160ms ease,
+    color 160ms ease, border-color 160ms ease, opacity 160ms ease;
 }
-.lm-iconbtn:hover { background: var(--lm-panel-2); color: var(--lm-text); border-color: var(--lm-line); }
+.lm-toast-close { width: 26px; height: 26px; border-radius: 7px; }
+
+/* Hover is a pointer affordance; a touch screen fires it on tap and leaves it
+   stuck, so it stays behind a real pointer. */
+@media (hover: hover) and (pointer: fine) {
+  .lm-hero-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--lm-signal) 45%, var(--lm-line));
+    box-shadow: var(--lm-shadow);
+  }
+  .lm-row:hover { border-color: color-mix(in srgb, var(--lm-signal) 30%, var(--lm-line)); }
+  .lm-btn:hover:not(:disabled) { background-color: color-mix(in srgb, var(--lm-text) 8%, var(--lm-panel-2)); }
+  .lm-btn.signal:hover:not(:disabled) { background-color: color-mix(in srgb, #fff 14%, var(--lm-signal)); }
+  .lm-btn.danger:hover:not(:disabled) { background-color: color-mix(in srgb, var(--lm-danger) 12%, transparent); }
+  .lm-btn.ghost:hover:not(:disabled) { background-color: var(--lm-hover); }
+  .lm-iconbtn:hover:not(:disabled) { background-color: var(--lm-panel-2); color: var(--lm-text); border-color: var(--lm-line); }
+}
+
+/* Press feedback. Every control confirms it heard the click, which is what
+   makes an interface feel like it is listening. Must stay after :hover. */
+.lm-btn:active:not(:disabled) { transform: scale(0.97); }
+.lm-iconbtn:active:not(:disabled) { transform: scale(0.92); }
+.lm-hero-card:active { transform: scale(0.99); transition-duration: 100ms; }
+
+.lm-btn:disabled { opacity: 0.5; cursor: default; }
+.lm-iconbtn:disabled { opacity: 0.4; cursor: default; }
 
 /* search */
 .lm-search {
@@ -286,7 +357,9 @@ body {
   background: var(--lm-panel);
   color: var(--lm-muted);
   min-width: 200px;
+  transition: border-color 160ms ease;
 }
+.lm-search:focus-within { border-color: color-mix(in srgb, var(--lm-signal) 45%, var(--lm-line)); }
 .lm-search input {
   border: none; background: transparent; outline: none;
   color: var(--lm-text); font-family: var(--lm-sans); font-size: 0.85rem; width: 100%;
@@ -308,8 +381,9 @@ body {
 /* ---------- casting bar ---------- */
 .lm-castbar {
   position: fixed;
-  left: 50%; transform: translateX(-50%);
+  left: 50%;
   bottom: 22px;
+  transform: translateX(-50%);
   width: min(600px, calc(100% - 44px));
   display: flex; align-items: center; gap: 14px;
   padding: 13px 16px;
@@ -318,8 +392,12 @@ body {
   background: color-mix(in srgb, var(--lm-lamp) 10%, var(--lm-panel));
   box-shadow: var(--lm-shadow);
   z-index: 40;
+  animation: lm-castbar-in 280ms var(--lm-ease-out) backwards;
 }
-.lm-castbar .lm-lamp-dot { background: var(--lm-lamp); box-shadow: 0 0 12px var(--lm-lamp-glow); animation: lm-pulse 1.6s ease-out infinite; }
+@keyframes lm-castbar-in {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
 .lm-castbar-text { flex: 1; min-width: 0; }
 .lm-castbar-text strong { display: block; font-size: 0.9rem; }
 .lm-castbar-text span { font-family: var(--lm-mono); font-size: 0.72rem; color: var(--lm-muted); }
@@ -334,11 +412,17 @@ body {
   background: var(--lm-panel-2);
   box-shadow: var(--lm-shadow);
   z-index: 60; max-width: 340px;
-  animation: lm-rise 240ms var(--lm-spring);
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 240ms var(--lm-ease-out), transform 240ms var(--lm-ease-out);
 }
+.lm-toast[data-state="open"] { opacity: 1; transform: none; }
+/* Leaving is the system responding, not the user deciding: make it quicker. */
+.lm-toast[data-state="closed"] { transition-duration: 160ms; }
+/* Clear the casting bar instead of landing on top of it. */
+.lm-app.is-casting .lm-toast { bottom: 94px; }
 .lm-toast.err { border-color: color-mix(in srgb, var(--lm-danger) 55%, var(--lm-line)); }
 .lm-toast span { font-size: 0.85rem; }
-@keyframes lm-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 
 .lm-banner {
   display: flex; align-items: center; gap: 10px;
@@ -354,12 +438,15 @@ body {
 .lm-modal-overlay {
   position: fixed; inset: 0;
   background: rgba(4, 8, 14, 0.62);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   display: grid; place-items: center;
   z-index: 80; padding: 20px;
-  animation: lm-fade 160ms ease;
+  opacity: 0;
+  transition: opacity 180ms var(--lm-ease-out);
 }
-@keyframes lm-fade { from { opacity: 0; } to { opacity: 1; } }
+.lm-modal-overlay[data-state="open"] { opacity: 1; }
+
 .lm-modal {
   width: 100%; max-width: 440px;
   background: var(--lm-panel);
@@ -367,24 +454,39 @@ body {
   border-radius: var(--lm-radius);
   box-shadow: var(--lm-shadow);
   overflow: hidden;
-  animation: lm-rise 220ms var(--lm-spring);
+  /* Modals are not anchored to a trigger, so they stay centred — and start
+     from 0.985, never from nothing. */
+  opacity: 0;
+  transform: translateY(8px) scale(0.985);
+  transition: opacity 200ms var(--lm-ease-out), transform 200ms var(--lm-ease-out);
 }
+.lm-modal-overlay[data-state="open"] .lm-modal { opacity: 1; transform: none; }
+.lm-modal-overlay[data-state="closed"],
+.lm-modal-overlay[data-state="closed"] .lm-modal { transition-duration: 140ms; }
+.lm-modal:focus { outline: none; }
+
 .lm-modal-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px 18px;
   border-bottom: 1px solid var(--lm-line-soft);
 }
 .lm-modal-title { display: flex; align-items: center; gap: 9px; font-weight: 640; font-size: 0.98rem; }
-.lm-modal-title svg { color: var(--lm-signal); }
+.lm-modal-title svg { color: var(--lm-signal); flex-shrink: 0; }
 .lm-modal-body { padding: 20px 18px; }
 .lm-modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--lm-line-soft); }
 
 .lm-field-label { font-size: 0.86rem; color: var(--lm-muted); margin: 0 0 12px; }
 .lm-field-label strong { color: var(--lm-text); }
-.lm-input-wrap { display: flex; align-items: center; border: 1px solid var(--lm-line); border-radius: 9px; background: var(--lm-bg-2); }
+.lm-input-wrap {
+  display: flex; align-items: center;
+  border: 1px solid var(--lm-line); border-radius: 9px;
+  background: var(--lm-bg-2);
+  transition: border-color 160ms ease;
+}
+.lm-input-wrap:focus-within { border-color: color-mix(in srgb, var(--lm-signal) 50%, var(--lm-line)); }
 .lm-input-wrap.err { border-color: var(--lm-danger); }
 .lm-input-wrap input {
-  flex: 1; border: none; outline: none; background: transparent;
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent;
   padding: 11px 13px; color: var(--lm-text); font-family: var(--lm-mono); font-size: 0.9rem;
 }
 .lm-input-wrap .lm-iconbtn { width: 40px; }
@@ -407,24 +509,26 @@ body {
 .lm-cam-img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .lm-cam-view .lm-scan-hint { position: absolute; }
 .lm-scan-state { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 12px 0; }
-.lm-scan-pulse {
-  width: 68px; height: 68px; border-radius: 50%;
-  display: grid; place-items: center;
-  color: var(--lm-signal);
-  background: color-mix(in srgb, var(--lm-signal) 14%, transparent);
-  box-shadow: 0 0 0 0 var(--lm-signal-glow);
-  animation: lm-pulse 1.6s ease-out infinite;
-}
 .lm-scan-glyph.err { color: var(--lm-lamp); }
-.lm-scan-copy { text-align: center; color: var(--lm-muted); font-size: 0.88rem; line-height: 1.5; margin: 0; max-width: 320px; }
+.lm-scan-copy { text-align: center; color: var(--lm-muted); font-size: 0.88rem; line-height: 1.5; margin: 0 auto; max-width: 320px; }
 .lm-scan-hint { font-family: var(--lm-mono); font-size: 0.72rem; color: var(--lm-muted); letter-spacing: 0.06em; }
 
 .lm-toggle { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; }
 .lm-toggle + .lm-toggle { border-top: 1px solid var(--lm-line-soft); }
 .lm-toggle-txt strong { display: block; font-size: 0.9rem; }
 .lm-toggle-txt span { font-size: 0.8rem; color: var(--lm-muted); }
-.lm-switch { width: 44px; height: 25px; border-radius: 999px; border: 1px solid var(--lm-line); background: var(--lm-panel-2); position: relative; cursor: pointer; flex-shrink: 0; transition: background 200ms; }
-.lm-switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 19px; height: 19px; border-radius: 50%; background: var(--lm-faint); transition: transform 200ms var(--lm-spring), background 200ms; }
+.lm-switch {
+  width: 44px; height: 25px; border-radius: 999px;
+  border: 1px solid var(--lm-line); background: var(--lm-panel-2);
+  position: relative; cursor: pointer; flex-shrink: 0;
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+.lm-switch::after {
+  content: ""; position: absolute; top: 2px; left: 2px;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--lm-faint);
+  transition: transform 200ms var(--lm-ease-out), background-color 200ms ease;
+}
 .lm-switch.on { background: color-mix(in srgb, var(--lm-signal) 30%, var(--lm-panel-2)); }
 .lm-switch.on::after { transform: translateX(19px); background: var(--lm-signal); }
 
@@ -440,13 +544,28 @@ body {
 
 :focus-visible { outline: 2px solid var(--lm-signal); outline-offset: 2px; }
 
-@media (max-width: 780px) {
+@media (max-width: 860px) {
   .lm-hero { grid-template-columns: 1fr; }
+  .lm-hero-card { flex-direction: row; align-items: center; gap: 14px; padding: 16px 18px; }
+  .lm-hero-card .lm-hero-sub { display: none; }
 }
 @media (max-width: 620px) {
   .lm-search { min-width: 0; flex: 1; }
+  .lm-topbar { gap: 8px; padding: 12px 14px; }
+  .lm-body { padding: 22px 14px 120px; }
 }
 
+/* Reduced motion means gentler, not none: fades and colour still explain what
+   changed, movement and anything that repeats forever goes away. The spinner
+   stays — it is the only sign that work is in progress. */
 @media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  .lm-hero-card, .lm-row, .lm-castbar { animation: none; }
+  .lm-lamp.is-casting .lm-lamp-dot::after,
+  .lm-castbar .lm-lamp-dot::after { animation: none; opacity: 0.35; }
+  .lm-modal, .lm-toast { transform: none !important; }
+  .lm-hero-card:hover,
+  .lm-hero-card:active,
+  .lm-btn:active:not(:disabled),
+  .lm-iconbtn:active:not(:disabled) { transform: none; }
+  .lm-switch::after { transition-property: background-color; }
 }

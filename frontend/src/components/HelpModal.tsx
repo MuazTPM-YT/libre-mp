@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { X, HelpCircle } from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
+import { Modal } from './Modal';
 
 interface Props {
   isOpen: boolean;
@@ -8,8 +9,6 @@ interface Props {
 
 /** Quick guide: how to get from launch to casting. */
 export function HelpModal({ isOpen, onClose }: Props) {
-  if (!isOpen) return null;
-
   const steps: [string, ReactNode][] = [
     [
       'Show the QR',
@@ -43,35 +42,27 @@ export function HelpModal({ isOpen, onClose }: Props) {
   ];
 
   return (
-    <div className="lm-modal-overlay" onClick={onClose}>
-      <div className="lm-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="lm-modal-head">
-          <div className="lm-modal-title">
-            <HelpCircle size={16} />
-            <span>How to connect</span>
-          </div>
-          <button className="lm-iconbtn" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="lm-modal-body">
-          <ol className="lm-help-list">
-            {steps.map(([title, body], i) => (
-              <li key={i}>
-                <span className="lm-help-num">{String(i + 1).padStart(2, '0')}</span>
-                <p>
-                  <strong>{title}.</strong> {body}
-                </p>
-              </li>
-            ))}
-          </ol>
-        </div>
-        <div className="lm-modal-foot">
-          <button className="lm-btn signal" onClick={onClose}>
-            Got it
-          </button>
-        </div>
-      </div>
-    </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="How to connect"
+      icon={<HelpCircle size={16} />}
+      footer={
+        <button className="lm-btn signal" onClick={onClose}>
+          Got it
+        </button>
+      }
+    >
+      <ol className="lm-help-list">
+        {steps.map(([title, body], i) => (
+          <li key={title}>
+            <span className="lm-help-num">{String(i + 1).padStart(2, '0')}</span>
+            <p>
+              <strong>{title}.</strong> {body}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </Modal>
   );
 }
