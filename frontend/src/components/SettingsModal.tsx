@@ -1,14 +1,18 @@
-import { SlidersHorizontal } from 'lucide-react';
 import { Modal } from './Modal';
 
+export type Appearance = 'system' | 'light' | 'dark';
+
 export interface AppSettings {
-  /** Reconnect to the most recently used projector automatically on launch. */
+  // follow os, or force light / dark
+  appearance: Appearance;
+  // rejoin last projector when app opens
   autoReconnect: boolean;
-  /** Show toast notifications for connection and casting events. */
+  // small notices for things that happen out of view
   showNotifications: boolean;
 }
 
 export const defaultSettings: AppSettings = {
+  appearance: 'system',
   autoReconnect: false,
   showNotifications: true,
 };
@@ -20,47 +24,62 @@ interface Props {
   onApply: (settings: AppSettings) => void;
 }
 
-const OPTIONS: { key: keyof AppSettings; label: string; hint: string }[] = [
-  {
-    key: 'autoReconnect',
-    label: 'Reconnect on launch',
-    hint: 'Rejoin the last projector automatically when the app opens.',
-  },
-  {
-    key: 'showNotifications',
-    label: 'Notifications',
-    hint: 'Show toasts for connection and casting events.',
-  },
+const SWITCHES: { key: 'autoReconnect' | 'showNotifications'; label: string; hint: string }[] = [
+  { key: 'autoReconnect', label: 'Reconnect on launch', hint: 'Connect to the last projector when LibreMP opens.' },
+  { key: 'showNotifications', label: 'Notifications', hint: 'Show a short notice when casting stops.' },
 ];
 
-/** Application settings. Only options that actually change behavior live here. */
-export function SettingsModal({ isOpen, onClose, settings, onApply }: Props) {
-  const toggle = (key: keyof AppSettings) => onApply({ ...settings, [key]: !settings[key] });
+const APPEARANCES: [Appearance, string][] = [
+  ['system', 'System'],
+  ['light', 'Light'],
+  ['dark', 'Dark'],
+];
 
+// settings sheet: appearance + two switches
+export function SettingsModal({ isOpen, onClose, settings, onApply }: Props) {
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      onSubmit={onClose}
       title="Settings"
-      icon={<SlidersHorizontal size={16} />}
       footer={
-        <button className="lm-btn signal" onClick={onClose}>
+        <button type="submit" className="lm-btn primary">
           Done
         </button>
       }
     >
-      {OPTIONS.map(({ key, label, hint }) => (
-        <div className="lm-toggle" key={key}>
-          <div className="lm-toggle-txt">
+      <div className="lm-setting">
+        <div>
+          <strong id="lm-appearance">Appearance</strong>
+        </div>
+        <div className="lm-seg" role="radiogroup" aria-labelledby="lm-appearance">
+          {APPEARANCES.map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={settings.appearance === value}
+              onClick={() => onApply({ ...settings, appearance: value })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {SWITCHES.map(({ key, label, hint }) => (
+        <div className="lm-setting" key={key}>
+          <div>
             <strong>{label}</strong>
             <span>{hint}</span>
           </div>
           <button
-            className={`lm-switch ${settings[key] ? 'on' : ''}`}
-            onClick={() => toggle(key)}
+            type="button"
+            className="lm-switch"
             role="switch"
             aria-checked={settings[key]}
             aria-label={label}
+            onClick={() => onApply({ ...settings, [key]: !settings[key] })}
           />
         </div>
       ))}

@@ -6,7 +6,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use libremp_core::config::{self, SavedProjector, SavedProjectors};
-use libremp_core::session::{self, CastError, CastOptions, FailKind};
+use libremp_core::session::{self, CastError, CastEvent, CastOptions, FailKind};
 use libremp_core::wifi::{self, WifiNetwork};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -330,9 +330,18 @@ async fn connect_to_wifi(state: State<'_, AppState>, ssid: String, password: Opt
     result
 }
 
-// how cast ended, sent to ui
+// cast progress, tagged with ui's cast id so late events from old cast get ignored
+#[derive(Debug, Serialize, Clone)]
+struct CastUpdate {
+    id: u32,
+    #[serde(flatten)]
+    event: CastEvent,
+}
+
+// how cast ended, tagged same way
 #[derive(Debug, Serialize, Clone)]
 struct CastEnd {
+    id: u32,
     error: Option<CastError>,
 }
 
@@ -341,6 +350,7 @@ struct CastEnd {
 async fn start_cast(
     app: AppHandle,
     state: State<'_, AppState>,
+    cast_id: u32,
     ssid: String,
     password: String,
     ip: Option<String>,
@@ -372,15 +382,15 @@ async fn start_cast(
         .name("cast".into())
         .spawn(move || {
             let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-                session::run(&opts, &flag, &mut |e| {
-                    let _ = app.emit("cast-event", &e);
+                session::run(&opts, &flag, &mut |event| {
+                    let _ = app.emit("cast-event", CastUpdate { id: cast_id, event });
                 })
             }));
             let error = match result {
                 Ok(r) => r.err(),
                 Err(_) => Some(CastError { kind: FailKind::Unreachable, message: "Casting stopped because of an internal error.".into() }),
             };
-            let _ = app.emit("cast-end", CastEnd { error });
+            let _ = app.emit("cast-end", CastEnd { id: cast_id, error });
         })
         .map_err(|e| format!("Could not start casting: {e}"))?;
     *lock(&state.cast) = Some(Cast { running, thread });

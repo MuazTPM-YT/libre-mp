@@ -1,21 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { CircleAlert, CircleCheck, X } from 'lucide-react';
 
 export interface ToastData {
   message: string;
-  type: 'success' | 'info' | 'error';
+  type: 'info' | 'error';
 }
 
-/** Must match the exit transition in index.css. */
-const EXIT_MS = 160;
-/** How long a toast stays before it dismisses itself. */
+// must match toast exit transition in index.css
+const EXIT_MS = 150;
+// how long toast stays
 const LIFETIME_MS = 4000;
 
-/**
- * A single toast. It goes away on its own — a notice that needs a click to
- * dismiss is a notice that piles up. Hovering pauses the timer, so a message
- * cannot disappear while it is being read.
- */
+// one toast, bottom centre. leaves by itself; hover pauses timer
 export function Toast({ toast, onDismiss }: { toast: ToastData | null; onDismiss: () => void }) {
   const [shown, setShown] = useState<ToastData | null>(null);
   const [open, setOpen] = useState(false);
@@ -27,8 +23,7 @@ export function Toast({ toast, onDismiss }: { toast: ToastData | null; onDismiss
     timer.current = window.setTimeout(onDismiss, LIFETIME_MS);
   }, [onDismiss, stopTimer]);
 
-  // Mount, then open a frame later so the entry transition runs; on dismiss,
-  // stay mounted until the exit transition has played.
+  // mount, open a frame later; on dismiss stay till exit ends
   useEffect(() => {
     if (toast) {
       setShown(toast);
@@ -53,21 +48,19 @@ export function Toast({ toast, onDismiss }: { toast: ToastData | null; onDismiss
   }, [toast, startTimer, stopTimer]);
 
   if (!shown) return null;
+  const isError = shown.type === 'error';
 
   return (
     <div
-      className={`lm-toast ${shown.type === 'error' ? 'err' : ''}`.trim()}
+      className={`lm-toast ${isError ? 'error' : ''}`.trim()}
       data-state={open ? 'open' : 'closed'}
-      role={shown.type === 'error' ? 'alert' : 'status'}
+      role={isError ? 'alert' : 'status'}
       onMouseEnter={stopTimer}
       onMouseLeave={startTimer}
     >
+      {isError ? <CircleAlert size={16} /> : <CircleCheck size={16} color="var(--green)" />}
       <span>{shown.message}</span>
-      <button
-        className="lm-iconbtn lm-toast-close"
-        onClick={onDismiss}
-        aria-label="Dismiss notification"
-      >
+      <button type="button" className="lm-icon-btn" onClick={onDismiss} aria-label="Dismiss notification">
         <X size={14} />
       </button>
     </div>

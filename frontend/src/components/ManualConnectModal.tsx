@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { KeyRound, ArrowRight } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Modal } from './Modal';
 
 interface Props {
@@ -8,7 +7,7 @@ interface Props {
   onConnect: (ssid: string, password: string) => void;
 }
 
-/** Fallback for connecting without a QR: type the projector's SSID + passphrase. */
+// no qr: type network name + password from projector screen
 export function ManualConnectModal({ isOpen, onClose, onConnect }: Props) {
   const [ssid, setSsid] = useState('');
   const [pwd, setPwd] = useState('');
@@ -28,41 +27,44 @@ export function ManualConnectModal({ isOpen, onClose, onConnect }: Props) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Enter projector details"
-      icon={<KeyRound size={16} />}
+      onSubmit={submit}
+      title="Enter Projector Details"
+      text="Read them from the projector’s network screen."
       footer={
         <>
-          <button className="lm-btn ghost" onClick={onClose}>
+          <button type="button" className="lm-btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="lm-btn signal" onClick={submit} disabled={!ssid.trim()}>
-            Connect <ArrowRight size={14} />
+          <button type="submit" className="lm-btn primary" disabled={!ssid.trim()}>
+            Connect
           </button>
         </>
       }
     >
-      <p className="lm-field-label">
-        Type the <strong>SSID</strong> and passphrase shown on the projector’s LAN screen.
-      </p>
-      <div className="lm-input-wrap" style={{ marginBottom: 10 }}>
-        <input
-          placeholder="SSID — e.g. RESEARCHLAB-fE8D…"
-          value={ssid}
-          autoFocus
-          aria-label="Projector SSID"
-          onChange={(e) => setSsid(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-        />
-      </div>
-      <div className="lm-input-wrap">
-        <input
-          placeholder="Passphrase — often the projector’s MAC"
-          value={pwd}
-          aria-label="Projector passphrase"
-          onChange={(e) => setPwd(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-        />
-      </div>
+      <label className="lm-field">
+        <span className="lm-field-label">Network name (SSID)</span>
+        <span className="lm-input">
+          <input
+            autoFocus
+            spellCheck={false}
+            placeholder="e.g. HALL-A-xK3pQ7vRt2Lm"
+            value={ssid}
+            onChange={(e) => setSsid(e.target.value)}
+          />
+        </span>
+      </label>
+      <label className="lm-field">
+        <span className="lm-field-label">Password</span>
+        <span className="lm-input">
+          <input
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="Often the projector’s MAC address"
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+          />
+        </span>
+      </label>
     </Modal>
   );
 }

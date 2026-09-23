@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-import { HelpCircle } from 'lucide-react';
 import { Modal } from './Modal';
 
 interface Props {
@@ -7,61 +5,45 @@ interface Props {
   onClose: () => void;
 }
 
-/** Quick guide: how to get from launch to casting. */
+// four steps from launch to casting
 export function HelpModal({ isOpen, onClose }: Props) {
-  const steps: [string, ReactNode][] = [
-    [
-      'Show the QR',
-      <>
-        On the projector, open <strong>LAN / Network</strong> — it displays a QR code
-        with the network details.
-      </>,
-    ],
-    [
-      'Scan or upload it',
-      <>
-        Use <strong>Live scan</strong> to take a photo of the QR, or{' '}
-        <strong>Upload QR photo</strong> to pick a picture of it. LibreMP reads the SSID
-        and passphrase automatically.
-      </>,
-    ],
-    [
-      'It connects and casts',
-      <>
-        LibreMP joins the projector’s network and starts mirroring your screen. The lamp
-        in the top bar turns amber while casting.
-      </>,
-    ],
-    [
-      'Next time is one tap',
-      <>
-        Connected projectors are saved under <strong>Saved</strong> — reconnect instantly
-        without scanning again.
-      </>,
-    ],
-  ];
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="How to connect"
-      icon={<HelpCircle size={16} />}
+      onSubmit={onClose}
+      title="How to Connect"
       footer={
-        <button className="lm-btn signal" onClick={onClose}>
-          Got it
+        <button type="submit" className="lm-btn primary">
+          Done
         </button>
       }
     >
-      <ol className="lm-help-list">
-        {steps.map(([title, body], i) => (
-          <li key={title}>
-            <span className="lm-help-num">{String(i + 1).padStart(2, '0')}</span>
-            <p>
-              <strong>{title}.</strong> {body}
-            </p>
-          </li>
-        ))}
+      <ol className="lm-steps">
+        <li>
+          <p>
+            <strong>Show the QR code.</strong> On the projector, open the <strong>LAN</strong> or{' '}
+            <strong>Network</strong> screen.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Scan it.</strong> Choose <strong>Scan QR Code</strong> and take a photo, or{' '}
+            <strong>Choose Photo…</strong> if you already have a picture.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Allow screen sharing.</strong> Your desktop may ask which screen to share. LibreMP then
+            joins the projector and casts.
+          </p>
+        </li>
+        <li>
+          <p>
+            <strong>Next time, one click.</strong> The projector appears under <strong>Saved</strong>. Its
+            password is kept in your system keychain.
+          </p>
+        </li>
       </ol>
     </Modal>
   );

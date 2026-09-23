@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  HelpCircle, X, QrCode, KeyRound, Camera, Upload, Sun, Moon, SlidersHorizontal,
-  RefreshCw, RotateCcw, Cast, Trash2, MonitorPlay, Radio,
+  Camera, ChevronRight, CircleAlert, CircleHelp, LoaderCircle, Lock, Projector, RefreshCw, Router, Search, Settings,
+  Trash2,
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
@@ -12,23 +12,8 @@ import { Toast, type ToastData } from './components/Toast';
 import { HelpModal } from './components/HelpModal';
 import { PasswordModal } from './components/PasswordModal';
 import { ManualConnectModal } from './components/ManualConnectModal';
-import { LiveScanModal } from './components/LiveScanModal';
-
-interface QrResult {
-  ssid: string;
-  password: string;
-  ip: string;
-}
-
-export interface NetworkItem {
-  id: string;
-  name: string;
-  ssid: string;
-  signal: number;
-  security: string;
-  is_projector: boolean;
-  ip?: string;
-}
+import { LiveScanModal, type QrResult } from './components/LiveScanModal';
+import { KeywordModal } from './components/KeywordModal';
 
 interface WifiNetwork {
   ssid: string;
@@ -38,421 +23,499 @@ interface WifiNetwork {
   is_projector: boolean;
 }
 
+interface FoundProjector {
+  name: string;
+  ip: string;
+}
+
 interface SavedProjector {
   name: string;
   ssid: string;
   ip: string;
 }
 
+type CastEvent =
+  | { id: number; phase: 'sharing' }
+  | { id: number; phase: 'connecting'; attempt: number }
+  | { id: number; phase: 'casting'; projector: string }
+  | { id: number; phase: 'reconnecting'; reason: string };
+
 interface CastEnd {
+  id: number;
   error: { kind: 'capture' | 'rejected' | 'unreachable'; message: string } | null;
 }
 
-// Epson SSIDs are `<projector name>-<random suffix>`; the name itself may contain '-'.
+// everything one connect needs
+interface Target {
+  name: string;
+  ssid: string;
+  password: string;
+  ip: string;
+  joinWifi: boolean;
+  keyword?: string;
+}
+
+type Status =
+  | { kind: 'idle' }
+  | { kind: 'working'; target: Target; detail: string; cancellable: boolean }
+  | { kind: 'casting'; target: Target }
+  | { kind: 'error'; message: string; target?: Target; rejected?: boolean };
+
+// one list row
+interface Row {
+  key: string;
+  name: string;
+  sub: string;
+  projector: boolean;
+  signal?: number;
+  secured?: boolean;
+  network?: WifiNetwork;
+  found?: FoundProjector;
+}
+
+const SETTINGS_KEY = 'libre-mp-settings';
+const OTHERS_KEY = 'libre-mp-show-other-networks';
+const SCAN_EVERY_MS = 12000;
+
+// epson ssid = <name>-<random suffix>; name may hold '-'
 const projName = (ssid: string) => (ssid.includes('-') ? ssid.slice(0, ssid.lastIndexOf('-')) : ssid);
-const signalLevel = (s: number) => (s > 80 ? 5 : s > 60 ? 4 : s > 40 ? 3 : s > 20 ? 2 : 1);
-const signalClass = (s: number) => (s > 60 ? 'high' : s > 30 ? 'mid' : 'low');
+const errText = (e: unknown) => (typeof e === 'string' ? e : e instanceof Error ? e.message : 'Something went wrong.');
+const matches = (q: string, ...s: string[]) => !q || s.some((x) => x.toLowerCase().includes(q.toLowerCase()));
 
+// storage can throw (private mode, blocked site data)
+function readStore<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? { ...fallback, ...JSON.parse(raw) } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writeStore(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* per-viewer nicety only */
+  }
+}
+
+// wi-fi strength glyph: full fan, unlit arcs dimmed like macos
+function SignalIcon({ signal }: { signal: number }) {
+  const level = signal > 70 ? 3 : signal > 45 ? 2 : signal > 20 ? 1 : 0;
+  const lit = (n: number) => ({ opacity: level >= n ? 1 : 0.3 });
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" role="img" aria-label={`Signal ${signal}%`}>
+      <path d="M12 20h.01" />
+      <path d="M8.5 16.43a5 5 0 0 1 7 0" style={lit(1)} />
+      <path d="M5 12.86a10 10 0 0 1 14 0" style={lit(2)} />
+      <path d="M2 8.82a15 15 0 0 1 20 0" style={lit(3)} />
+    </svg>
+  );
+}
+
+// cast phase words for a person
+function phaseText(e: CastEvent, name: string): string {
+  switch (e.phase) {
+    case 'sharing':
+      return 'Waiting for screen sharing. Allow it if your desktop asks.';
+    case 'connecting':
+      return e.attempt > 1 ? `Trying ${name} again…` : `Connecting to ${name}…`;
+    case 'reconnecting':
+      return 'The connection dropped. Reconnecting…';
+    default:
+      return '';
+  }
+}
+
+// main window: status card, saved, projectors, other networks
 function App() {
-  const [networks, setNetworks] = useState<NetworkItem[]>([]);
+  const [settings, setSettings] = useState<AppSettings>(() => readStore(SETTINGS_KEY, defaultSettings));
+  const [status, setStatus] = useState<Status>({ kind: 'idle' });
+  const [networks, setNetworks] = useState<WifiNetwork[]>([]);
+  const [found, setFound] = useState<FoundProjector[]>([]);
   const [saved, setSaved] = useState<SavedProjector[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const stored = localStorage.getItem('libre-mp-theme');
-    if (stored === 'light' || stored === 'dark') return stored;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('libre-mp-theme', theme);
-  }, [theme]);
-
-  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
-    try {
-      const raw = localStorage.getItem('libre-mp-settings');
-      return raw ? { ...defaultSettings, ...JSON.parse(raw) } : defaultSettings;
-    } catch {
-      return defaultSettings;
-    }
-  });
-  useEffect(() => {
-    localStorage.setItem('libre-mp-settings', JSON.stringify(appSettings));
-  }, [appSettings]);
-
-  const [connectedSSID, setConnectedSSID] = useState<string | null>(null);
-  const [connectingSSID, setConnectingSSID] = useState<string | null>(null);
-  const [connectionError, setConnectionError] = useState<string | null>(null);
-  const [statusDetail, setStatusDetail] = useState<string | null>(null);
-  const [isCasting, setIsCasting] = useState(false);
-  const [castName, setCastName] = useState<string>('');
-
+  const [scanning, setScanning] = useState(false);
+  const [query, setQuery] = useState('');
+  const [showOthers, setShowOthers] = useState(() => readStore(OTHERS_KEY, { open: false }).open);
   const [toast, setToast] = useState<ToastData | null>(null);
 
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isManualOpen, setIsManualOpen] = useState(false);
-  const [isLiveScanOpen, setIsLiveScanOpen] = useState(false);
-  const [passwordModalNet, setPasswordModalNet] = useState<NetworkItem | null>(null);
+  const [sheet, setSheet] = useState<null | 'settings' | 'help' | 'manual' | 'scan' | 'keyword'>(null);
+  const [passwordFor, setPasswordFor] = useState<Target | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const uploadRef = useRef<HTMLInputElement>(null);
   const scanningRef = useRef(false);
-  const autoReconnectTried = useRef(false);
-  const stoppingRef = useRef(false);
+  const runRef = useRef(0);
+  const castIdRef = useRef<number | null>(null);
+  const castTargetRef = useRef<Target | null>(null);
+  const autoTried = useRef(false);
 
-  const dismissToast = useCallback(() => setToast(null), []);
+  const busy = status.kind === 'working' || status.kind === 'casting';
+
+  // appearance: follow os unless forced
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.appearance === 'system') root.removeAttribute('data-theme');
+    else root.setAttribute('data-theme', settings.appearance);
+    writeStore(SETTINGS_KEY, settings);
+  }, [settings]);
+
+  useEffect(() => writeStore(OTHERS_KEY, { open: showOthers }), [showOthers]);
 
   const notify = useCallback(
     (message: string, type: ToastData['type'] = 'info') => {
-      if (appSettings.showNotifications) setToast({ message, type });
+      if (settings.showNotifications || type === 'error') setToast({ message, type });
     },
-    [appSettings.showNotifications]
+    [settings.showNotifications],
   );
+  const dismissToast = useCallback(() => setToast(null), []);
 
-  // ---- data loading ----
   const loadSaved = useCallback(async () => {
     try {
       setSaved(await invoke<SavedProjector[]>('list_saved_projectors'));
     } catch {
-      /* store may not exist yet */
+      /* no store yet */
     }
   }, []);
 
-  const scanNetworks = useCallback(async () => {
+  // wi-fi list + lan discovery, one at a time
+  const scan = useCallback(async () => {
     if (scanningRef.current) return;
     scanningRef.current = true;
-    setIsScanning(true);
+    setScanning(true);
     try {
-      const items: NetworkItem[] = [];
-      try {
-        const results = await invoke<WifiNetwork[]>('scan_wifi_networks');
-        for (const n of results) {
-          items.push({
-            id: n.bssid || `wifi-${n.ssid}`,
-            name: n.ssid || 'Hidden network',
-            ssid: n.ssid,
-            signal: n.signal,
-            security: n.security,
-            is_projector: n.is_projector,
-          });
-        }
-      } catch { /* adapter may be busy */ }
-
-      try {
-        const projectors = await invoke<{ name: string; ip: string }[]>('discover_projectors');
-        for (const p of projectors) {
-          const existing = items.find((n) => n.name === p.name || n.ssid === p.name);
-          if (existing) {
-            existing.is_projector = true;
-            existing.ip = p.ip;
-          } else {
-            items.push({
-              id: `proj-${p.ip}`,
-              name: p.name,
-              ssid: p.name,
-              signal: 100,
-              security: 'Projector',
-              is_projector: true,
-              ip: p.ip,
-            });
-          }
-        }
-      } catch { /* no projectors on this LAN */ }
-
-      if (items.length > 0) setNetworks(items);
+      const [wifi, lan] = await Promise.allSettled([
+        invoke<WifiNetwork[]>('scan_wifi_networks'),
+        invoke<FoundProjector[]>('discover_projectors'),
+      ]);
+      if (wifi.status === 'fulfilled') setNetworks(wifi.value);
+      if (lan.status === 'fulfilled') setFound(lan.value);
     } finally {
-      setIsScanning(false);
       scanningRef.current = false;
+      setScanning(false);
     }
   }, []);
 
   useEffect(() => {
-    scanNetworks();
     loadSaved();
-    const id = setInterval(scanNetworks, 12000);
-    return () => clearInterval(id);
-  }, [scanNetworks, loadSaved]);
+  }, [loadSaved]);
 
+  // rescan on a timer, paused while connecting or casting
   useEffect(() => {
-    if (connectionError) {
-      const t = setTimeout(() => setConnectionError(null), 8000);
-      return () => clearTimeout(t);
-    }
-  }, [connectionError]);
+    if (busy) return;
+    scan();
+    const id = window.setInterval(scan, SCAN_EVERY_MS);
+    return () => window.clearInterval(id);
+  }, [busy, scan]);
 
-  // ---- connection flow ----
-  const startCasting = useCallback(
-    async (name: string, ssid: string, password: string, ip: string) => {
-      setStatusDetail('Starting cast…');
-      stoppingRef.current = false;
-      await invoke('start_cast', { ssid, password, ip: ip || null, keyword: null });
-      setIsCasting(true);
-      setCastName(name);
-      notify(`Casting to ${name}`, 'success');
+  // remember projector once casting really works; password goes to keychain
+  const remember = useCallback(
+    async (t: Target, reportedName: string) => {
       try {
-        await invoke('save_projector', { name, ssid, password, ip: ip || '' });
-        await loadSaved();
-      } catch { /* persistence is best-effort */ }
-    },
-    [notify, loadSaved]
-  );
-
-  const connectProjector = useCallback(
-    async (name: string, ssid: string, password: string, ip: string, joinWifi = true) => {
-      setConnectingSSID(ssid);
-      setConnectionError(null);
-      setStatusDetail(`Looking for ${name}…`);
-      try {
-        // Already reachable (same LAN, or already on its Wi-Fi)? Then don't touch Wi-Fi.
-        const reachable = !!ip && (await invoke<boolean>('probe_projector', { ip }));
-        if (!reachable) {
-          if (!joinWifi) throw new Error(`${name} is not answering at ${ip}. Is it on and on this network?`);
-          setStatusDetail(`Joining ${name}…`);
-          await invoke('connect_to_wifi', { ssid, password: password || null });
-        }
-        setConnectedSSID(ssid);
-        await startCasting(name, ssid, password, ip);
-        return true;
-      } catch (err: any) {
-        setConnectionError(typeof err === 'string' ? err : err?.message || 'Connection failed.');
-        return false;
-      } finally {
-        setConnectingSSID(null);
-        setStatusDetail(null);
+        await invoke('save_projector', { name: reportedName || t.name, ssid: t.ssid, password: t.password, ip: t.ip });
+      } catch (e) {
+        notify(errText(e), 'error');
       }
+      loadSaved();
     },
-    [startCasting]
+    [loadSaved, notify],
   );
 
-  const stopCasting = useCallback(async () => {
-    stoppingRef.current = true;
-    try {
-      await invoke('stop_cast');
-    } catch { /* already stopped */ }
-    setIsCasting(false);
-    setCastName('');
-    notify('Casting stopped.', 'info');
-  }, [notify]);
-
-  // Cast thread ended by itself: show why, restore Wi-Fi.
+  // cast thread events. ids from an older cast get ignored
   useEffect(() => {
-    const off = listen<CastEnd>('cast-end', ({ payload }) => {
-      if (stoppingRef.current) return;
-      setIsCasting(false);
-      setCastName('');
-      if (payload.error) setConnectionError(payload.error.message);
+    const offEvent = listen<CastEvent>('cast-event', ({ payload }) => {
+      const t = castTargetRef.current;
+      if (payload.id !== castIdRef.current || !t) return;
+      if (payload.phase === 'casting') {
+        setStatus({ kind: 'casting', target: t });
+        remember(t, payload.projector);
+      } else {
+        setStatus({ kind: 'working', target: t, detail: phaseText(payload, t.name), cancellable: true });
+      }
+    });
+    const offEnd = listen<CastEnd>('cast-end', ({ payload }) => {
+      if (payload.id !== castIdRef.current) return;
+      const t = castTargetRef.current ?? undefined;
+      castIdRef.current = null;
+      castTargetRef.current = null;
       invoke('stop_cast').catch(() => {});
+      if (payload.error) {
+        setStatus({ kind: 'error', message: payload.error.message, target: t, rejected: payload.error.kind === 'rejected' });
+      } else {
+        setStatus({ kind: 'idle' });
+      }
     });
     return () => {
-      off.then((f) => f());
+      offEvent.then((f) => f());
+      offEnd.then((f) => f());
     };
+  }, [remember]);
+
+  // find projector, join its wi-fi if needed, start cast
+  const connect = useCallback(async (t: Target): Promise<boolean> => {
+    const run = ++runRef.current;
+    const stale = () => runRef.current !== run;
+    setStatus({ kind: 'working', target: t, detail: `Looking for ${t.name}…`, cancellable: true });
+    try {
+      const reachable = !!t.ip && (await invoke<boolean>('probe_projector', { ip: t.ip }));
+      if (stale()) return false;
+      if (!reachable) {
+        if (!t.joinWifi) throw new Error(`${t.name} is not answering at ${t.ip}. Check that it is on and on this network.`);
+        // joining cannot be cancelled halfway, or the os may end up on the wrong network
+        setStatus({ kind: 'working', target: t, detail: `Joining ${t.name}’s Wi-Fi…`, cancellable: false });
+        await invoke('connect_to_wifi', { ssid: t.ssid, password: t.password || null });
+        if (stale()) return false;
+      }
+      const id = (Date.now() % 1e9) + run;
+      castIdRef.current = id;
+      castTargetRef.current = t;
+      setStatus({ kind: 'working', target: t, detail: 'Starting…', cancellable: true });
+      await invoke('start_cast', { castId: id, ssid: t.ssid, password: t.password, ip: t.ip || null, keyword: t.keyword ?? null });
+      return true;
+    } catch (e) {
+      if (stale()) return false;
+      castIdRef.current = null;
+      castTargetRef.current = null;
+      setStatus({ kind: 'error', message: errText(e), target: t });
+      invoke('stop_cast').catch(() => {});
+      return false;
+    }
   }, []);
 
-  const disconnect = useCallback(async () => {
-    if (isCasting) await stopCasting();
-    setConnectedSSID(null);
-  }, [isCasting, stopCasting]);
+  // user stop or cancel: forget cast id first so its end event is ignored
+  const stop = useCallback(async () => {
+    const wasCasting = status.kind === 'casting';
+    runRef.current++;
+    castIdRef.current = null;
+    castTargetRef.current = null;
+    setStatus({ kind: 'idle' });
+    await invoke('stop_cast').catch(() => {});
+    if (wasCasting) notify('Casting stopped.');
+  }, [status.kind, notify]);
 
-  const handleRowClick = (net: NetworkItem) => {
-    const known = saved.find((s) => s.ssid === net.ssid);
-    if (net.id.startsWith('proj-') && net.ip) {
-      // Found by LAN discovery: there is no Wi-Fi network to join.
-      connectProjector(net.name, net.ssid, '', net.ip, false);
-    } else if (known) {
-      connectProjector(known.name || projName(known.ssid), known.ssid, '', known.ip);
-    } else if (!net.is_projector && net.security === 'Open') {
-      connectProjector(net.name, net.ssid, '', net.ip || '');
-    } else {
-      // Projectors and secured networks need a key (the projector's MAC for Epson).
-      setPasswordModalNet(net);
+  // row click: pick right path for lan projector, saved, open, or secured network
+  const connectRow = (row: Row) => {
+    if (row.found) {
+      connect({ name: row.found.name, ssid: '', password: '', ip: row.found.ip, joinWifi: false });
+      return;
+    }
+    const net = row.network!;
+    const name = net.is_projector ? projName(net.ssid) : net.ssid;
+    const target: Target = { name, ssid: net.ssid, password: '', ip: '', joinWifi: true };
+    if (net.security === 'Open') connect(target);
+    else {
+      setPasswordError(null);
+      setPasswordFor(target);
     }
   };
 
-  const handleQrDecoded = useCallback(
-    (res: QrResult) => {
-      notify(`Found ${res.ssid}`, 'info');
-      connectProjector(projName(res.ssid), res.ssid, res.password, res.ip);
+  const connectSaved = (p: SavedProjector) =>
+    connect({ name: p.name || projName(p.ssid), ssid: p.ssid, password: '', ip: p.ip, joinWifi: !!p.ssid });
+
+  const forget = async (p: SavedProjector) => {
+    try {
+      await invoke('forget_projector', { key: p.ssid || p.name });
+    } catch (e) {
+      notify(errText(e), 'error');
+    }
+    loadSaved();
+  };
+
+  const fromQr = useCallback(
+    (qr: QrResult) => {
+      setSheet(null);
+      connect({ name: projName(qr.ssid), ssid: qr.ssid, password: qr.password, ip: qr.ip, joinWifi: true });
     },
-    [connectProjector, notify]
+    [connect],
   );
 
-  const handleUpload = async (file: File) => {
+  const upload = async (file: File) => {
     try {
-      setStatusDetail('Reading QR…');
       const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-      const res = await invoke<QrResult>('decode_projector_qr', { imageBytes: bytes });
-      setStatusDetail(null);
-      handleQrDecoded(res);
-    } catch (err: any) {
-      setStatusDetail(null);
-      setConnectionError(typeof err === 'string' ? err : 'Could not read the QR code.');
+      fromQr(await invoke<QrResult>('decode_projector_qr', { imageBytes: bytes }));
+    } catch (e) {
+      setStatus({ kind: 'error', message: errText(e) });
     }
   };
 
-  const forgetSaved = async (key: string) => {
-    try {
-      await invoke('forget_projector', { key });
-      await loadSaved();
-    } catch { /* ignore */ }
-  };
-
-  // Auto-reconnect to the most recent projector once, if enabled.
+  // rejoin last projector once at launch, if asked
   useEffect(() => {
-    if (autoReconnectTried.current || !appSettings.autoReconnect || saved.length === 0) return;
-    autoReconnectTried.current = true;
-    const p = saved[0];
-    connectProjector(p.name || projName(p.ssid), p.ssid, '', p.ip);
-  }, [appSettings.autoReconnect, saved, connectProjector]);
+    if (autoTried.current || !settings.autoReconnect || saved.length === 0) return;
+    autoTried.current = true;
+    connectSaved(saved[0]);
+  }, [settings.autoReconnect, saved]);
 
-  // ---- derived ----
-  const savedSsids = new Set(saved.map((s) => s.ssid));
-  const available = networks
-    .filter((n) => n.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    .filter((n) => !savedSsids.has(n.ssid))
-    .sort((a, b) => {
-      if (a.is_projector !== b.is_projector) return a.is_projector ? -1 : 1;
-      return b.signal - a.signal;
-    });
+  // list rows, saved ones not repeated
+  const savedKeys = new Set(saved.flatMap((p) => [p.ssid, p.name, p.ip]).filter(Boolean));
+  const projectorRows: Row[] = [
+    ...found
+      .filter((f) => !savedKeys.has(f.name) && !savedKeys.has(f.ip))
+      .map((f) => ({ key: `lan-${f.ip}`, name: f.name, sub: `On this network · ${f.ip}`, projector: true, found: f })),
+    ...networks
+      .filter((n) => n.is_projector && !savedKeys.has(n.ssid))
+      .map((n) => ({
+        key: `wifi-${n.ssid}`,
+        name: projName(n.ssid),
+        sub: 'Projector Wi-Fi',
+        projector: true,
+        signal: n.signal,
+        secured: n.security !== 'Open',
+        network: n,
+      })),
+  ].filter((r) => matches(query, r.name, r.sub));
+  const otherRows: Row[] = networks
+    .filter((n) => !n.is_projector && !savedKeys.has(n.ssid) && matches(query, n.ssid))
+    .map((n) => ({
+      key: `wifi-${n.ssid}`,
+      name: n.ssid,
+      sub: n.security === 'Open' ? 'Open network' : 'Secured network',
+      projector: false,
+      signal: n.signal,
+      secured: n.security !== 'Open',
+      network: n,
+    }));
+  const savedRows = saved.filter((p) => matches(query, p.name, p.ssid));
 
-  const lampState = isCasting ? 'is-casting' : connectedSSID ? 'is-connected' : '';
-  const lampLabel = isCasting ? 'Casting' : connectedSSID ? 'Connected' : 'Idle';
+  const connectButton = (onClick: () => void, label: string) => (
+    <button type="button" className="lm-btn" disabled={busy} onClick={onClick} aria-label={label}>
+      Connect
+    </button>
+  );
+
+  const renderRow = (r: Row) => (
+    <div className="lm-row" key={r.key}>
+      <span className={`lm-tile ${r.projector ? 'projector' : ''}`.trim()} aria-hidden="true">
+        {r.projector ? <Projector size={17} /> : <Router size={17} />}
+      </span>
+      <div className="lm-row-text">
+        <div className="lm-row-name">{r.name}</div>
+        <div className="lm-row-sub">{r.sub}</div>
+      </div>
+      <span className="lm-row-meta">
+        {r.secured && <Lock size={13} aria-label="Secured" />}
+        {r.signal !== undefined && <SignalIcon signal={r.signal} />}
+      </span>
+      {connectButton(() => connectRow(r), `Connect to ${r.name}`)}
+    </div>
+  );
 
   return (
-    <div className={`lm-app ${isCasting ? 'is-casting' : ''}`.trim()}>
-      <header className="lm-topbar">
-        <div className="lm-brand">
-          <span className="lm-brand-mark">Libre<b>MP</b></span>
-        </div>
-        <div className="lm-topbar-spacer" />
-
-        <div className={`lm-lamp ${lampState}`} title={lampLabel}>
-          <span className="lm-lamp-dot" />
-          {lampLabel}
-        </div>
-
-        <div className="lm-search">
-          <Radio size={15} />
+    <div className="lm-app">
+      <header className="lm-toolbar">
+        <span className="lm-toolbar-title">LibreMP</span>
+        <label className="lm-search">
+          <Search size={14} aria-hidden="true" />
           <input
-            placeholder="Filter networks"
-            aria-label="Filter networks"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            type="search"
+            placeholder="Search"
+            aria-label="Search projectors and networks"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
           />
-        </div>
-
-        <button className="lm-iconbtn" onClick={scanNetworks} title="Rescan" aria-label="Rescan">
-          <RefreshCw size={17} className={isScanning ? 'lm-spin' : ''} />
+        </label>
+        <button type="button" className="lm-icon-btn" onClick={scan} disabled={busy || scanning} title="Refresh" aria-label="Refresh">
+          <RefreshCw size={16} className={scanning ? 'lm-spin' : ''} />
         </button>
-        <button
-          className="lm-iconbtn"
-          onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
-          title="Toggle theme"
-          aria-label="Toggle theme"
-        >
-          {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
+        <button type="button" className="lm-icon-btn" onClick={() => setSheet('settings')} title="Settings" aria-label="Settings">
+          <Settings size={16} />
         </button>
-        <button className="lm-iconbtn" onClick={() => setIsSettingsOpen(true)} title="Settings" aria-label="Settings">
-          <SlidersHorizontal size={17} />
-        </button>
-        <button className="lm-iconbtn" onClick={() => setIsHelpOpen(true)} title="Help" aria-label="Help">
-          <HelpCircle size={17} />
+        <button type="button" className="lm-icon-btn" onClick={() => setSheet('help')} title="Help" aria-label="Help">
+          <CircleHelp size={16} />
         </button>
       </header>
 
-      {(connectingSSID || connectionError) && (
-        <div
-          className={`lm-banner ${connectionError ? 'error' : 'connecting'}`}
-          role={connectionError ? 'alert' : 'status'}
-        >
-          {connectionError ? (
-            <>
-              <X size={15} />
-              <span>{connectionError}</span>
-              <button className="lm-iconbtn" onClick={() => setConnectionError(null)} style={{ marginLeft: 'auto', width: 28, height: 28 }} aria-label="Dismiss">
-                <X size={14} />
-              </button>
-            </>
-          ) : (
-            <>
-              <RotateCcw size={15} className="lm-spin" />
-              <span>{statusDetail || `Connecting to ${connectingSSID}…`}</span>
-            </>
-          )}
-        </div>
-      )}
-
-      <main className="lm-body">
-        <div className="lm-wrap">
-          {/* HERO: connect via QR */}
-          <section className="lm-section">
-            <p className="lm-eyebrow">
-              Connect a projector <span className="lm-rule" />
-            </p>
-            <div className="lm-hero">
-              <button className="lm-hero-card" onClick={() => setIsLiveScanOpen(true)}>
-                <span className="lm-hero-icon"><Camera size={20} /></span>
-                <span className="lm-hero-title">Live scan</span>
-                <span className="lm-hero-sub">
-                  Point your camera at the QR on the projector’s LAN screen. LibreMP reads it
-                  live and connects — no typing.
-                </span>
-              </button>
-              <button className="lm-hero-card" onClick={() => uploadRef.current?.click()}>
-                <span className="lm-hero-icon"><Upload size={20} /></span>
-                <span className="lm-hero-title">Upload QR photo</span>
-                <span className="lm-hero-sub">
-                  Already have a picture of the projector’s QR? Choose the image and LibreMP
-                  does the rest.
-                </span>
-              </button>
-              <button className="lm-hero-card lm-hero-lamp" onClick={() => setIsManualOpen(true)}>
-                <span className="lm-hero-icon"><KeyRound size={20} /></span>
-                <span className="lm-hero-title">Enter details</span>
-                <span className="lm-hero-sub">
-                  No QR? On the projector’s network screen, read its SSID and passphrase and
-                  type them here.
-                </span>
-              </button>
-            </div>
+      <main className="lm-main">
+        <div className="lm-column">
+          <section className="lm-status" aria-live="polite">
+            {status.kind === 'casting' ? (
+              <>
+                <div className="lm-status-head">
+                  <span className="lm-live-dot" aria-hidden="true" />
+                  <h1 className="lm-status-title">Casting to {status.target.name}</h1>
+                </div>
+                <p className="lm-status-text">Your screen is showing on the projector.</p>
+                <div className="lm-actions">
+                  <button type="button" className="lm-btn large destructive" onClick={stop}>
+                    Stop Casting
+                  </button>
+                </div>
+              </>
+            ) : status.kind === 'working' ? (
+              <>
+                <div className="lm-status-head">
+                  <LoaderCircle size={20} className="lm-spin" aria-hidden="true" />
+                  <h1 className="lm-status-title">Connecting to {status.target.name}</h1>
+                </div>
+                <p className="lm-status-text">{status.detail}</p>
+                <div className="lm-actions">
+                  <button type="button" className="lm-btn large" onClick={stop} disabled={!status.cancellable}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="lm-status-title">Connect to a Projector</h1>
+                <p className="lm-status-text">
+                  Scan the QR code on the projector’s network screen. LibreMP joins the projector and starts casting.
+                </p>
+                {status.kind === 'error' && (
+                  <div className="lm-callout" role="alert">
+                    <CircleAlert size={16} />
+                    <p>{status.message}</p>
+                  </div>
+                )}
+                <div className="lm-actions">
+                  {status.kind === 'error' && status.rejected && status.target ? (
+                    <button type="button" className="lm-btn large primary" onClick={() => setSheet('keyword')}>
+                      Enter Keyword…
+                    </button>
+                  ) : (
+                    <button type="button" className="lm-btn large primary" onClick={() => setSheet('scan')}>
+                      <Camera size={16} /> Scan QR Code
+                    </button>
+                  )}
+                  {status.kind === 'error' && status.target && !status.rejected && (
+                    <button type="button" className="lm-btn large" onClick={() => connect(status.target!)}>
+                      Try Again
+                    </button>
+                  )}
+                  <button type="button" className="lm-btn large" onClick={() => uploadRef.current?.click()}>
+                    Choose Photo…
+                  </button>
+                  <button type="button" className="lm-btn large" onClick={() => setSheet('manual')}>
+                    Enter Manually…
+                  </button>
+                </div>
+              </>
+            )}
           </section>
 
-          {/* SAVED */}
-          {saved.length > 0 && (
-            <section className="lm-section">
-              <p className="lm-eyebrow">
-                Saved <span className="lm-count">{saved.length}</span> <span className="lm-rule" />
-              </p>
-              <div className="lm-cards">
-                {saved.map((p) => {
-                  const isConn = p.ssid === connectedSSID;
-                  const isConnecting = p.ssid === connectingSSID;
+          {savedRows.length > 0 && (
+            <section aria-labelledby="lm-saved">
+              <h2 className="lm-group-head" id="lm-saved">Saved</h2>
+              <div className="lm-group">
+                {savedRows.map((p) => {
+                  const name = p.name || projName(p.ssid);
                   return (
-                    <div key={p.ssid} className={`lm-row is-projector ${isConn ? 'is-connected' : ''}`}>
-                      <MonitorPlay size={18} style={{ color: 'var(--lm-signal)', flexShrink: 0 }} />
-                      <div className="lm-row-main">
-                        <div className="lm-row-name">{p.name || projName(p.ssid)}</div>
-                        <div className="lm-row-meta">{p.ip ? `${p.ip} · ` : ''}{p.ssid}</div>
+                    <div className="lm-row" key={p.ssid || p.name}>
+                      <span className="lm-tile projector" aria-hidden="true">
+                        <Projector size={17} />
+                      </span>
+                      <div className="lm-row-text">
+                        <div className="lm-row-name">{name}</div>
+                        <div className="lm-row-sub">{p.ip || p.ssid}</div>
                       </div>
-                      {isConn && isCasting ? (
-                        <button className="lm-btn danger" onClick={stopCasting} aria-label={`Stop casting to ${p.name || projName(p.ssid)}`}>Stop cast</button>
-                      ) : (
-                        <button
-                          className="lm-btn signal"
-                          disabled={isConnecting}
-                          aria-label={`Reconnect to ${p.name || projName(p.ssid)}`}
-                          onClick={() => connectProjector(p.name || projName(p.ssid), p.ssid, '', p.ip)}
-                        >
-                          {isConnecting ? <RotateCcw size={14} className="lm-spin" /> : <><Cast size={14} /> Reconnect</>}
-                        </button>
-                      )}
+                      {connectButton(() => connectSaved(p), `Connect to ${name}`)}
                       <button
-                        className="lm-iconbtn"
-                        onClick={() => forgetSaved(p.ssid || p.name)}
+                        type="button"
+                        className="lm-icon-btn"
+                        disabled={busy}
+                        onClick={() => forget(p)}
                         title="Forget"
-                        aria-label={`Forget ${p.name || projName(p.ssid)}`}
+                        aria-label={`Forget ${name}`}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={15} />
                       </button>
                     </div>
                   );
@@ -461,122 +524,92 @@ function App() {
             </section>
           )}
 
-          {/* AVAILABLE */}
-          <section className="lm-section">
-            <p className="lm-eyebrow">
-              Available <span className="lm-count">{available.length}</span> <span className="lm-rule" />
-            </p>
-            {available.length === 0 ? (
-              <div className="lm-empty">
-                <span className="lm-empty-icon"><QrCode size={26} /></span>
-                <h4>{isScanning ? 'Scanning…' : 'Nothing here yet'}</h4>
-                <p>Scan the projector’s QR above, or check your Wi-Fi adapter and rescan.</p>
-              </div>
-            ) : (
-              <div className="lm-cards">
-                {available.map((n) => {
-                  const isConn = n.ssid === connectedSSID;
-                  const isConnecting = n.ssid === connectingSSID;
-                  return (
-                    <div key={n.id} className={`lm-row ${n.is_projector ? 'is-projector' : ''} ${isConn ? 'is-connected' : ''}`}>
-                      <div className="lm-row-main">
-                        <div className="lm-row-name">{n.name}</div>
-                        <div className="lm-row-meta">{n.ip ? `${n.ip} · ` : ''}{n.is_projector ? 'Projector' : n.security}</div>
-                      </div>
-
-                      {!n.is_projector && (
-                        <div className={`lm-bars ${signalClass(n.signal)}`}>
-                          {[1, 2, 3, 4, 5].map((i) => (
-                            <span key={i} className={`b ${i <= signalLevel(n.signal) ? 'on' : ''}`} />
-                          ))}
-                        </div>
-                      )}
-                      <span className={`lm-pill ${n.is_projector ? 'proj' : ''} ${isConn ? 'on' : ''}`}>
-                        {isConn ? 'Connected' : n.is_projector ? 'Projector' : `${n.signal}%`}
-                      </span>
-
-                      {isConn && isCasting ? (
-                        <button className="lm-btn danger" onClick={stopCasting}>Stop cast</button>
-                      ) : isConn ? (
-                        <button className="lm-btn ghost" onClick={disconnect}>Disconnect</button>
-                      ) : (
-                        <button
-                          className={`lm-btn ${n.is_projector ? 'signal' : ''}`.trim()}
-                          disabled={isConnecting}
-                          aria-label={`Connect to ${n.name}`}
-                          onClick={() => handleRowClick(n)}
-                        >
-                          {isConnecting ? <RotateCcw size={14} className="lm-spin" /> : 'Connect'}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <section aria-labelledby="lm-projectors">
+            <h2 className="lm-group-head" id="lm-projectors">
+              Projectors Nearby
+              {scanning && <LoaderCircle size={13} className="lm-spin" aria-label="Searching" />}
+            </h2>
+            <div className="lm-group">
+              {projectorRows.length > 0 ? (
+                projectorRows.map(renderRow)
+              ) : (
+                <p className="lm-empty">
+                  {scanning ? 'Searching…' : 'No projectors found. Scan the projector’s QR code instead.'}
+                </p>
+              )}
+            </div>
           </section>
+
+          {otherRows.length > 0 && (
+            <section>
+              <button
+                type="button"
+                className="lm-disclosure"
+                aria-expanded={showOthers}
+                aria-controls="lm-others"
+                onClick={() => setShowOthers(!showOthers)}
+              >
+                <ChevronRight size={14} aria-hidden="true" />
+                Other Networks
+                <span className="lm-count">{otherRows.length}</span>
+              </button>
+              {showOthers && (
+                <div className="lm-group" id="lm-others">
+                  {otherRows.map(renderRow)}
+                </div>
+              )}
+            </section>
+          )}
         </div>
       </main>
 
-      {/* casting bar */}
-      {isCasting && (
-        <div className="lm-castbar">
-          <span className="lm-lamp-dot" />
-          <div className="lm-castbar-text">
-            <strong>Casting to {castName || 'projector'}</strong>
-            <span>{connectedSSID}</span>
-          </div>
-          <button className="lm-btn danger" onClick={stopCasting}>Stop</button>
-        </div>
-      )}
-
-      {/* hidden upload input */}
       <input
         ref={uploadRef}
         type="file"
         accept="image/*"
-        style={{ display: 'none' }}
+        hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) handleUpload(f);
+          if (f) upload(f);
           e.currentTarget.value = '';
         }}
       />
 
-      {/* modals */}
-      <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={appSettings} onApply={setAppSettings} />
-      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
-      <LiveScanModal
-        isOpen={isLiveScanOpen}
-        onClose={() => setIsLiveScanOpen(false)}
-        onDecoded={(r) => {
-          setIsLiveScanOpen(false);
-          handleQrDecoded(r);
+      <SettingsModal isOpen={sheet === 'settings'} onClose={() => setSheet(null)} settings={settings} onApply={setSettings} />
+      <HelpModal isOpen={sheet === 'help'} onClose={() => setSheet(null)} />
+      <LiveScanModal isOpen={sheet === 'scan'} onClose={() => setSheet(null)} onDecoded={fromQr} />
+      <ManualConnectModal
+        isOpen={sheet === 'manual'}
+        onClose={() => setSheet(null)}
+        onConnect={(ssid, password) => {
+          setSheet(null);
+          connect({ name: projName(ssid), ssid, password, ip: '', joinWifi: true });
         }}
       />
-      <ManualConnectModal
-        isOpen={isManualOpen}
-        onClose={() => setIsManualOpen(false)}
-        onConnect={(ssid, password) => {
-          setIsManualOpen(false);
-          connectProjector(projName(ssid), ssid, password, '');
+      <KeywordModal
+        isOpen={sheet === 'keyword'}
+        projectorName={status.kind === 'error' && status.target ? status.target.name : 'The projector'}
+        onClose={() => setSheet(null)}
+        onSubmit={(keyword) => {
+          setSheet(null);
+          if (status.kind === 'error' && status.target) connect({ ...status.target, keyword });
         }}
       />
       <PasswordModal
-        isOpen={!!passwordModalNet}
-        networkName={passwordModalNet?.name || ''}
-        isLoading={connectingSSID === passwordModalNet?.ssid}
-        error={connectingSSID === passwordModalNet?.ssid ? null : connectionError}
-        onCancel={() => {
-          setPasswordModalNet(null);
-          setConnectionError(null);
-        }}
-        onSubmit={(pwd) => {
-          const net = passwordModalNet;
-          if (!net) return;
-          connectProjector(net.name, net.ssid, pwd, net.ip || '').then((ok) => {
-            if (ok) setPasswordModalNet(null);
-          });
+        isOpen={!!passwordFor}
+        networkName={passwordFor?.name ?? ''}
+        isProjector={!!passwordFor && passwordFor.name !== passwordFor.ssid}
+        isLoading={status.kind === 'working' && status.target === passwordFor}
+        error={passwordError}
+        onCancel={() => setPasswordFor(null)}
+        onSubmit={async (password) => {
+          if (!passwordFor) return;
+          const t = { ...passwordFor, password };
+          setPasswordFor(t);
+          setPasswordError(null);
+          const ok = await connect(t);
+          if (ok) setPasswordFor(null);
+          else setPasswordError('Could not join. Check the password and try again.');
         }}
       />
 

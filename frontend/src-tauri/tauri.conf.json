@@ -13,20 +13,17 @@
     "windows": [
       {
         "title": "LibreMP",
-        "width": 1000,
-        "height": 800,
-        "minWidth": 1000,
-        "maxWidth": 1000,
-        "minHeight": 800,
-        "maxHeight": 800,
-        "resizable": false,
-        "maximizable": false,
+        "width": 920,
+        "height": 760,
+        "minWidth": 720,
+        "minHeight": 560,
+        "resizable": true,
         "fullscreen": false,
         "center": true
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {

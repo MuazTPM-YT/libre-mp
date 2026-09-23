@@ -1,16 +1,7 @@
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
-/**
- * The dialog shell every modal uses.
- *
- * It owns the things that are easy to forget and obvious when missing: Escape
- * closes, focus moves in and comes back out, Tab stays inside, the dialog is
- * announced as a dialog, and it fades out instead of vanishing mid-frame.
- */
-
-/** Must match the exit transition in index.css. */
-const EXIT_MS = 140;
+// must match sheet exit transition in index.css
+const EXIT_MS = 150;
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -19,34 +10,25 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   title: string;
-  icon?: ReactNode;
-  children: ReactNode;
-  footer?: ReactNode;
-  /** Extra class for the panel, e.g. a wider camera modal. */
-  className?: string;
-  /** While false the dialog cannot be dismissed (a request is in flight). */
+  text?: ReactNode;
+  children?: ReactNode;
+  footer: ReactNode;
+  wide?: boolean;
+  // false while work runs: esc + backdrop do nothing
   closable?: boolean;
+  // enter key / submit button
+  onSubmit?: () => void;
 }
 
-export function Modal({
-  isOpen,
-  onClose,
-  title,
-  icon,
-  children,
-  footer,
-  className = '',
-  closable = true,
-}: Props) {
+// centred sheet: esc closes, focus in and back out, tab stays inside, fade + small scale
+export function Modal({ isOpen, onClose, title, text, children, footer, wide, closable = true, onSubmit }: Props) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLFormElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
 
-  // Mount first, flip to "open" a frame later, so the entry transition runs.
-  // Two frames: one for React to insert the node, one for the browser to take
-  // its starting style. Closing keeps the node alive until the exit finishes.
+  // mount, then open two frames later so entry transition runs; keep node till exit ends
   useEffect(() => {
     if (isOpen) {
       returnFocusRef.current = document.activeElement as HTMLElement | null;
@@ -65,21 +47,18 @@ export function Modal({
     return () => window.clearTimeout(t);
   }, [isOpen]);
 
-  // Focus goes into the dialog, and back to the trigger when it closes.
+  // focus goes in on open, back to trigger on close
   useEffect(() => {
     if (!mounted) return;
     const panel = panelRef.current;
     if (panel && !panel.contains(document.activeElement)) {
-      (panel.querySelector<HTMLElement>(FOCUSABLE) ?? panel).focus();
+      const auto = panel.querySelector<HTMLElement>('[autofocus]');
+      (auto ?? panel.querySelector<HTMLElement>('.primary') ?? panel.querySelector<HTMLElement>(FOCUSABLE) ?? panel).focus();
     }
     return () => returnFocusRef.current?.focus?.();
   }, [mounted]);
 
-  const close = useCallback(() => {
-    if (closable) onClose();
-  }, [closable, onClose]);
-
-  // Escape closes; Tab cycles inside the dialog instead of escaping behind it.
+  // esc closes; tab cycles inside
   useEffect(() => {
     if (!mounted) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -90,12 +69,9 @@ export function Modal({
         }
         return;
       }
-      if (e.key !== 'Tab') return;
       const panel = panelRef.current;
-      if (!panel) return;
-      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
-        (el) => el.offsetParent !== null
-      );
+      if (e.key !== 'Tab' || !panel) return;
+      const items = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.offsetParent !== null);
       if (items.length === 0) {
         e.preventDefault();
         return;
@@ -119,34 +95,32 @@ export function Modal({
 
   return (
     <div
-      className="lm-modal-overlay"
+      className="lm-scrim"
       data-state={open ? 'open' : 'closed'}
-      // mousedown, not click: dragging a text selection from inside the dialog
-      // and releasing on the backdrop must not close it.
+      // mousedown, so a text drag ending on backdrop does not close
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) close();
+        if (e.target === e.currentTarget && closable) onClose();
       }}
     >
-      <div
+      <form
         ref={panelRef}
-        className={`lm-modal ${className}`.trim()}
+        className={`lm-sheet ${wide ? 'wide' : ''}`.trim()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit?.();
+        }}
       >
-        <div className="lm-modal-head">
-          <div className="lm-modal-title" id={titleId}>
-            {icon}
-            <span>{title}</span>
-          </div>
-          <button className="lm-iconbtn" onClick={close} disabled={!closable} aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-        <div className="lm-modal-body">{children}</div>
-        {footer && <div className="lm-modal-foot">{footer}</div>}
-      </div>
+        <h2 className="lm-sheet-title" id={titleId}>
+          {title}
+        </h2>
+        {text && <p className="lm-sheet-text">{text}</p>}
+        {children}
+        <div className="lm-sheet-foot">{footer}</div>
+      </form>
     </div>
   );
 }
