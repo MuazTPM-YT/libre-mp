@@ -653,22 +653,28 @@ const META_DISPLAY_CONFIG_V9: [u8; 24] = [
     0xff, 0x00, 0x10, 0x08, 0x00, 0x00, 0x00, 0x00,
 ];
 
-// windows 1024x768 whole-frame tiles: (x, y, w, h, ts, jpeg size aim)
-pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
-    (0, 0, 624, 416, 2429847810, 34004),
-    (624, 0, 400, 416, 2430131968, 12248),
-    (0, 416, 624, 352, 2428173568, 16058),
-    (624, 416, 400, 352, 2429283840, 14155),
+// windows 1024x768 whole-frame tiles: (x, y, w, h, jpeg size aim)
+pub const KEYFRAME_TILES: [(u16, u16, u16, u16, usize); 4] = [
+    (0, 0, 624, 416, 34004),
+    (624, 0, 400, 416, 12248),
+    (0, 416, 624, 352, 16058),
+    (624, 416, 400, 352, 14155),
 ];
 
-// one jpeg tile + place + ts (16-byte descriptor on wire)
+// one jpeg tile + place (16-byte descriptor on wire)
 pub struct VideoTile<'a> {
     pub jpeg: &'a [u8],
     pub x: u16,
     pub y: u16,
     pub w: u16,
     pub h: u16,
-    pub ts: u32,
+}
+
+// descriptor's last u32: 0x90 then jpeg length as 3 fixed 7-bit groups, low first, top bit set on first two.
+// v11 ignores it, v9 hangs up (0x0008) when it does not match the jpeg
+pub fn tile_len_tag(len: usize) -> u32 {
+    let n = len as u32;
+    0x90 << 24 | (0x80 | (n & 0x7f)) << 16 | (0x80 | ((n >> 7) & 0x7f)) << 8 | ((n >> 14) & 0x7f)
 }
 
 // eprd frame from jpeg tiles, byte-same as windows. count field = tile count
@@ -705,7 +711,7 @@ fn build_video_frame_meta(my_ip: Ipv4Addr, tiles: &[VideoTile], meta: Option<&[u
         payload.extend_from_slice(&t.w.to_be_bytes());
         payload.extend_from_slice(&t.h.to_be_bytes());
         payload.extend_from_slice(&0x0000_0007u32.to_be_bytes()); // flags
-        payload.extend_from_slice(&t.ts.to_be_bytes());
+        payload.extend_from_slice(&tile_len_tag(t.jpeg.len()).to_be_bytes());
         payload.extend_from_slice(t.jpeg);
     }
 

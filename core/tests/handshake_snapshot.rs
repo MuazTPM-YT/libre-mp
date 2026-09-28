@@ -44,7 +44,7 @@ fn registration_response_yields_projector_name_and_mac() {
     assert_eq!(id.version, Some(0x0b));
 }
 
-// ── v9 dialect (windows iProjection vs Epson PowerLite 4650; capture not in repo) ──
+// ── v9 dialect (windows EasyMP vs Epson PowerLite 4650; capture not in repo) ──
 
 const V9_IP: Ipv4Addr = Ipv4Addr::new(10, 240, 62, 181);
 const V9_PROJ: Ipv4Addr = Ipv4Addr::new(10, 240, 61, 255);

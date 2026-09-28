@@ -214,12 +214,12 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                 last_full = Instant::now();
                 let jpegs: Vec<Vec<u8>> = KEYFRAME_TILES
                     .iter()
-                    .map(|&(x, y, w, h, _, budget)| capture::encode_tile_adaptive(&screen, x, y, w, h, budget))
+                    .map(|&(x, y, w, h, budget)| capture::encode_tile_adaptive(&screen, x, y, w, h, budget))
                     .collect();
                 let tiles: Vec<VideoTile> = KEYFRAME_TILES
                     .iter()
                     .zip(&jpegs)
-                    .map(|(&(x, y, w, h, ts, _), jpeg)| VideoTile { jpeg, x, y, w, h, ts })
+                    .map(|(&(x, y, w, h, _), jpeg)| VideoTile { jpeg, x, y, w, h })
                     .collect();
                 Some(build(my_ip, &tiles, true))
             }
@@ -231,7 +231,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                 let tiles: Vec<VideoTile> = rects
                     .iter()
                     .zip(&jpegs)
-                    .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h, ts: KEYFRAME_TILES[0].4 })
+                    .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h })
                     .collect();
                 Some(build(my_ip, &tiles, false))
             }
@@ -273,7 +273,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
 
 // jpeg size aim for a part, same bytes-per-pixel as whole-frame tiles
 fn byte_budget(r: &Rect) -> usize {
-    let full: usize = KEYFRAME_TILES.iter().map(|t| t.5).sum();
+    let full: usize = KEYFRAME_TILES.iter().map(|t| t.4).sum();
     let area = r.w as usize * r.h as usize;
     (full * area / (STREAM_W as usize * STREAM_H as usize)).max(2048)
 }
