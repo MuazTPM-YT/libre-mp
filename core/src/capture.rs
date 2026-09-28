@@ -327,6 +327,51 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
     Ok(Box::new(XcapGrabber::new()))
 }
 
+// fixed color bars + gray ramp + white border, no screen needed. tests projector path alone
+pub struct TestPatternGrabber {
+    frame: Vec<u8>,
+}
+
+impl Default for TestPatternGrabber {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TestPatternGrabber {
+    pub fn new() -> Self {
+        const BARS: [[u8; 3]; 8] = [
+            [255, 255, 255], [255, 255, 0], [0, 255, 255], [0, 255, 0],
+            [255, 0, 255], [255, 0, 0], [0, 0, 255], [0, 0, 0],
+        ];
+        let (w, h) = (STREAM_W as usize, STREAM_H as usize);
+        let mut frame = vec![0u8; w * h * 3];
+        for y in 0..h {
+            for x in 0..w {
+                let px = if x < 8 || y < 8 || x >= w - 8 || y >= h - 8 {
+                    [255, 255, 255]
+                } else if y < h * 2 / 3 {
+                    BARS[x * BARS.len() / w]
+                } else {
+                    let g = (x * 255 / (w - 1)) as u8;
+                    [g, g, g]
+                };
+                frame[(y * w + x) * 3..][..3].copy_from_slice(&px);
+            }
+        }
+        Self { frame }
+    }
+}
+
+impl FrameGrabber for TestPatternGrabber {
+    fn grab(&mut self) -> Option<Vec<u8>> {
+        Some(self.frame.clone())
+    }
+    fn name(&self) -> &'static str {
+        "test pattern"
+    }
+}
+
 // ─── bgra resize ────────────────────────────────────────────────────────────
 
 // resize bgra to rgb in one pass

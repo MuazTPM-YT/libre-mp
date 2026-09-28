@@ -618,9 +618,12 @@ pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) -> io::Result<()> {
         Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(()),
         Err(e) => return Err(e),
     };
-    for (cmd, _) in eemp_messages(&buf[..n]) {
-        if cmd == CMD_STATUS_QUERY {
-            s_auth.write_all(&response_0x0108(my_ip))?;
+    for (cmd, p) in eemp_messages(&buf[..n]) {
+        match cmd {
+            CMD_STATUS_QUERY => s_auth.write_all(&response_0x0108(my_ip))?,
+            CMD_HEARTBEAT_V9 => {}
+            // anything unexpected mid-cast may say why the projector drops us
+            _ => eprintln!("[*]    Control message 0x{cmd:04x}: {}", p.iter().map(|b| format!("{b:02x}")).collect::<String>()),
         }
     }
     Ok(())
