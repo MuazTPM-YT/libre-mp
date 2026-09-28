@@ -250,8 +250,8 @@ pub fn auth_payload(
     p
 }
 
-// v9 login (0x0004), byte-same as windows capture vs powerlite 4650. prefix + tail copied, meaning unknown.
-// mac, keyword slot (placed like v11, untested), projector ip between
+// v9 login (0x0004), byte-same as windows capture vs powerlite 4650. other bytes copied, meaning unknown.
+// netmask + gateway, mac, keyword slot (placed like v11, untested), projector ip
 pub fn auth_payload_v9(
     my_ip: Ipv4Addr,
     proj_ip: Ipv4Addr,
@@ -259,9 +259,12 @@ pub fn auth_payload_v9(
     keyword: Option<&str>,
 ) -> Vec<u8> {
     let mut p = eemp_header(my_ip, CMD_AUTH_V9, 95);
-    p.extend_from_slice(
-        &hex::decode("01010000001c00000000000000ffff00000af001010201030004000320200001ff00ff00ff00000810000000010c0000").unwrap(),
-    );
+    p.extend_from_slice(&hex::decode("01010000001c00000000000000").unwrap());
+    // FIXME: likely client netmask + default gateway; these are the capture network's (255.255.0.0, 10.240.1.1).
+    // real values need default_gateways() + a netmask lookup (if-addrs crate, or per-os code). unknown if projector reads them
+    p.extend_from_slice(&[255, 255, 0, 0]);
+    p.extend_from_slice(&[10, 240, 1, 1]);
+    p.extend_from_slice(&hex::decode("0201030004000320200001ff00ff00ff00000810000000010c0000").unwrap());
     p.extend_from_slice(mac);
     let mut keyword_field = [0u8; 16];
     if let Some(k) = keyword {
