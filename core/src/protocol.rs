@@ -507,22 +507,27 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-// windows 1024x768 whole-frame tiles: (x, y, w, h, ts, jpeg size aim)
-pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
-    (0, 0, 624, 416, 2429847810, 34004),
-    (624, 0, 400, 416, 2430131968, 12248),
-    (0, 416, 624, 352, 2428173568, 16058),
-    (624, 416, 400, 352, 2429283840, 14155),
+// windows 1024x768 whole-frame tiles: (x, y, w, h, jpeg size aim)
+pub const KEYFRAME_TILES: [(u16, u16, u16, u16, usize); 4] = [
+    (0, 0, 624, 416, 34004),
+    (624, 0, 400, 416, 12248),
+    (0, 416, 624, 352, 16058),
+    (624, 416, 400, 352, 14155),
 ];
 
-// one jpeg tile + place + ts (16-byte descriptor on wire)
+// one jpeg tile + place (16-byte descriptor on wire)
 pub struct VideoTile<'a> {
     pub jpeg: &'a [u8],
     pub x: u16,
     pub y: u16,
     pub w: u16,
     pub h: u16,
-    pub ts: u32,
+}
+
+// rfb tight jpeg prefix: 0x90 + jpeg length as 7-bit groups. windows always uses the 3-byte form.
+// (earlier notes called this a content-derived "ts"; a wrong value gets the session kicked with 0x0111)
+pub fn tight_jpeg_prefix(len: usize) -> [u8; 4] {
+    [0x90, (len & 0x7f) as u8 | 0x80, ((len >> 7) & 0x7f) as u8 | 0x80, (len >> 14) as u8]
 }
 
 // eprd frame from jpeg tiles, byte-same as windows. count field = tile count
@@ -548,8 +553,8 @@ pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) 
         payload.extend_from_slice(&t.y.to_be_bytes());
         payload.extend_from_slice(&t.w.to_be_bytes());
         payload.extend_from_slice(&t.h.to_be_bytes());
-        payload.extend_from_slice(&0x0000_0007u32.to_be_bytes()); // flags
-        payload.extend_from_slice(&t.ts.to_be_bytes());
+        payload.extend_from_slice(&0x0000_0007u32.to_be_bytes()); // rfb encoding 7 = tight
+        payload.extend_from_slice(&tight_jpeg_prefix(t.jpeg.len()));
         payload.extend_from_slice(t.jpeg);
     }
 

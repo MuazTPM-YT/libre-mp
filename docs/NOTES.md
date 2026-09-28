@@ -24,9 +24,9 @@ Checked against `windows_perfect_stream.bin`: the reassembled video channel of t
 
 - **Block header.** `EPRD0600` + sender IP + msg id (0) + size. The META block's size is little-endian. The JPEG block's size is big-endian.
 - **META.** A 46-byte display config. Windows sends it once, as the first block. We send it with every whole frame. This was proven on hardware by the old template, and the projector accepts it.
-- **JPEG payload.** A big-endian `u32`, then per tile: a 16-byte descriptor (`x, y, w, h` as BE `u16`, flags `0x00000007`, a `u32` "ts") and the JPEG bytes. The first `u32` is the **tile count**. Earlier notes called it a "frame type" (4 = key, 3/1 = delta). That was wrong: it always equals the number of tiles.
+- **It is RFB.** The JPEG block is an RFB FramebufferUpdate: `u8 0, u8 pad, u16 count` (the tile count, written as one BE `u32`), then per rect `x, y, w, h` (BE `u16`), encoding `7` (Tight), then Tight JPEG data: control byte `0x90` + JPEG length as 7-bit groups (Windows always uses the 3-byte form) + the JPEG. What older notes called a content-derived "ts" is that prefix; every tile in the capture matches (`captured_ts_is_tight_jpeg_length`).
 - **Windows sends mostly partial frames.** More than 90 of the 105 blocks cover only the changed areas. Tiles are multiples of 16 (4:2:0 JPEG), at most 624×416, and are cut from the origin of each changed area.
-- **"ts".** It looks content-derived in the capture. The projector ignored it when we sent fixed values, which was proven on hardware. Partial tiles reuse the first keyframe value.
+- **Tight length is required on some models.** The old code sent fixed "ts" values. The original test projector ignored them, but an EH-TW/Home Cinema 1060 drops the session. We now write the real length for every tile, whole or partial.
 
 ### Sending only what changed (`core/src/session.rs`)
 
