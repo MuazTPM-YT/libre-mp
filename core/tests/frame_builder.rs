@@ -1,7 +1,7 @@
 //! eprd builder vs real windows stream capture, byte for byte
 
 use std::net::Ipv4Addr;
-use libremp_core::protocol::{build_video_frame, VideoTile};
+use libremp_core::protocol::{build_video_frame, tight_jpeg_prefix, VideoTile};
 
 // find capture file (tests run in core/)
 fn capture() -> Vec<u8> {
@@ -63,7 +63,7 @@ fn builder_reproduces_capture_first_frame_byte_for_byte() {
 
     let tiles: Vec<VideoTile> = owned
         .iter()
-        .map(|(x, y, w, h, ts, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h, ts: *ts })
+        .map(|(x, y, w, h, _, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h })
         .collect();
 
     // Client IP in the capture's EPRD header is 192.168.88.2.
@@ -77,10 +77,19 @@ fn builder_reproduces_capture_first_frame_byte_for_byte() {
 fn first_frame_meta_matches_capture() {
     let buf = capture();
     let dummy = [0xffu8, 0xd8, 0x00, 0xff, 0xd9];
-    let tiles = [VideoTile { jpeg: &dummy, x: 0, y: 0, w: 8, h: 8, ts: 0 }];
+    let tiles = [VideoTile { jpeg: &dummy, x: 0, y: 0, w: 8, h: 8 }];
     let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, true);
     // First 66 bytes = EPRD header (20) + META (46), independent of the tiles.
     assert_eq!(&built[..66], &buf[..66], "META display-config block mismatch vs capture");
+}
+
+// the descriptor's last u32 is the rfb tight jpeg prefix (0x90 + length), in every windows tile
+#[test]
+fn captured_ts_is_tight_jpeg_length() {
+    let buf = capture();
+    for (_, _, _, _, ts, j) in parse_block1_tiles(&buf) {
+        assert_eq!(ts.to_be_bytes(), tight_jpeg_prefix(j.len()));
+    }
 }
 
 // x, y, w, h, flags, ts, jpeg
@@ -125,7 +134,7 @@ fn builder_reproduces_every_captured_frame() {
         assert!(owned.iter().all(|t| t.4 == 7), "descriptor flags always 7");
         let tiles: Vec<VideoTile> = owned
             .iter()
-            .map(|(x, y, w, h, _, ts, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h, ts: *ts })
+            .map(|(x, y, w, h, _, _, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h })
             .collect();
         let covered: u32 = owned.iter().map(|t| t.2 as u32 * t.3 as u32).sum();
         if covered < 1024 * 768 {
