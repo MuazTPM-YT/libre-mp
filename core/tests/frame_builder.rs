@@ -1,7 +1,7 @@
 //! eprd builder vs real windows stream capture, byte for byte
 
 use std::net::Ipv4Addr;
-use libremp_core::protocol::{build_video_frame, VideoTile};
+use libremp_core::protocol::{build_video_frame, tile_len_tag, VideoTile};
 
 // find capture file (tests run in core/)
 fn capture() -> Vec<u8> {
@@ -34,7 +34,7 @@ fn parse_block1_tiles(buf: &[u8]) -> Vec<(u16, u16, u16, u16, u32, Vec<u8>)> {
         if w == 0 || h == 0 || w > 2000 {
             break;
         }
-        let ts = u32::from_be_bytes(buf[d + 12..d + 16].try_into().unwrap());
+        let ts = u32::from_be_bytes(buf[d + 12..d + 16].try_into().unwrap()); // tile_len_tag, rebuilt by builder
         let jstart = d + 16;
         if buf[jstart] != 0xff || buf[jstart + 1] != 0xd8 {
             break;
@@ -63,7 +63,7 @@ fn builder_reproduces_capture_first_frame_byte_for_byte() {
 
     let tiles: Vec<VideoTile> = owned
         .iter()
-        .map(|(x, y, w, h, ts, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h, ts: *ts })
+        .map(|(x, y, w, h, _, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h })
         .collect();
 
     // Client IP in the capture's EPRD header is 192.168.88.2.
@@ -77,7 +77,7 @@ fn builder_reproduces_capture_first_frame_byte_for_byte() {
 fn first_frame_meta_matches_capture() {
     let buf = capture();
     let dummy = [0xffu8, 0xd8, 0x00, 0xff, 0xd9];
-    let tiles = [VideoTile { jpeg: &dummy, x: 0, y: 0, w: 8, h: 8, ts: 0 }];
+    let tiles = [VideoTile { jpeg: &dummy, x: 0, y: 0, w: 8, h: 8 }];
     let built = build_video_frame(Ipv4Addr::new(192, 168, 88, 2), &tiles, true);
     // First 66 bytes = EPRD header (20) + META (46), independent of the tiles.
     assert_eq!(&built[..66], &buf[..66], "META display-config block mismatch vs capture");
@@ -125,7 +125,7 @@ fn builder_reproduces_every_captured_frame() {
         assert!(owned.iter().all(|t| t.4 == 7), "descriptor flags always 7");
         let tiles: Vec<VideoTile> = owned
             .iter()
-            .map(|(x, y, w, h, _, ts, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h, ts: *ts })
+            .map(|(x, y, w, h, _, _, j)| VideoTile { jpeg: j, x: *x, y: *y, w: *w, h: *h })
             .collect();
         let covered: u32 = owned.iter().map(|t| t.2 as u32 * t.3 as u32).sum();
         if covered < 1024 * 768 {
@@ -137,4 +137,12 @@ fn builder_reproduces_every_captured_frame() {
     }
     assert_eq!(blocks, 105);
     assert!(partial > 90, "windows sends mostly partial frames, got {partial}");
+}
+
+// descriptor tag = jpeg length, checked against v9 capture (powerlite 4650, not in repo) tiles: (jpeg len, wire value)
+#[test]
+fn tile_len_tag_matches_v9_capture() {
+    for (len, tag) in [(60014, 0x90eed403), (15853, 0x90edfb00), (20951, 0x90d7a301), (1303, 0x90978a00), (51713, 0x90819403)] {
+        assert_eq!(tile_len_tag(len), tag, "len {len}");
+    }
 }

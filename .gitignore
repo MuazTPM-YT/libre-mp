@@ -19,3 +19,8 @@ projectors.json
 
 # Local secrets
 .env
+
+# Local packet captures and extracts (may contain network details)
+*.pcapng
+*.pcapng.lz4
+v9video.bin

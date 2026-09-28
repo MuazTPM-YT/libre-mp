@@ -18,15 +18,29 @@ Ground truth is a Windows iProjection session capture: `git show b1a85c2:test.pc
 - **Aux channel.** The Windows client sends silent audio: 2646- and 1764-byte zero buffers, alternating every 50 ms. We send both every 100 ms. Each has a 5-byte header (`0xC9` + little-endian size).
 - **Goodbye.** On stop, Windows sends `0x0104`, and the projector replies `0x0105` and frees the session at once. We do the same. The desktop app also does it when it quits.
 
+### The v9 dialect (older firmware)
+
+The reference capture above is from a projector that reports EasyMP **version 11** (its `0x0015` blob has `0104 0b`). An Epson PowerLite 4650 reports **version 9** (`0104 09`) and does not accept the v11 `0x0101` login; it speaks an older, smaller dialect.
+
+iProjection reports this projector as unsupported. Everything below comes from one capture of Epson's older Windows EasyMP client casting to it (client `10.240.62.181`, projector `10.240.61.255`, about 11 s of streaming). The capture is not in the repo; the login and `0x0015` bytes from it are in `core/tests/handshake_snapshot.rs` (`v9_*`). Byte meanings not listed here are unknown; those bytes are copied from the capture as-is.
+
+- **Choosing the dialect.** We read the byte after the first `01 04` in the `0x0015` blob. The two projectors we have seen give `0x0b` and `0x09`. `protocol::is_v9` treats anything below 11 as v9. That cutoff is a guess from two data points, and so is using the first `01 04` match as the marker.
+- **Login (`0x0004`, not `0x0101`).** A flat 95-byte payload: 48 bytes copied from the capture (including the netmask and gateway, below), the 6-byte MAC, a 16-byte keyword slot, the 4-byte projector IP, then 21 more bytes copied from the capture. We put the keyword in the slot after the MAC by analogy with v11; the capture had no keyword set. The reply is **`0x0005`, not `0x0102`**. We treat payload byte 30 `!= 0` as a refusal, as in v11. We have no v9 refusal capture, so that check is unconfirmed.
+- **Heartbeats, and `0x0016`.** There is no `0x010E`/`0x0108`/`0x0110`. After login the projector sends a `0x000a` message (48-byte payload) about once a second. The client sends an empty `0x000a` about every 5 s. About 8.6 s after login the projector sends `0x0016` once. We guess it means "start streaming", because that is when the client starts sending video. `connect_v9` waits for `0x0016` before returning. `control_heartbeat` sends the right poll for each dialect.
+- **Video.** The client opens TCP 3621 right after login and sends nothing on it until 60 ms after `0x0016`. There is **no `d0…` video-init packet**. The META display-config block is **24 bytes (`0xc8…`), not 46 (`0xcc…`)**, copied from the capture; `build_video_frame_v9` uses it. The EPRD tile layout looks the same as v11.
+- **No silent audio.** The client opens a second 3621 socket but sends nothing on it. `session::stream` skips the silent-audio keepalive for v9.
+- **Netmask and gateway in the login.** Payload bytes 13–20 are `ffff0000 0af00101`: 255.255.0.0 and 10.240.1.1. In the capture, 10.240.1.1 is the router (it sends ARP requests and answers DNS), and a /16 fits both hosts. The projector never sent these values, so the client most likely sends its own netmask and default gateway. We send the capture's values on every network (FIXME in `auth_payload_v9`). We don't know if the projector reads them; if a v9 projector on another network refuses the login, check this first.
+- **Status.** Login and casting work on the PowerLite 4650 (tested 2026-09-27), after the tile length tag fix below.
+
 ## Video frames (EPRD)
 
 Checked against `windows_perfect_stream.bin`: the reassembled video channel of the Windows session, 106 blocks. `core/tests/frame_builder.rs` rebuilds **all 105 JPEG blocks byte for byte**.
 
 - **Block header.** `EPRD0600` + sender IP + msg id (0) + size. The META block's size is little-endian. The JPEG block's size is big-endian.
 - **META.** A 46-byte display config. Windows sends it once, as the first block. We send it with every whole frame. This was proven on hardware by the old template, and the projector accepts it.
-- **JPEG payload.** A big-endian `u32`, then per tile: a 16-byte descriptor (`x, y, w, h` as BE `u16`, flags `0x00000007`, a `u32` "ts") and the JPEG bytes. The first `u32` is the **tile count**. Earlier notes called it a "frame type" (4 = key, 3/1 = delta). That was wrong: it always equals the number of tiles.
+- **JPEG payload.** A big-endian `u32`, then per tile: a 16-byte descriptor (`x, y, w, h` as BE `u16`, flags `0x00000007`, a `u32` length tag) and the JPEG bytes. The first `u32` is the **tile count**. Earlier notes called it a "frame type" (4 = key, 3/1 = delta). That was wrong: it always equals the number of tiles.
 - **Windows sends mostly partial frames.** More than 90 of the 105 blocks cover only the changed areas. Tiles are multiples of 16 (4:2:0 JPEG), at most 624×416, and are cut from the origin of each changed area.
-- **"ts".** It looks content-derived in the capture. The projector ignored it when we sent fixed values, which was proven on hardware. Partial tiles reuse the first keyframe value.
+- **The descriptor's last `u32` is the JPEG length, not a timestamp.** It is `0x90`, then the length in three 7-bit groups, low first, with the top bit set on the first two (`protocol::tile_len_tag`). It matches all 288 tiles in both captures (233 from v11, 55 from v9). The v11 projector ignores it, so our old fixed values worked there. The v9 projector checks it: a wrong value gets control message `0x0008` (payload `00000000 03000000 01000000…`), then the video socket is reset. Found by sending captured Windows JPEGs with our values (failed) and our JPEGs with Windows values (also failed).
 
 ### Sending only what changed (`core/src/session.rs`)
 

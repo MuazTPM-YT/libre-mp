@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use libremp_core::capture;
 use libremp_core::session::{self, CastOptions, FailKind};
 use libremp_core::wifi;
 
@@ -37,7 +38,13 @@ fn main() {
     let r = running.clone();
     ctrlc::set_handler(move || r.store(false, Ordering::Relaxed)).expect("Error setting Ctrl+C handler");
 
-    let result = session::run(&opts, &running, &mut |_| {});
+    // --test-pattern: color bars instead of screen, rules out capture trouble
+    let result = if has_flag("--test-pattern") {
+        eprintln!("[*] Casting test pattern instead of the screen");
+        session::run_with(&opts, &mut capture::TestPatternGrabber::new(), &running, &mut |_| {})
+    } else {
+        session::run(&opts, &running, &mut |_| {})
+    };
     if let Some(id) = prev_wifi {
         eprintln!("[*] Restoring Wi-Fi...");
         wifi::restore(&id);
