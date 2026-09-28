@@ -18,6 +18,20 @@ Ground truth is a Windows iProjection session capture: `git show b1a85c2:test.pc
 - **Aux channel.** The Windows client sends silent audio: 2646- and 1764-byte zero buffers, alternating every 50 ms. We send both every 100 ms. Each has a 5-byte header (`0xC9` + little-endian size).
 - **Goodbye.** On stop, Windows sends `0x0104`, and the projector replies `0x0105` and frees the session at once. We do the same. The desktop app also does it when it quits.
 
+### The v9 dialect (older firmware)
+
+The reference capture above is from a projector that reports EasyMP **version 11** (its `0x0015` blob has `0104 0b`). An Epson PowerLite 4650 reports **version 9** (`0104 09`) and does not accept the v11 `0x0101` login; it speaks an older, smaller dialect.
+
+Everything below comes from one capture of Windows iProjection casting to that PowerLite 4650 (client `10.240.62.181`, projector `10.240.61.255`, about 11 s of streaming). The capture is not in the repo; the login and `0x0015` bytes from it are in `core/tests/handshake_snapshot.rs` (`v9_*`). Byte meanings not listed here are unknown; those bytes are copied from the capture as-is.
+
+- **Choosing the dialect.** We read the byte after the first `01 04` in the `0x0015` blob. The two projectors we have seen give `0x0b` and `0x09`. `protocol::is_v9` treats anything below 11 as v9. That cutoff is a guess from two data points, and so is using the first `01 04` match as the marker.
+- **Login (`0x0004`, not `0x0101`).** A flat 95-byte payload: 48 bytes copied from the capture, the 6-byte MAC, a 16-byte keyword slot, the 4-byte projector IP, then 21 more bytes copied from the capture. We put the keyword in the slot after the MAC by analogy with v11; the capture had no keyword set. The reply is **`0x0005`, not `0x0102`**. We treat payload byte 30 `!= 0` as a refusal, as in v11. We have no v9 refusal capture, so that check is unconfirmed.
+- **Heartbeats, and `0x0016`.** There is no `0x010E`/`0x0108`/`0x0110`. After login the projector sends a `0x000a` message (48-byte payload) about once a second. The client sends an empty `0x000a` about every 5 s. About 8.6 s after login the projector sends `0x0016` once. We guess it means "start streaming", because that is when the client starts sending video. `connect_v9` waits for `0x0016` before returning. `control_heartbeat` sends the right poll for each dialect.
+- **Video.** The client opens TCP 3621 right after login and sends nothing on it until 60 ms after `0x0016`. There is **no `d0…` video-init packet**. The META display-config block is **24 bytes (`0xc8…`), not 46 (`0xcc…`)**, copied from the capture; `build_video_frame_v9` uses it. The EPRD tile layout looks the same as v11.
+- **No silent audio.** The client opens a second 3621 socket but sends nothing on it. `session::stream` skips the silent-audio keepalive for v9.
+- **The 48-byte prefix may not be constant.** It contains `0af0`, which matches the capture's `10.240/16` subnet. If a v9 projector on another subnet refuses the login, check whether that is derived from an IP address.
+- **Status.** This path is built from the capture only. It has not yet run against the hardware.
+
 ## Video frames (EPRD)
 
 Checked against `windows_perfect_stream.bin`: the reassembled video channel of the Windows session, 106 blocks. `core/tests/frame_builder.rs` rebuilds **all 105 JPEG blocks byte for byte**.

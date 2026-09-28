@@ -30,6 +30,11 @@ const CMD_AUTH_OK: u32 = 0x0102;
 const CMD_DISCONNECT: u32 = 0x0104;
 const CMD_STATUS_QUERY: u32 = 0x010E;
 const CMD_READY: u32 = 0x0110;
+// v9 dialect, seen in windows capture vs powerlite 4650: login 0x0004 -> 0x0005, 0x0016 before video (guess: start streaming)
+const CMD_AUTH_V9: u32 = 0x0004;
+const CMD_AUTH_OK_V9: u32 = 0x0005;
+const CMD_STREAM_START: u32 = 0x0016;
+const CMD_HEARTBEAT_V9: u32 = 0x000A;
 
 // every ipv4 default gateway, route-table order. projector often is one
 fn default_gateways() -> Vec<Ipv4Addr> {
@@ -164,6 +169,8 @@ pub struct ProjectorIdentity {
     pub name: Option<Vec<u8>>,
     // mac (0x0015, else 0x0003) = easymp auth key
     pub mac: Option<[u8; 6]>,
+    // easymp version, byte after 01 04 in 0x0015 blob. seen: 0x0b (v11 capture), 0x09 (powerlite 4650)
+    pub version: Option<u8>,
 }
 
 // name + mac from registration reply, like windows client
@@ -185,7 +192,13 @@ pub fn parse_registration_response(data: &[u8]) -> ProjectorIdentity {
                     info_mac = nonzero(&p[48..54]);
                 }
             }
-            CMD_REGISTER_MAC if p.len() >= 6 => id.mac = nonzero(&p[..6]).or(id.mac),
+            CMD_REGISTER_MAC if p.len() >= 6 => {
+                id.mac = nonzero(&p[..6]).or(id.mac);
+                // marker guessed from two captures: byte after first 01 04
+                if let Some(i) = p.windows(2).position(|w| w == [0x01, 0x04]) {
+                    id.version = p.get(i + 2).copied().or(id.version);
+                }
+            }
             _ => {}
         }
     }
@@ -234,6 +247,31 @@ pub fn auth_payload(
     p.extend_from_slice(
         &hex::decode("0f00000004000000320000000d000000040000000200000026000000080000000010000000100000").unwrap(),
     );
+    p
+}
+
+// v9 login (0x0004), byte-same as windows capture vs powerlite 4650. prefix + tail copied, meaning unknown.
+// mac, keyword slot (placed like v11, untested), projector ip between
+pub fn auth_payload_v9(
+    my_ip: Ipv4Addr,
+    proj_ip: Ipv4Addr,
+    mac: &[u8; 6],
+    keyword: Option<&str>,
+) -> Vec<u8> {
+    let mut p = eemp_header(my_ip, CMD_AUTH_V9, 95);
+    p.extend_from_slice(
+        &hex::decode("01010000001c00000000000000ffff00000af001010201030004000320200001ff00ff00ff00000810000000010c0000").unwrap(),
+    );
+    p.extend_from_slice(mac);
+    let mut keyword_field = [0u8; 16];
+    if let Some(k) = keyword {
+        let b = k.as_bytes();
+        let n = b.len().min(16);
+        keyword_field[..n].copy_from_slice(&b[..n]);
+    }
+    p.extend_from_slice(&keyword_field);
+    p.extend_from_slice(&proj_ip.octets());
+    p.extend_from_slice(&hex::decode("1100000011000000000000000e0000000100000002").unwrap());
     p
 }
 
@@ -298,9 +336,16 @@ pub struct EpsonClient {
     pub my_ip: Ipv4Addr,
     pub proj_ip: Ipv4Addr,
     pub name: String,
+    // easymp version the projector advertised; drives the v9 vs v11 wire dialect
+    pub version: Option<u8>,
     pub s_auth: TcpStream,
     pub s_video: TcpStream,
     pub s_aux: TcpStream,
+}
+
+// below 11 = v9 dialect. cutoff is guess, only 9 and 11 seen
+pub fn is_v9(version: Option<u8>) -> bool {
+    matches!(version, Some(v) if v < 11)
 }
 
 impl EpsonClient {
@@ -368,7 +413,16 @@ impl EpsonClient {
             String::from_utf8_lossy(&name),
             mac.iter().map(|b| format!("{b:02x}")).collect::<String>()
         );
+        let version = id.version;
+        let use_v9 = is_v9(version);
+        eprintln!("[*]    EasyMP version: {version:?}{}", if use_v9 { " (v9 dialect)" } else { "" });
         std::thread::sleep(Duration::from_millis(100));
+
+        if use_v9 {
+            let (s_auth, s_video, s_aux) = Self::connect_v9(my_ip, proj_ip, &mac, keyword)?;
+            let name = String::from_utf8_lossy(&name).into_owned();
+            return Ok(EpsonClient { my_ip, proj_ip, name, version, s_auth, s_video, s_aux });
+        }
 
         // ── 2. Authentication ────────────────────────────────────────────
         eprintln!("[*]    Authenticating...");
@@ -450,7 +504,80 @@ impl EpsonClient {
 
         eprintln!("\n[+] BINGO! Ready for video stream!");
         let name = String::from_utf8_lossy(&name).into_owned();
-        Ok(EpsonClient { my_ip, proj_ip, name, s_auth, s_video, s_aux })
+        Ok(EpsonClient { my_ip, proj_ip, name, version, s_auth, s_video, s_aux })
+    }
+
+    // v9 handshake (powerlite 4650 capture): login 0x0004 -> 0x0005, open video, wait for 0x0016. No
+    // 0x010E/0x0108/0x0110, no d0 video-init packet, no audio warmup. Video only after 0x0016.
+    fn connect_v9(
+        my_ip: Ipv4Addr,
+        proj_ip: Ipv4Addr,
+        mac: &[u8; 6],
+        keyword: Option<&str>,
+    ) -> io::Result<(TcpStream, TcpStream, TcpStream)> {
+        eprintln!("[*]    Authenticating (v9, cmd 0x0004)...");
+        let mut s_auth = open(proj_ip, PORT_CONTROL)?;
+        s_auth.write_all(&auth_payload_v9(my_ip, proj_ip, mac, keyword))?;
+        let auth_resp = recv_one(&mut s_auth, Duration::from_secs(5));
+        let mut got_reply = false;
+        for (cmd, p) in eemp_messages(&auth_resp) {
+            eprintln!("[+]    Auth reply cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
+            if cmd == CMD_AUTH_OK_V9 {
+                got_reply = true;
+                if p.len() > 30 && p[30] != 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::PermissionDenied,
+                        "projector refused the connection (wrong or missing Projector Keyword, or another device is presenting)",
+                    ));
+                }
+            }
+        }
+        if !got_reply {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "projector did not answer the v9 login (0x0004); it may be busy or expect a keyword",
+            ));
+        }
+
+        // Open the video channel(s). v9 sends no d0 init packet: opening the socket is enough.
+        eprintln!("[*] 2. Opening video channel on port {PORT_VIDEO} (v9, no init packet)...");
+        std::thread::sleep(Duration::from_millis(300));
+        let s_video = open(proj_ip, PORT_VIDEO)?;
+        let s_aux = open(proj_ip, PORT_VIDEO)?;
+
+        // Poke the control channel (0x000a) and wait for the projector's 0x0016 "start streaming".
+        s_auth.write_all(&eemp_header(my_ip, CMD_HEARTBEAT_V9, 0))?;
+        eprintln!("[*] 3. Waiting for 0x0016 streaming signal (v9)...");
+        s_auth.set_read_timeout(Some(Duration::from_secs(2))).ok();
+        let mut started = false;
+        for _ in 0..15 {
+            let mut buf = vec![0u8; 4096];
+            let n = match s_auth.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(_) => {
+                    // keep poking while we wait
+                    let _ = s_auth.write_all(&eemp_header(my_ip, CMD_HEARTBEAT_V9, 0));
+                    continue;
+                }
+            };
+            for (cmd, _) in eemp_messages(&buf[..n]) {
+                if cmd == CMD_STREAM_START {
+                    eprintln!("[+]    Received 0x0016 'start streaming'!");
+                    started = true;
+                }
+            }
+            if started {
+                break;
+            }
+        }
+        s_auth.set_read_timeout(Some(Duration::from_secs(5))).ok();
+        if !started {
+            eprintln!("[*]    No 0x0016 seen; continuing anyway");
+        }
+        std::thread::sleep(Duration::from_millis(200));
+        eprintln!("\n[+] Ready for video stream (v9)!");
+        Ok((s_auth, s_video, s_aux))
     }
 
     // goodbye (0x0104) like windows, so projector frees session now
@@ -468,6 +595,15 @@ pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     s_aux.write_all(&aux_header(1764))?;
     s_aux.write_all(&[0u8; 1764])?;
     Ok(())
+}
+
+// periodic control-channel heartbeat: empty 0x000a on v9, the 0x0108 status reply on v11
+pub fn control_heartbeat(my_ip: Ipv4Addr, use_v9: bool) -> Vec<u8> {
+    if use_v9 {
+        eemp_header(my_ip, CMD_HEARTBEAT_V9, 0)
+    } else {
+        response_0x0108(my_ip)
+    }
 }
 
 // answer heartbeat queries or projector resets after ~50s. nonblocking read, windows timeout breaks socket
@@ -507,6 +643,13 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
+// 24-byte display config copied from powerlite 4650 capture (v9), meaning unknown
+const META_DISPLAY_CONFIG_V9: [u8; 24] = [
+    0xc8, 0x00, 0x00, 0x00, 0x04, 0x00, 0x03, 0x00,
+    0x20, 0x20, 0x00, 0x01, 0xff, 0x00, 0xff, 0x00,
+    0xff, 0x00, 0x10, 0x08, 0x00, 0x00, 0x00, 0x00,
+];
+
 // windows 1024x768 whole-frame tiles: (x, y, w, h, ts, jpeg size aim)
 pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
     (0, 0, 624, 416, 2429847810, 34004),
@@ -527,16 +670,26 @@ pub struct VideoTile<'a> {
 
 // eprd frame from jpeg tiles, byte-same as windows. count field = tile count
 pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) -> Vec<u8> {
+    build_video_frame_meta(my_ip, tiles, with_meta.then_some(&META_DISPLAY_CONFIG[..]))
+}
+
+// v9 eprd frame: same tile layout, but the 24-byte v9 META block when asked
+pub fn build_video_frame_v9(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) -> Vec<u8> {
+    build_video_frame_meta(my_ip, tiles, with_meta.then_some(&META_DISPLAY_CONFIG_V9[..]))
+}
+
+// eprd frame from jpeg tiles, byte-same as windows. count field = tile count. meta = optional display-config block
+fn build_video_frame_meta(my_ip: Ipv4Addr, tiles: &[VideoTile], meta: Option<&[u8]>) -> Vec<u8> {
     let ip = my_ip.octets();
     let mut buf = Vec::with_capacity(16384);
 
     // meta block first when asked (size le)
-    if with_meta {
+    if let Some(meta) = meta {
         buf.extend_from_slice(b"EPRD0600");
         buf.extend_from_slice(&ip);
         buf.extend_from_slice(&0u32.to_le_bytes()); // msg_id
-        buf.extend_from_slice(&(META_DISPLAY_CONFIG.len() as u32).to_le_bytes());
-        buf.extend_from_slice(&META_DISPLAY_CONFIG);
+        buf.extend_from_slice(&(meta.len() as u32).to_le_bytes());
+        buf.extend_from_slice(meta);
     }
 
     // payload: tile count + per tile 16-byte descriptor + jpeg

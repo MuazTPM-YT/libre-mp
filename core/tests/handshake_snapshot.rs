@@ -2,7 +2,8 @@
 
 use std::net::Ipv4Addr;
 use libremp_core::protocol::{
-    auth_payload, parse_registration_response, registration_payload, response_0x0108,
+    auth_payload, auth_payload_v9, parse_registration_response, registration_payload,
+    response_0x0108,
 };
 
 fn unhex(s: &str) -> Vec<u8> {
@@ -39,6 +40,44 @@ fn registration_response_yields_projector_name_and_mac() {
     let id = parse_registration_response(&unhex(WIN_REGISTRATION_RESP));
     assert_eq!(id.name.as_deref(), Some(&b"RESEARCHLAB"[..]));
     assert_eq!(id.mac, Some(MAC));
+    // WIN_REGISTRATION_RESP is a v11 (0x0104 0b) blob
+    assert_eq!(id.version, Some(0x0b));
+}
+
+// ── v9 dialect (windows iProjection vs Epson PowerLite 4650; capture not in repo) ──
+
+const V9_IP: Ipv4Addr = Ipv4Addr::new(10, 240, 62, 181);
+const V9_PROJ: Ipv4Addr = Ipv4Addr::new(10, 240, 61, 255);
+const V9_MAC: [u8; 6] = [0xb0, 0xe8, 0x92, 0xfd, 0xaf, 0xd4];
+
+/// Projector -> client, cmd 0x0015 from the v9 capture (version byte 0x09 after 0x0104).
+const V9_REGISTRATION_MAC: &str = "45454d50303130300af03eb515000000b9000000b0e892fdafd40000000000000000000000000000000000000000009b0000010409000000020650423030000003060004000300000406020000040003055807090800000010001000200020009002a00100000000070b0800000008000800100010009002a00100000000070d0800000008000800100010009002a0010000000000000800000008000800100010009002a00100000000060400000000070a0100010c00000000000008089f030008000000000b040001020d0e";
+
+/// Client -> projector, the v9 login on TCP 3620 (cmd 0x0004, 20 header + 95 payload).
+const V9_AUTH: &str = "45454d50303130300af03eb5040000005f00000001010000001c00000000000000ffff00000af001010201030004000320200001ff00ff00ff00000810000000010c0000b0e892fdafd4000000000000000000000000000000000af03dff1100000011000000000000000e0000000100000002";
+
+#[test]
+fn v9_registration_yields_version_9() {
+    let id = parse_registration_response(&unhex(V9_REGISTRATION_MAC));
+    assert_eq!(id.mac, Some(V9_MAC));
+    assert_eq!(id.version, Some(0x09));
+}
+
+#[test]
+fn v9_auth_matches_capture_byte_for_byte() {
+    assert_eq!(auth_payload_v9(V9_IP, V9_PROJ, &V9_MAC, None), unhex(V9_AUTH));
+}
+
+#[test]
+fn v9_keyword_only_fills_the_16_byte_slot_after_the_mac() {
+    let plain = auth_payload_v9(V9_IP, V9_PROJ, &V9_MAC, None);
+    let keyed = auth_payload_v9(V9_IP, V9_PROJ, &V9_MAC, Some("2270"));
+    assert_eq!(plain.len(), keyed.len());
+    // payload byte 54 = wire offset 74 (20 header + 48 prefix + 6 mac)
+    assert_eq!(&keyed[74..78], b"2270");
+    assert!(keyed[78..90].iter().all(|&b| b == 0), "keyword slot stays zero-padded");
+    assert_eq!(plain[..74], keyed[..74]);
+    assert_eq!(plain[90..], keyed[90..]);
 }
 
 #[test]

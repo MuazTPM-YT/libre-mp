@@ -157,6 +157,11 @@ enum Plan {
 // keep session alive, grab, send whole or changed parts, hold fps
 fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, running: &AtomicBool, full_only: bool) -> String {
     let my_ip = client.my_ip;
+    // v9 projectors use a different control heartbeat and no silent-audio channel
+    let use_v9 = protocol::is_v9(client.version);
+    let build = |ip, tiles: &[VideoTile], meta| {
+        if use_v9 { protocol::build_video_frame_v9(ip, tiles, meta) } else { protocol::build_video_frame(ip, tiles, meta) }
+    };
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
     let mut last_audio = Instant::now();
     let mut last_heartbeat = Instant::now();
@@ -172,17 +177,20 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
             return format!("Control channel: {e}");
         }
         if last_heartbeat.elapsed() > Duration::from_secs(30) {
-            let _ = client.s_auth.write_all(&protocol::response_0x0108(my_ip));
+            let _ = client.s_auth.write_all(&protocol::control_heartbeat(my_ip, use_v9));
             last_heartbeat = Instant::now();
         }
-        if last_audio.elapsed() > Duration::from_secs(1) {
-            last_audio = Instant::now() - AUDIO_SLICE;
-        }
-        while last_audio.elapsed() >= AUDIO_SLICE {
-            if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
-                return format!("Keepalive: {e}");
+        // v9: windows opens the aux socket but sends nothing on it
+        if !use_v9 {
+            if last_audio.elapsed() > Duration::from_secs(1) {
+                last_audio = Instant::now() - AUDIO_SLICE;
             }
-            last_audio += AUDIO_SLICE;
+            while last_audio.elapsed() >= AUDIO_SLICE {
+                if let Err(e) = protocol::send_keepalive(&mut client.s_aux) {
+                    return format!("Keepalive: {e}");
+                }
+                last_audio += AUDIO_SLICE;
+            }
         }
 
         let Some(screen) = grabber.grab() else {
@@ -213,7 +221,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                     .zip(&jpegs)
                     .map(|(&(x, y, w, h, ts, _), jpeg)| VideoTile { jpeg, x, y, w, h, ts })
                     .collect();
-                Some(protocol::build_video_frame(my_ip, &tiles, true))
+                Some(build(my_ip, &tiles, true))
             }
             Plan::Partial(rects) => {
                 let jpegs: Vec<Vec<u8>> = rects
@@ -225,7 +233,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                     .zip(&jpegs)
                     .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h, ts: KEYFRAME_TILES[0].4 })
                     .collect();
-                Some(protocol::build_video_frame(my_ip, &tiles, false))
+                Some(build(my_ip, &tiles, false))
             }
         };
         let t_encode = t0.elapsed();
