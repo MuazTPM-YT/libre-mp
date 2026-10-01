@@ -104,7 +104,7 @@ jobs:
           xterm -fn fixed -bg red -geometry 400x200+0+0 &
           sleep 3
           cargo run --release -p libremp-core --example portal_probe /tmp/out.png | tee probe.txt
-          grep -q 'center rgb 255 0 0' probe.txt
+          grep -q 'sample rgb 255 0 0' probe.txt
           set +e
           WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 timeout 20 "$HOME/.local/bin/libremp-app"
           code=$?

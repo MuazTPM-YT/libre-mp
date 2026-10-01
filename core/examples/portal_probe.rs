@@ -13,8 +13,9 @@ fn main() {
         for _ in 0..40 {
             if let Some(rgb) = g.grab() {
                 let out = std::env::args().nth(1).unwrap_or("frame.png".into());
-                let c = (384 * 1024 + 512) * 3;
-                println!("center rgb {} {} {}", rgb[c], rgb[c + 1], rgb[c + 2]);
+                // off center: pointer starts in the middle and would hide the screen color
+                let c = (200 * 1024 + 256) * 3;
+                println!("sample rgb {} {} {}", rgb[c], rgb[c + 1], rgb[c + 2]);
                 image::RgbImage::from_raw(1024, 768, rgb).unwrap().save(&out).unwrap();
                 eprintln!("saved {out}");
                 return;
