@@ -102,3 +102,16 @@ Checked against `windows_perfect_stream.bin`: the reassembled video channel of t
 - `<config dir>/libremp/projectors.json` (mode 0600) holds the name, SSID and last IP.
 - Wi-Fi passwords go to the OS keychain (`keyring`, service `LibreMP`, keyed by SSID or name).
 - Old files with plain `psk` fields are moved into the keychain when loaded. If the keychain is unavailable, the file is left as it is, so no password is lost.
+
+## Linux distros (`scripts/install-linux.sh`, CI job `linux-distros`)
+
+- **Packages.** The script reads `/etc/os-release` (`ID`, then `ID_LIKE`) and uses apt, dnf, pacman or zypper. On zypper it asks for `pkgconfig(...)` names, because openSUSE renamed `webkit2gtk3-devel` to `webkitgtk3-devel`. pacman runs without `-y`: a sync without a full upgrade can break Arch.
+- **Toolchains.** The dependencies need Rust 1.89, and vite 7 needs Node 20.19. Ubuntu 24.04, Mint 22 and Debian 12 ship older ones. So the script adds rustup in `~/.cargo`, and puts Node 22 from nodejs.org (SHA-256 checked) in `~/.local/share/libremp/tools`, for this build only.
+- **Old PipeWire.** `pipewire-rs` 0.9 does not compile against PipeWire older than 0.3.65 (Ubuntu 22.04, Mint 21, Pop 22.04 ship 0.3.48). That header has no `flags` in `spa_video_info_raw`, and its `modifier` is signed. `vendor/libspa` is libspa 0.9.2 with a `build.rs` check of `raw.h` that turns on `cfg(spa_old_video_raw)`. Both Cargo workspaces patch it in with `[patch.crates-io]`. Tested against the real jammy headers.
+- **Wayland capture order.** The portal comes first, then xcap (wlroots screencopy, or one screenshot per frame). scrap under XWayland was removed from the Wayland chain, because it sees only X11 windows and always gave a black screen. If nothing works, the cast stops with a message that names the portal package to install.
+- **Cursor mode.** We ask for `cursor_mode = EMBEDDED` only when `AvailableCursorModes` has it. The portal rejects modes the desktop lacks, and old portals have no cursor modes at all.
+- **No NetworkManager.** Without `nmcli`, the app says so: join the projector's Wi-Fi by hand, then press Connect. Casting itself does not need NetworkManager.
+- **Quitting.** SIGTERM, SIGINT and SIGHUP (kill, logout, Ctrl+C) end the app the normal way, so the exit handler says goodbye. A hard kill used to leave the projector frozen on the last picture.
+- **Small screens.** If the screen is shorter than 840 logical pixels (1366×768 laptops, VMs), the window shrinks to fit and the list scrolls.
+- **CI.** Each distro runs the install script (packages, build, install), then the core tests. Then it starts Xvfb at 1366×768, checks that the X11 capture reads a red xterm window, and checks that the app stays up for 20 s. `xsetroot -solid` does not paint the root window on Xvfb, so the test uses a window.
+

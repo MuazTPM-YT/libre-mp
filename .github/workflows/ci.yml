@@ -77,7 +77,7 @@ jobs:
           - { name: kali, image: "kalilinux/kali-rolling", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
           - { name: fedora-42, image: "fedora:42", prep: "dnf install -y git", x11: "dnf install -y xorg-x11-server-Xvfb xterm xorg-x11-fonts-misc" }
           - { name: arch, image: "archlinux:latest", prep: "pacman -Syu --noconfirm git", x11: "pacman -S --noconfirm xorg-server-xvfb xterm xorg-fonts-misc" }
-          - { name: opensuse, image: "opensuse/tumbleweed", prep: "zypper -n install git tar gzip", x11: "zypper -n install xorg-x11-server-Xvfb xterm xorg-x11-fonts-core" }
+          - { name: opensuse, image: "opensuse/tumbleweed", prep: "zypper -n install git tar gzip", x11: "zypper -n install --force-resolution xorg-x11-server-Xvfb xterm xorg-x11-fonts-core" }
     defaults:
       run:
         shell: bash
