@@ -81,12 +81,17 @@ The CLI is optional: `cargo build --release` at the repository root produces `ta
 
 ### Install as an app (Linux)
 
-One command builds LibreMP and adds it to your app launcher (rofi, fuzzel, GNOME, KDE, quickshell, …), with its icon:
+One command installs the build packages for your distro, builds LibreMP and adds it to your app launcher (rofi, fuzzel, GNOME, KDE, quickshell, …), with its icon:
 
 ```bash
-./scripts/install-linux.sh              # build + install for this user (no sudo)
+./scripts/install-linux.sh              # packages (asks for sudo) + build + install for this user
+./scripts/install-linux.sh --no-deps    # skip the packages, you installed them yourself
 ./scripts/install-linux.sh --uninstall  # remove it again (saved projectors are kept)
 ```
+
+It knows four package families: **apt** (Ubuntu, Linux Mint, Debian, Kali, Pop!_OS, elementary, Zorin, …), **dnf** (Fedora, RHEL, Rocky, Alma), **pacman** (Arch, Manjaro, EndeavourOS, CachyOS) and **zypper** (openSUSE). It also installs the screen-sharing portal for your desktop (GNOME, KDE, Hyprland, wlroots), which Wayland needs. Distro Rust or Node.js that is too old (Ubuntu 24.04, Mint 22 and Debian 12 ship old ones) is replaced for this build only: Rust through rustup in `~/.cargo`, Node.js 22 from nodejs.org (checksum verified) in `~/.local/share/libremp/tools`. CI builds and runs it on Ubuntu 22.04 and 24.04, Debian 12, Linux Mint 22, Kali, Fedora 42, Arch and openSUSE Tumbleweed.
+
+Wayland (GNOME, KDE, Hyprland, Sway, …) and X11 (Cinnamon, Xfce, MATE, i3, …) both work. The capture method is picked automatically. Joining the projector's Wi-Fi uses NetworkManager (`nmcli`), which almost every desktop distro has. Without it, join the projector's Wi-Fi yourself, then press Connect.
 
 It installs `~/.local/bin/libremp-app`, `~/.local/share/applications/libremp-app.desktop` and the icons under `~/.local/share/icons/hicolor/`. Run it again after `git pull` to update.
 
@@ -100,7 +105,7 @@ hl.window_rule({match = {class = "^(libremp-app)$" }, center = true})
 
 With the classic `hyprland.conf`, use `windowrule = float, class:^(libremp-app)$` and `windowrule = center, class:^(libremp-app)$`.
 
-Platform-specific prerequisites follow.
+Platform-specific prerequisites follow. On Linux, `scripts/install-linux.sh` installs them for you; the lists below are for building by hand.
 
 ### 1. Arch Linux (Wayland / X11)
 ```bash

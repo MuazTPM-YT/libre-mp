@@ -6,13 +6,15 @@ fn main() {
             Ok(g) => g,
             Err(e) => {
                 eprintln!("{e}");
-                return;
+                std::process::exit(1);
             }
         };
         eprintln!("backend: {}", g.name());
         for _ in 0..40 {
             if let Some(rgb) = g.grab() {
                 let out = std::env::args().nth(1).unwrap_or("frame.png".into());
+                let c = (384 * 1024 + 512) * 3;
+                println!("center rgb {} {} {}", rgb[c], rgb[c + 1], rgb[c + 2]);
                 image::RgbImage::from_raw(1024, 768, rgb).unwrap().save(&out).unwrap();
                 eprintln!("saved {out}");
                 return;
@@ -20,5 +22,6 @@ fn main() {
             std::thread::sleep(std::time::Duration::from_millis(250));
         }
         eprintln!("NO FRAMES");
+        std::process::exit(1);
     }
 }

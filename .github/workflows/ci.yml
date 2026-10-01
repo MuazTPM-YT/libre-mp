@@ -60,3 +60,52 @@ jobs:
       - name: Desktop app clippy
         working-directory: frontend/src-tauri
         run: cargo clippy -- -D warnings
+
+  # every big linux family: install script deps + build, core tests, x11 capture sees pixels, app starts
+  linux-distros:
+    name: linux (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: ubuntu-22.04, image: "ubuntu:22.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
+          - { name: ubuntu-24.04, image: "ubuntu:24.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
+          - { name: debian-12, image: "debian:12", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
+          - { name: mint-22, image: "linuxmintd/mint22-amd64", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
+          - { name: kali, image: "kalilinux/kali-rolling", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
+          - { name: fedora-42, image: "fedora:42", prep: "dnf install -y git", x11: "dnf install -y xorg-x11-server-Xvfb xsetroot" }
+          - { name: arch, image: "archlinux:latest", prep: "pacman -Syu --noconfirm git", x11: "pacman -S --noconfirm xorg-server-xvfb xorg-xsetroot" }
+          - { name: opensuse, image: "opensuse/tumbleweed", prep: "zypper -n install git tar gzip", x11: "zypper -n install xorg-x11-server-Xvfb xsetroot" }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Prepare container
+        run: ${{ matrix.prep }}
+      - uses: actions/checkout@v4
+      - name: Install script deps
+        run: scripts/install-linux.sh --deps-only
+      - name: Install script build + install
+        run: scripts/install-linux.sh --no-deps
+      - name: Core + CLI tests
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo test --workspace
+      - name: X11 capture and app start
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          ${{ matrix.x11 }}
+          Xvfb :99 -screen 0 1920x1080x24 &
+          sleep 3
+          export DISPLAY=:99 XDG_SESSION_TYPE=x11
+          xsetroot -solid '#ff0000'
+          cargo run --release -p libremp-core --example portal_probe /tmp/out.png | tee probe.txt
+          grep -q 'center rgb 255 0 0' probe.txt
+          set +e
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 timeout 20 "$HOME/.local/bin/libremp-app"
+          code=$?
+          set -e
+          echo "app exit code $code (124 = still running after 20 s = good)"
+          test "$code" -eq 124

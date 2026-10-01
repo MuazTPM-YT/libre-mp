@@ -227,13 +227,24 @@ fn xml_escape(s: &str) -> String {
 
 // ── Linux / BSD: NetworkManager ─────────────────────────────────────────────
 
+// run nmcli; missing nmcli = distro without networkmanager, say what to do instead
+#[cfg(not(any(target_os = "macos", windows)))]
+fn nmcli(args: &[&str]) -> Result<std::process::Output, String> {
+    cmd("nmcli").args(args).output().map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound {
+            "LibreMP joins Wi-Fi with NetworkManager (nmcli), and it is not installed. \
+             Join the projector's Wi-Fi in your system settings, then connect again."
+                .to_string()
+        } else {
+            format!("Could not run nmcli: {e}")
+        }
+    })
+}
+
 // list networks around us
 #[cfg(not(any(target_os = "macos", windows)))]
 pub fn scan() -> Result<Vec<WifiNetwork>, String> {
-    let out = cmd("nmcli")
-        .args(["-t", "-f", "SSID,BSSID,SECURITY,SIGNAL", "dev", "wifi", "list"])
-        .output()
-        .map_err(|e| format!("Could not run nmcli: {e}"))?;
+    let out = nmcli(&["-t", "-f", "SSID,BSSID,SECURITY,SIGNAL", "dev", "wifi", "list"])?;
     if !out.status.success() {
         return Err(format!("Wi-Fi scan failed: {}", text(&out)));
     }
@@ -243,17 +254,13 @@ pub fn scan() -> Result<Vec<WifiNetwork>, String> {
 // join network. stale saved profile with no key gets dropped once and retried
 #[cfg(not(any(target_os = "macos", windows)))]
 pub fn connect(ssid: &str, password: Option<&str>) -> Result<(), String> {
-    let attempt = || {
-        let mut c = cmd("nmcli");
-        c.args(["dev", "wifi", "connect", ssid]);
-        if let Some(pw) = password.filter(|p| !p.is_empty()) {
-            c.args(["password", pw]);
-        }
-        c.output().map_err(|e| format!("Could not run nmcli: {e}"))
+    let attempt = || match password.filter(|p| !p.is_empty()) {
+        Some(pw) => nmcli(&["dev", "wifi", "connect", ssid, "password", pw]),
+        None => nmcli(&["dev", "wifi", "connect", ssid]),
     };
     let mut out = attempt()?;
     if !out.status.success() && text(&out).contains("key-mgmt") {
-        let _ = cmd("nmcli").args(["connection", "delete", "id", ssid]).output();
+        let _ = nmcli(&["connection", "delete", "id", ssid]);
         out = attempt()?;
     }
     if out.status.success() {
@@ -266,7 +273,7 @@ pub fn connect(ssid: &str, password: Option<&str>) -> Result<(), String> {
 // uuid of wi-fi connection now active. wired and vpn skipped
 #[cfg(not(any(target_os = "macos", windows)))]
 pub fn current_id() -> Option<String> {
-    let out = cmd("nmcli").args(["-t", "-f", "UUID,TYPE", "connection", "show", "--active"]).output().ok()?;
+    let out = nmcli(&["-t", "-f", "UUID,TYPE", "connection", "show", "--active"]).ok()?;
     String::from_utf8_lossy(&out.stdout)
         .lines()
         .filter_map(|l| l.rsplit_once(':'))

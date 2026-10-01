@@ -228,8 +228,14 @@ fn select_sources(
     options.insert("handle_token", Value::from(&handle));
     options.insert("types", Value::from(1_u32)); // monitors
     options.insert("multiple", Value::from(false));
-    // 2 = EMBEDDED: draw the mouse pointer into the frames.
-    options.insert("cursor_mode", Value::from(2_u32));
+    // 2 = EMBEDDED: draw the mouse pointer into the frames. only ask if desktop has it: portal rejects
+    // unknown modes, and old portals have no cursor modes at all
+    let modes: u32 = proxy.get_property("AvailableCursorModes").unwrap_or(0);
+    if modes & 2 != 0 {
+        options.insert("cursor_mode", Value::from(2_u32));
+    } else {
+        eprintln!("[*] Desktop cannot draw the pointer into shared frames (cursor modes {modes}); casting without it");
+    }
     // 2 = PERSISTENT: remember this choice so the next run does not ask again.
     options.insert("persist_mode", Value::from(2_u32));
     if let Some(t) = restore_token {

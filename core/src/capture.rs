@@ -310,8 +310,15 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
                     }
                     Err(e) => eprintln!("[*] Screen sharing unavailable: {e}"),
                 }
-                // then xwayland; screenshot-per-frame last (kde/gnome may ask every frame)
-                first_of!(ScrapGrabber::try_new(), XcapGrabber::try_new());
+                // no xwayland scrap: it only sees x11 windows, so wayland screen comes out black.
+                // screenshot per frame instead (wlroots screencopy; kde/gnome may ask every frame)
+                first_of!(XcapGrabber::try_new());
+                #[cfg(target_os = "linux")]
+                return Err(
+                    "Screen sharing is not available. Install xdg-desktop-portal and the portal for your desktop \
+                     (xdg-desktop-portal-gnome, -kde, -wlr or -hyprland), log out and back in, then cast again."
+                        .to_string(),
+                );
             }
             // x11: direct grabber first, portal fallback
             _ => {
@@ -320,8 +327,8 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
         }
     }
 
-    eprintln!("[-] No capture backend initialized; retrying via lazy xcap.");
-    Ok(Box::new(XcapGrabber::new()))
+    #[allow(unreachable_code)]
+    Err("LibreMP could not capture the screen on this system.".to_string())
 }
 
 // ─── bgra resize ────────────────────────────────────────────────────────────
