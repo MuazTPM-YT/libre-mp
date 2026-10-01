@@ -1,7 +1,7 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use std::io::{self, Read, Write};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "linux")]
 use std::os::unix::io::AsRawFd;
@@ -28,6 +28,7 @@ const CMD_REGISTER_INFO: u32 = 0x0003;
 const CMD_REGISTER_MAC: u32 = 0x0015;
 const CMD_AUTH_OK: u32 = 0x0102;
 const CMD_DISCONNECT: u32 = 0x0104;
+const CMD_DISCONNECT_OK: u32 = 0x0105;
 const CMD_STATUS_QUERY: u32 = 0x010E;
 const CMD_READY: u32 = 0x0110;
 
@@ -453,11 +454,24 @@ impl EpsonClient {
         Ok(EpsonClient { my_ip, proj_ip, name, s_auth, s_video, s_aux })
     }
 
-    // goodbye (0x0104) like windows, so projector frees session now
+    // goodbye (0x0104) like windows. wait for 0x0105 before close: projector answers in ~1.2 s, and closing
+    // first makes kernel send reset, so projector thinks link died and keeps last picture up
     pub fn disconnect(&mut self) {
-        if self.s_auth.write_all(&eemp_header(self.my_ip, CMD_DISCONNECT, 0)).is_ok() {
-            let _ = recv_one(&mut self.s_auth, Duration::from_secs(1)); // 0x0105
+        if let Err(e) = self.s_auth.write_all(&eemp_header(self.my_ip, CMD_DISCONNECT, 0)) {
+            eprintln!("[-] Goodbye not sent: {e}");
+            return;
         }
+        let deadline = Instant::now() + Duration::from_secs(3);
+        let mut seen = Vec::new();
+        while !seen.contains(&CMD_DISCONNECT_OK) {
+            let left = deadline.saturating_duration_since(Instant::now());
+            let reply = recv_one(&mut self.s_auth, left.max(Duration::from_millis(1)));
+            if reply.is_empty() {
+                break; // timeout or closed
+            }
+            seen.extend(eemp_messages(&reply).iter().map(|(c, _)| *c));
+        }
+        eprintln!("[*] Goodbye reply: {:?}", seen.iter().map(|c| format!("0x{c:04x}")).collect::<Vec<_>>());
     }
 }
 
@@ -497,7 +511,8 @@ pub fn send_frame(stream: &mut TcpStream, data: &[u8]) -> io::Result<()> {
 
 // ─── eprd frame builder ─────────────────────────────────────────────────────
 
-// 46-byte display config from windows capture, sent with whole frames
+// 46-byte display config from windows capture, sent with whole frames. bytes 24..36 = pc 1600x900, picture box (0, 96, 1024, 576).
+// RESEARCHLAB ignores the box (shows whole frame); changing these bytes never helped on hardware, so keep windows bytes
 const META_DISPLAY_CONFIG: [u8; 46] = [
     0xcc, 0x00, 0x00, 0x00, 0x04, 0x00, 0x03, 0x00,
     0x20, 0x20, 0x00, 0x01, 0xff, 0x00, 0xff, 0x00,
@@ -507,22 +522,21 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
-// windows 1024x768 whole-frame tiles: (x, y, w, h, ts, jpeg size aim)
-pub const KEYFRAME_TILES: [(u16, u16, u16, u16, u32, usize); 4] = [
-    (0, 0, 624, 416, 2429847810, 34004),
-    (624, 0, 400, 416, 2430131968, 12248),
-    (0, 416, 624, 352, 2428173568, 16058),
-    (624, 416, 400, 352, 2429283840, 14155),
-];
+// windows 1024x768 whole-frame tiles: (x, y, w, h)
+pub const KEYFRAME_TILES: [(u16, u16, u16, u16); 4] = [(0, 0, 624, 416), (624, 0, 400, 416), (0, 416, 624, 352), (624, 416, 400, 352)];
 
-// one jpeg tile + place + ts (16-byte descriptor on wire)
+// one jpeg tile + place (16-byte descriptor on wire)
 pub struct VideoTile<'a> {
     pub jpeg: &'a [u8],
     pub x: u16,
     pub y: u16,
     pub w: u16,
     pub h: u16,
-    pub ts: u32,
+}
+
+// jpeg length as projector reads it: 0x90 + 3-byte varint. wrong length = projector drops stream
+fn jpeg_len_tag(n: usize) -> [u8; 4] {
+    [0x90, 0x80 | (n & 0x7f) as u8, 0x80 | (n >> 7 & 0x7f) as u8, (n >> 14 & 0x7f) as u8]
 }
 
 // eprd frame from jpeg tiles, byte-same as windows. count field = tile count
@@ -549,7 +563,7 @@ pub fn build_video_frame(my_ip: Ipv4Addr, tiles: &[VideoTile], with_meta: bool) 
         payload.extend_from_slice(&t.w.to_be_bytes());
         payload.extend_from_slice(&t.h.to_be_bytes());
         payload.extend_from_slice(&0x0000_0007u32.to_be_bytes()); // flags
-        payload.extend_from_slice(&t.ts.to_be_bytes());
+        payload.extend_from_slice(&jpeg_len_tag(t.jpeg.len()));
         payload.extend_from_slice(t.jpeg);
     }
 

@@ -96,10 +96,7 @@ impl XcapGrabber {
                 return None;
             }
         };
-        let dynimg = image::DynamicImage::ImageRgba8(rgba);
-        let resized =
-            dynimg.resize_exact(STREAM_W, STREAM_H, image::imageops::FilterType::Triangle);
-        Some(resized.to_rgb8().into_raw())
+        Some(fit_4ch_to_rgb(&rgba, rgba.width(), rgba.height(), [0, 1, 2]))
     }
 
     // build only if a monitor exists
@@ -181,14 +178,14 @@ impl PipeWireGrabber {
 impl FrameGrabber for PipeWireGrabber {
     fn grab(&mut self) -> Option<Vec<u8>> {
         // pipewire only sends on change, so repeat newest
-        if let Some(f) = self.stream.take_latest() {
-            self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
-        } else if self.last.is_none() {
+        let mut f = self.stream.take_latest();
+        if f.is_none() && self.last.is_none() {
             // first frame: give compositor a moment
             std::thread::sleep(std::time::Duration::from_millis(50));
-            if let Some(f) = self.stream.take_latest() {
-                self.last = Some(resize_4ch_to_rgb(&f.rgba, f.width, f.height, STREAM_W, STREAM_H, [0, 1, 2]));
-            }
+            f = self.stream.take_latest();
+        }
+        if let Some(f) = f {
+            self.last = Some(fit_4ch_to_rgb(&f.rgba, f.width, f.height, [0, 1, 2]));
         }
         self.last.clone()
     }
@@ -230,10 +227,10 @@ impl FrameGrabber for ScrapGrabber {
             match self.capturer.frame() {
                 Ok(frame) => {
                     #[allow(unused_mut)]
-                    let mut rgb = resize_bgra_to_rgb(&frame, self.w, self.h, STREAM_W, STREAM_H);
+                    let mut rgb = fit_bgra_to_rgb(&frame, self.w, self.h);
                     #[cfg(target_os = "linux")]
                     if let Some(c) = &self.cursor {
-                        c.draw_into_rgb(&mut rgb, STREAM_W, STREAM_H, self.w, self.h);
+                        c.draw_into_rgb(&mut rgb, self.w, self.h);
                     }
                     return Some(rgb);
                 }
@@ -329,26 +326,57 @@ pub fn detect_grabber() -> Result<Box<dyn FrameGrabber>, String> {
 
 // ─── bgra resize ────────────────────────────────────────────────────────────
 
-// resize bgra to rgb in one pass
-pub fn resize_bgra_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32) -> Vec<u8> {
-    resize_4ch_to_rgb(src, sw, sh, dw, dh, [2, 1, 0])
+// frame part projector really shows: it cuts ~5.5% off every edge (overscan, seen in grid photo of RESEARCHLAB)
+pub const VISIBLE: (u32, u32, u32, u32) = (56, 42, 912, 684);
+// projector shows the 4:3 frame stretched to 16:9, so one frame pixel looks 4/3 wide (circle test).
+// ponytail: both measured on RESEARCHLAB only; make them a per-projector setting if another projector differs
+const PIXEL_ASPECT: (u64, u64) = (4, 3);
+
+// where sw x sh screen sits in stream frame so it looks right on the wall: inside visible part, centered, even edges.
+// 16:9 screen fills all of it (stretched in frame, undone by projector)
+pub fn fit_rect(sw: u32, sh: u32) -> (u32, u32, u32, u32) {
+    let (vx, vy, vw, vh) = VISIBLE;
+    let (pn, pd) = PIXEL_ASPECT;
+    let (sw, sh, fw, fh) = (sw.max(1) as u64, sh.max(1) as u64, vw as u64, vh as u64);
+    // screen wider than visible part looks on wall: fill width, else fill height
+    let (w, h) = if sw * fh * pd >= sh * fw * pn { (fw, sh * fw * pn / (sw * pd)) } else { (sw * fh * pd / (sh * pn), fh) };
+    let (w, h) = ((w.min(fw) as u32 & !1).max(2), (h.min(fh) as u32 & !1).max(2));
+    (vx + (((vw - w) / 2) & !1), vy + (((vh - h) / 2) & !1), w, h)
 }
 
-// nearest-neighbour resize 4-channel to rgb; `rgb` = r, g, b byte offsets
-fn resize_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, dw: u32, dh: u32, rgb: [usize; 3]) -> Vec<u8> {
-    let mut dst = vec![0u8; (dw * dh * 3) as usize];
-    let sw_usize = sw as usize;
-    for y in 0..dh {
-        let sy = ((y as u64 * sh as u64) / dh as u64) as usize;
-        let dst_row = (y as usize) * (dw as usize) * 3;
-        let src_row = sy * sw_usize * 4; // 4 bytes per pixel
-        for x in 0..dw {
-            let sx = ((x as u64 * sw as u64) / dw as u64) as usize;
-            let si = src_row + sx * 4;
-            let di = dst_row + (x as usize) * 3;
-            dst[di] = src[si + rgb[0]];
-            dst[di + 1] = src[si + rgb[1]];
-            dst[di + 2] = src[si + rgb[2]];
+// bgra screen into stream frame
+pub fn fit_bgra_to_rgb(src: &[u8], sw: u32, sh: u32) -> Vec<u8> {
+    fit_4ch_to_rgb(src, sw, sh, [2, 1, 0])
+}
+
+// 4-channel screen into black stream frame at fit_rect. area average, so thin text survives shrink; `rgb` = r, g, b byte offsets
+fn fit_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, rgb: [usize; 3]) -> Vec<u8> {
+    let fw = STREAM_W as usize;
+    let mut dst = vec![0u8; fw * STREAM_H as usize * 3];
+    let (ox, oy, w, h) = fit_rect(sw, sh);
+    let (sw, sh, ox, oy, w, h) = (sw as usize, sh as usize, ox as usize, oy as usize, w as usize, h as usize);
+    if sw == 0 || sh == 0 || src.len() < sw * sh * 4 {
+        return dst;
+    }
+    // source pixels [a, b) behind output pixel i of n
+    let span = |i: usize, n: usize, s: usize| (i * s / n, ((i + 1) * s / n).max(i * s / n + 1));
+    let cols: Vec<(usize, usize)> = (0..w).map(|x| span(x, w, sw)).collect();
+    for y in 0..h {
+        let (y0, y1) = span(y, h, sh);
+        let out = (oy + y) * fw + ox;
+        for (x, &(x0, x1)) in cols.iter().enumerate() {
+            let mut acc = [0u32; 3];
+            for line in src[y0 * sw * 4..y1 * sw * 4].chunks_exact(sw * 4) {
+                for p in line[x0 * 4..x1 * 4].chunks_exact(4) {
+                    acc[0] += p[rgb[0]] as u32;
+                    acc[1] += p[rgb[1]] as u32;
+                    acc[2] += p[rgb[2]] as u32;
+                }
+            }
+            let n = ((y1 - y0) * (x1 - x0)) as u32;
+            for k in 0..3 {
+                dst[(out + x) * 3 + k] = ((acc[k] + n / 2) / n) as u8;
+            }
         }
     }
     dst
@@ -378,45 +406,12 @@ fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     rgb_buf
 }
 
-// encode tile, drop quality till jpeg fits max_size
-pub fn encode_tile_adaptive(
-    screen: &[u8],
-    x: u16,
-    y: u16,
-    w: u16,
-    h: u16,
-    max_size: usize,
-) -> Vec<u8> {
+// one tile to jpeg at fixed quality (4:2:0, projector wants it). big frame just sends slower, tcp paces it
+pub fn encode_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let cw = (w as u32).min(STREAM_W - (x as u32).min(STREAM_W.saturating_sub(1)));
     let ch = (h as u32).min(STREAM_H - (y as u32).min(STREAM_H.saturating_sub(1)));
-
     let rgb_buf = extract_tile(screen, x, y, w, h);
-
-    let image = Image {
-        pixels: rgb_buf.as_slice(),
-        width: cw as usize,
-        pitch: (cw * 3) as usize,
-        height: ch as usize,
-        format: PixelFormat::RGB,
-    };
-
-    let mut quality = JPEG_QUALITY;
-    loop {
-        let mut comp = Compressor::new().expect("turbojpeg");
-        let _ = comp.set_quality(quality);
-        let _ = comp.set_subsamp(Subsamp::Sub2x2); // 4:2:0 required
-
-        let jpeg = comp.compress_to_vec(image).unwrap_or_default();
-
-        if jpeg.len() <= max_size || quality <= 5 {
-            return jpeg;
-        }
-
-        quality -= 5;
-        if quality < 5 {
-            quality = 5;
-        }
-    }
+    encode_jpeg(&rgb_buf, cw, ch, JPEG_QUALITY).unwrap_or_default()
 }
 
 // ─── windows gdi capture ────────────────────────────────────────────────────
@@ -517,13 +512,7 @@ pub fn capture_windows() -> Option<Vec<u8>> {
             return None;
         }
 
-        Some(crate::capture::resize_bgra_to_rgb(
-            &bgra_buf,
-            width as u32,
-            height as u32,
-            crate::STREAM_W,
-            crate::STREAM_H,
-        ))
+        Some(fit_bgra_to_rgb(&bgra_buf, width as u32, height as u32))
     }
 }
 #[cfg(not(windows))]
@@ -532,3 +521,34 @@ pub fn capture_windows() -> Option<Vec<u8>> {
     None
 }
 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 16:9 fills visible part; 16:10 and 4:3 get side bars, ultrawide gets top/bottom bars
+    #[test]
+    fn fit_rect_looks_right_on_wall() {
+        assert_eq!(fit_rect(1920, 1080), VISIBLE);
+        assert_eq!(fit_rect(1920, 1200), (102, 42, 820, 684));
+        assert_eq!(fit_rect(1024, 768), (170, 42, 684, 684));
+        assert_eq!(fit_rect(2560, 1080), (56, 128, 912, 512));
+    }
+
+    // fine black/white stripes average to gray, not lost to dropped pixels; bars stay black
+    #[test]
+    fn shrink_averages_and_letterboxes() {
+        let (sw, sh) = (2048u32, 1152u32);
+        let mut src = vec![0u8; (sw * sh * 4) as usize];
+        for (i, px) in src.chunks_exact_mut(4).enumerate() {
+            if i % 2 == 0 {
+                px[..3].copy_from_slice(&[255, 255, 255]);
+            }
+        }
+        let out = fit_bgra_to_rgb(&src, sw, sh);
+        let at = |x: usize, y: usize| out[(y * STREAM_W as usize + x) * 3];
+        assert_eq!(at(500, 0), 0, "top bar black");
+        assert_eq!(at(500, 767), 0, "bottom bar black");
+        assert!((at(500, 400) as i32 - 128).abs() <= 1, "stripes average to gray, got {}", at(500, 400));
+    }
+}

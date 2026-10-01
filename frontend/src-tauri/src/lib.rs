@@ -406,6 +406,7 @@ fn stop_cast_blocking(state: &AppState, wait: Duration) {
         std::thread::sleep(Duration::from_millis(50));
     }
     if !c.thread.is_finished() {
+        eprintln!("[-] Cast still busy after {wait:?}; goodbye may come late");
         *lock(&state.cast) = Some(c);
     }
 }
@@ -415,7 +416,7 @@ fn stop_cast_blocking(state: &AppState, wait: Duration) {
 async fn stop_cast(app: AppHandle) -> Result<(), String> {
     blocking(move || {
         let state = app.state::<AppState>();
-        stop_cast_blocking(&state, Duration::from_secs(3));
+        stop_cast_blocking(&state, Duration::from_secs(5));
         let prev = lock(&state.prev_wifi).take();
         if let Some(id) = prev {
             wifi::restore(&id);
@@ -464,7 +465,7 @@ pub fn run() {
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 let state = app.state::<AppState>();
-                stop_cast_blocking(&state, Duration::from_secs(2));
+                stop_cast_blocking(&state, Duration::from_secs(4));
                 let prev = lock(&state.prev_wifi).take();
                 if let Some(id) = prev {
                     wifi::restore(&id);

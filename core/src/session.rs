@@ -206,24 +206,24 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                 last_full = Instant::now();
                 let jpegs: Vec<Vec<u8>> = KEYFRAME_TILES
                     .iter()
-                    .map(|&(x, y, w, h, _, budget)| capture::encode_tile_adaptive(&screen, x, y, w, h, budget))
+                    .map(|&(x, y, w, h)| capture::encode_tile(&screen, x, y, w, h))
                     .collect();
                 let tiles: Vec<VideoTile> = KEYFRAME_TILES
                     .iter()
                     .zip(&jpegs)
-                    .map(|(&(x, y, w, h, ts, _), jpeg)| VideoTile { jpeg, x, y, w, h, ts })
+                    .map(|(&(x, y, w, h), jpeg)| VideoTile { jpeg, x, y, w, h })
                     .collect();
                 Some(protocol::build_video_frame(my_ip, &tiles, true))
             }
             Plan::Partial(rects) => {
                 let jpegs: Vec<Vec<u8>> = rects
                     .iter()
-                    .map(|r| capture::encode_tile_adaptive(&screen, r.x, r.y, r.w, r.h, byte_budget(r)))
+                    .map(|r| capture::encode_tile(&screen, r.x, r.y, r.w, r.h))
                     .collect();
                 let tiles: Vec<VideoTile> = rects
                     .iter()
                     .zip(&jpegs)
-                    .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h, ts: KEYFRAME_TILES[0].4 })
+                    .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h })
                     .collect();
                 Some(protocol::build_video_frame(my_ip, &tiles, false))
             }
@@ -245,8 +245,8 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
                     total_ms.saturating_sub(t_encode.as_millis()),
                     frame.len() / 1024,
                 );
-                // all black almost always = os blocked capture
-                if screen.iter().take(10_000).all(|&b| b == 0) {
+                // all black almost always = os blocked capture (bars are black anyway, so check all)
+                if screen.iter().all(|&b| b == 0) {
                     eprintln!("\n[!] WARNING: the captured frame is entirely black.");
                     eprintln!("    -> On Wayland, approve the screen-share prompt when it appears.");
                     eprintln!("    -> On macOS, allow Screen Recording in System Settings > Privacy.\n");
@@ -261,13 +261,6 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
         }
     }
     "Stopped".to_string()
-}
-
-// jpeg size aim for a part, same bytes-per-pixel as whole-frame tiles
-fn byte_budget(r: &Rect) -> usize {
-    let full: usize = KEYFRAME_TILES.iter().map(|t| t.5).sum();
-    let area = r.w as usize * r.h as usize;
-    (full * area / (STREAM_W as usize * STREAM_H as usize)).max(2048)
 }
 
 // changed areas between two rgb frames. empty = no change, none = send whole frame

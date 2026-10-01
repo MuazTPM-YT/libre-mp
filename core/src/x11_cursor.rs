@@ -21,11 +21,14 @@ impl CursorSource {
     }
 
     // blend pointer into downscaled rgb frame; no cursor = no-op
-    pub fn draw_into_rgb(&self, dst: &mut [u8], dw: u32, dh: u32, sw: u32, sh: u32) {
+    pub fn draw_into_rgb(&self, dst: &mut [u8], sw: u32, sh: u32) {
         let Some(c) = self.cursor() else { return };
         if sw == 0 || sh == 0 || c.w == 0 || c.h == 0 {
             return;
         }
+        // screen sits in this box of the stream frame
+        let (ox, oy, dw, dh) = crate::capture::fit_rect(sw, sh);
+        let fw = crate::STREAM_W as usize;
         // Top-left of the cursor bitmap, in screen pixels.
         let left = c.x - c.xhot as i32;
         let top = c.y - c.yhot as i32;
@@ -49,7 +52,7 @@ impl CursorSource {
                 if dx >= dw as usize || dy >= dh as usize {
                     continue;
                 }
-                let i = (dy * dw as usize + dx) * 3;
+                let i = ((oy as usize + dy) * fw + ox as usize + dx) * 3;
                 let src = [(px >> 16) & 0xff, (px >> 8) & 0xff, px & 0xff];
                 for (k, s) in src.iter().enumerate() {
                     // src-over with premultiplied source: dst = src + dst*(1-a).

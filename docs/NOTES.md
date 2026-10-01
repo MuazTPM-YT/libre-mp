@@ -17,6 +17,7 @@ Ground truth is a Windows iProjection session capture: `git show b1a85c2:test.pc
 - **Heartbeat reads are non-blocking.** On Windows, a socket read that times out leaves the socket in an undefined state. So `drain_auth` switches to non-blocking for one read instead.
 - **Aux channel.** The Windows client sends silent audio: 2646- and 1764-byte zero buffers, alternating every 50 ms. We send both every 100 ms. Each has a 5-byte header (`0xC9` + little-endian size).
 - **Goodbye.** On stop, Windows sends `0x0104`, and the projector replies `0x0105` and frees the session at once. We do the same. The desktop app also does it when it quits.
+  - The reply can take more than 1 s (we measured 0.9 s to 1.24 s). We wait up to 3 s for `0x0105` before we close the sockets. If we close first, the reply arrives at a closed socket and the kernel sends a reset. The projector then treats the session as a lost link and keeps the last picture on screen.
 
 ## Video frames (EPRD)
 
@@ -24,20 +25,32 @@ Checked against `windows_perfect_stream.bin`: the reassembled video channel of t
 
 - **Block header.** `EPRD0600` + sender IP + msg id (0) + size. The META block's size is little-endian. The JPEG block's size is big-endian.
 - **META.** A 46-byte display config. Windows sends it once, as the first block. We send it with every whole frame. This was proven on hardware by the old template, and the projector accepts it.
-- **JPEG payload.** A big-endian `u32`, then per tile: a 16-byte descriptor (`x, y, w, h` as BE `u16`, flags `0x00000007`, a `u32` "ts") and the JPEG bytes. The first `u32` is the **tile count**. Earlier notes called it a "frame type" (4 = key, 3/1 = delta). That was wrong: it always equals the number of tiles.
+  - Fields (big-endian `u16`): bytes 4–7 are the frame size (1024×768), bytes 24–27 are the PC screen (1600×900), and bytes 28–35 are the picture box (0, 96, 1024, 576).
+  - We send Windows' bytes unchanged. On RESEARCHLAB, changing the PC size or the box had no visible effect (grid and circle tests), except that 1920×1080 looked worse.
+- **Picture size limit.** The projector reports 1024×768 as its frame size (`0x0015`, tag 3), and Windows sends 1024×768. A 1280×800 frame (auth bytes and META changed to match) connected, but the projector showed nothing. So 1024×768 is the limit.
+- **How RESEARCHLAB shows a frame** (grid photo and circle test, 2026-10-01):
+  - It shows the whole 1024×768 frame, not just the META box. It cuts about 5.5% off every edge (overscan), so only about (56, 42, 912, 684) is visible.
+  - It stretches the 4:3 frame to a 16:9 shape, so one frame pixel looks 4/3 wide. Of four pre-squeezed circles, the 1.33 one looked round.
+  - So `capture::fit_rect` fits the screen into the visible part as it looks on the wall. A 1920×1080 desktop fills all 912×684 (stretched in the frame, undone by the projector). This is close to the very first version, which stretched over the whole frame and only lost the edges to overscan.
+  - Windows' layout (16:9 in rows 96–672) looks squashed on this projector, and our first letterbox attempts did too.
+  - Both numbers (`VISIBLE`, `PIXEL_ASPECT`) are measured on this projector only. Another projector may need different ones.
+  - Detail: the projector scales the picture up, so 1-pixel lines blur and 2-pixel lines stay clear (line-chart test).
+- **JPEG payload.** A big-endian `u32`, then per tile: a 16-byte descriptor (`x, y, w, h` as BE `u16`, flags `0x00000007`, a 4-byte length tag) and the JPEG bytes. The first `u32` is the **tile count**. Earlier notes called it a "frame type" (4 = key, 3/1 = delta). That was wrong: it always equals the number of tiles.
 - **Windows sends mostly partial frames.** More than 90 of the 105 blocks cover only the changed areas. Tiles are multiples of 16 (4:2:0 JPEG), at most 624×416, and are cut from the origin of each changed area.
-- **"ts".** It looks content-derived in the capture. The projector ignored it when we sent fixed values, which was proven on hardware. Partial tiles reuse the first keyframe value.
+- **Length tag (was called "ts").** It is the JPEG's byte length: `0x90`, then the length as a 3-byte varint (7 bits per byte, low bits first, high bit set on the first two bytes). All 233 tiles in the capture match. The projector reads each JPEG by this length. A wrong value makes it send `0x0111` on the control channel and reset the video channel about 0.3 s after the first frame, so the cast loops "connected, dropped, reconnecting". The old code sent fixed values copied from the capture. That only worked while every tile was padded to the capture's exact JPEG sizes (the March template streamer).
 
 ### Sending only what changed (`core/src/session.rs`)
 
 - Compare each new frame with the last one sent, on a 32 px grid.
 - Changed cells in a row form runs. A run with the same columns as the run above it extends that area downward.
 - More than 64 areas: send the whole frame (noise, a video playing). More than 8 areas: greedily merge the pair whose union wastes the least area, until 8 are left. More than 60 % of the screen: send the whole frame.
-- Cut each area into tiles of at most 624×416. The JPEG size budget per tile is the same bytes-per-pixel as the whole-frame tiles.
+- Cut each area into tiles of at most 624×416. Every tile is JPEG quality 90 (4:2:0). There is no size budget. Old code squeezed each tile into Windows' byte sizes, which dropped busy tiles to very low quality. Large frames just send slower. The projector took 413 KB noise frames at about 12 fps.
 - No change: send nothing, but keep the heartbeat and audio going. Every 1 s, send the whole frame anyway, so any lost part heals.
 - Fallback: `LIBREMP_FULL_FRAMES=1` or `--full-frames` sends whole frames every time.
 
 ## Screen capture (`core/src/capture.rs`, `screencast.rs`, `x11_cursor.rs`)
+
+- Every grabber shrinks the screen with an area average (`fit_4ch_to_rgb`), not nearest-neighbour. Nearest-neighbour dropped about half the pixel columns at 1920→1024, so thin text strokes vanished.
 
 - The backend is picked from the OS and, on Linux, `XDG_SESSION_TYPE` / `WAYLAND_DISPLAY`. There is no manual picker.
 - **Wayland** drives the xdg-desktop-portal ScreenCast + PipeWire session by hand, not through `xcap`'s recorder, for three reasons:

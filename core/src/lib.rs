@@ -16,5 +16,5 @@ pub mod session;
 pub const STREAM_W: u32 = 1024;
 // stream height epson wants
 pub const STREAM_H: u32 = 768;
-// jpeg quality before per-tile step-down
-pub const JPEG_QUALITY: i32 = 95;
+// jpeg quality for cast. 90 keeps text clean, frame ~100KB; lower if projector link chokes
+pub const JPEG_QUALITY: i32 = 90;
