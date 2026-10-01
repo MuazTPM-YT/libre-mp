@@ -97,7 +97,8 @@ pkg_family() {
 
 # screen-share portal backend for this desktop (wayland needs one); gtk has none, so it is only a last resort
 portal_backend() {
-    case "${XDG_CURRENT_DESKTOP,,}" in
+    local desk="${XDG_CURRENT_DESKTOP:-}"
+    case "${desk,,}" in
         *gnome* | *ubuntu* | *pop* | *unity* | *budgie*) echo gnome ;;
         *kde* | *plasma* | *lxqt*) echo kde ;;
         *hyprland*) echo hyprland ;;

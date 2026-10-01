@@ -480,7 +480,7 @@ fn to_rgba(bytes: &[u8], stride: usize, width: u32, height: u32, format: VideoFo
     for y in 0..h {
         let src = &bytes[y * stride..y * stride + row_bytes];
         let dst = &mut rgba[y * w * 4..(y + 1) * w * 4];
-        for (s, d) in src.chunks_exact(src_px).zip(dst.chunks_exact_mut(4)) {
+        for (s, d) in src.chunks_exact(src_px).zip(dst.as_chunks_mut::<4>().0) {
             if swap_rb {
                 d[0] = s[2];
                 d[1] = s[1];

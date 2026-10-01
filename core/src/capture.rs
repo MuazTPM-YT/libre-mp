@@ -374,7 +374,7 @@ fn fit_4ch_to_rgb(src: &[u8], sw: u32, sh: u32, rgb: [usize; 3]) -> Vec<u8> {
         for (x, &(x0, x1)) in cols.iter().enumerate() {
             let mut acc = [0u32; 3];
             for line in src[y0 * sw * 4..y1 * sw * 4].chunks_exact(sw * 4) {
-                for p in line[x0 * 4..x1 * 4].chunks_exact(4) {
+                for p in line[x0 * 4..x1 * 4].as_chunks::<4>().0 {
                     acc[0] += p[rgb[0]] as u32;
                     acc[1] += p[rgb[1]] as u32;
                     acc[2] += p[rgb[2]] as u32;
@@ -465,28 +465,26 @@ pub fn capture_windows() -> Option<Vec<u8>> {
         // Draw cursor
         let mut ci: CURSORINFO = std::mem::zeroed();
         ci.cbSize = std::mem::size_of::<CURSORINFO>() as u32;
-        if GetCursorInfo(&mut ci) == TRUE {
-            if ci.flags == CURSOR_SHOWING {
-                let mut ii: ICONINFO = std::mem::zeroed();
-                if GetIconInfo(ci.hCursor, &mut ii) == TRUE {
-                    // Offset by hotspot
-                    let draw_x = ci.ptScreenPos.x - ii.xHotspot as i32;
-                    let draw_y = ci.ptScreenPos.y - ii.yHotspot as i32;
-                    DrawIconEx(
-                        hdc_mem,
-                        draw_x,
-                        draw_y,
-                        ci.hCursor,
-                        0,
-                        0,
-                        0,
-                        null_mut(),
-                        3, // DI_NORMAL
-                    );
-                    
-                    if !ii.hbmColor.is_null() { DeleteObject(ii.hbmColor as *mut _); }
-                    if !ii.hbmMask.is_null() { DeleteObject(ii.hbmMask as *mut _); }
-                }
+        if GetCursorInfo(&mut ci) == TRUE && ci.flags == CURSOR_SHOWING {
+            let mut ii: ICONINFO = std::mem::zeroed();
+            if GetIconInfo(ci.hCursor, &mut ii) == TRUE {
+                // Offset by hotspot
+                let draw_x = ci.ptScreenPos.x - ii.xHotspot as i32;
+                let draw_y = ci.ptScreenPos.y - ii.yHotspot as i32;
+                DrawIconEx(
+                    hdc_mem,
+                    draw_x,
+                    draw_y,
+                    ci.hCursor,
+                    0,
+                    0,
+                    0,
+                    null_mut(),
+                    3, // DI_NORMAL
+                );
+
+                if !ii.hbmColor.is_null() { DeleteObject(ii.hbmColor as *mut _); }
+                if !ii.hbmMask.is_null() { DeleteObject(ii.hbmMask as *mut _); }
             }
         }
 
@@ -547,7 +545,7 @@ mod tests {
     fn shrink_averages_and_letterboxes() {
         let (sw, sh) = (2048u32, 1152u32);
         let mut src = vec![0u8; (sw * sh * 4) as usize];
-        for (i, px) in src.chunks_exact_mut(4).enumerate() {
+        for (i, px) in src.as_chunks_mut::<4>().0.iter_mut().enumerate() {
             if i % 2 == 0 {
                 px[..3].copy_from_slice(&[255, 255, 255]);
             }

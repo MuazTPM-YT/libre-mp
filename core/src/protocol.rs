@@ -637,7 +637,7 @@ fn enable_tcp_keepalive(stream: &TcpStream) {
     // is exactly `size_of::<i32>()`, so setsockopt reads in bounds.
     unsafe {
         let val: i32 = 1;
-        setsockopt(sock, SOL_SOCKET as i32, SO_KEEPALIVE as i32,
+        setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE,
             &val as *const _ as *const i8, std::mem::size_of::<i32>() as i32);
     }
 }
