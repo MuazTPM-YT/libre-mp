@@ -70,14 +70,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: ubuntu-22.04, image: "ubuntu:22.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
-          - { name: ubuntu-24.04, image: "ubuntu:24.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
-          - { name: debian-12, image: "debian:12", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
-          - { name: mint-22, image: "linuxmintd/mint22-amd64", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
-          - { name: kali, image: "kalilinux/kali-rolling", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb x11-xserver-utils" }
-          - { name: fedora-42, image: "fedora:42", prep: "dnf install -y git", x11: "dnf install -y xorg-x11-server-Xvfb xsetroot" }
-          - { name: arch, image: "archlinux:latest", prep: "pacman -Syu --noconfirm git", x11: "pacman -S --noconfirm xorg-server-xvfb xorg-xsetroot" }
-          - { name: opensuse, image: "opensuse/tumbleweed", prep: "zypper -n install git tar gzip", x11: "zypper -n install xorg-x11-server-Xvfb xsetroot" }
+          - { name: ubuntu-22.04, image: "ubuntu:22.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
+          - { name: ubuntu-24.04, image: "ubuntu:24.04", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
+          - { name: debian-12, image: "debian:12", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
+          - { name: mint-22, image: "linuxmintd/mint22-amd64", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
+          - { name: kali, image: "kalilinux/kali-rolling", prep: "apt-get update && apt-get install -y git ca-certificates", x11: "apt-get install -y xvfb xterm xfonts-base" }
+          - { name: fedora-42, image: "fedora:42", prep: "dnf install -y git", x11: "dnf install -y xorg-x11-server-Xvfb xterm xorg-x11-fonts-misc" }
+          - { name: arch, image: "archlinux:latest", prep: "pacman -Syu --noconfirm git", x11: "pacman -S --noconfirm xorg-server-xvfb xterm xorg-fonts-misc" }
+          - { name: opensuse, image: "opensuse/tumbleweed", prep: "zypper -n install git tar gzip", x11: "zypper -n install xorg-x11-server-Xvfb xterm xorg-x11-fonts-core" }
     defaults:
       run:
         shell: bash
@@ -97,10 +97,12 @@ jobs:
         run: |
           export PATH="$HOME/.cargo/bin:$PATH"
           ${{ matrix.x11 }}
-          Xvfb :99 -screen 0 1920x1080x24 &
+          Xvfb :99 -screen 0 1366x768x24 &  # small laptop screen: window must shrink, capture must still work
           sleep 3
           export DISPLAY=:99 XDG_SESSION_TYPE=x11
-          xsetroot -solid '#ff0000'
+          # red window over the middle (xsetroot does not paint root on xvfb, so a window it is)
+          xterm -bg red -geometry 400x200+0+0 &
+          sleep 3
           cargo run --release -p libremp-core --example portal_probe /tmp/out.png | tee probe.txt
           grep -q 'center rgb 255 0 0' probe.txt
           set +e

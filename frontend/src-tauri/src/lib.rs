@@ -267,6 +267,7 @@ async fn discover_projectors() -> Result<Vec<ProjectorInfo>, String> {
 
 // broadcast address of each directly attached ipv4 net (linux route table)
 fn local_broadcasts() -> Vec<std::net::Ipv4Addr> {
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
     let mut out = Vec::new();
     #[cfg(target_os = "linux")]
     if let Ok(table) = std::fs::read_to_string("/proc/net/route") {
@@ -432,6 +433,42 @@ async fn probe_projector(ip: String) -> Result<bool, String> {
     blocking(move || std::net::TcpStream::connect_timeout(&(ip, 3620).into(), Duration::from_millis(800)).is_ok()).await
 }
 
+// screen shorter than window (1366x768 laptops, vms): shrink window to fit, content scrolls
+fn fit_small_screen(app: &tauri::App) {
+    let Some(w) = app.get_webview_window("main") else { return };
+    let Ok(Some(m)) = w.current_monitor() else { return };
+    let screen = m.size().to_logical::<f64>(m.scale_factor());
+    // leave room for panels and docks
+    let h = (screen.height - 80.0).clamp(480.0, 760.0);
+    if h < 760.0 {
+        let size = tauri::LogicalSize::new(920.0_f64.min(screen.width), h);
+        let _ = w.set_min_size(Some(size));
+        let _ = w.set_max_size(Some(size));
+        let _ = w.set_size(size);
+        let _ = w.center();
+    }
+}
+
+// kill, logout or ctrl+c: quit the normal way, so exit handler says goodbye and projector does not freeze on last frame
+#[cfg(unix)]
+fn quit_on_signal(app: AppHandle) {
+    use tokio::signal::unix::{signal, SignalKind};
+    tauri::async_runtime::spawn(async move {
+        let (Ok(mut term), Ok(mut int), Ok(mut hup)) =
+            (signal(SignalKind::terminate()), signal(SignalKind::interrupt()), signal(SignalKind::hangup()))
+        else {
+            return;
+        };
+        tokio::select! {
+            _ = term.recv() => {}
+            _ = int.recv() => {}
+            _ = hup.recv() => {}
+        }
+        eprintln!("[*] Quit signal: stopping cast first");
+        app.exit(0);
+    });
+}
+
 // build app; on quit stop cast (goodbye to projector) and restore wi-fi
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -444,6 +481,12 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
+        .setup(|app| {
+            fit_small_screen(app);
+            #[cfg(unix)]
+            quit_on_signal(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             scan_wifi_networks,
             discover_projectors,
@@ -464,6 +507,7 @@ pub fn run() {
         .expect("error while building tauri application")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
+                eprintln!("[*] Quitting: stop cast, restore Wi-Fi");
                 let state = app.state::<AppState>();
                 stop_cast_blocking(&state, Duration::from_secs(4));
                 let prev = lock(&state.prev_wifi).take();

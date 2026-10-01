@@ -31,3 +31,6 @@ nokhwa = { version = "~0.10.11", default-features = false, features = ["input-na
 # Encode camera frames as data: URLs to stream a live preview into an <img>.
 base64 = "~0.22.1"
 
+# libspa 0.9.2 + fix for pipewire < 0.3.65 (ubuntu 22.04, mint 21). see vendor/libspa/build.rs
+[patch.crates-io]
+libspa = { path = "../../vendor/libspa" }
