@@ -101,7 +101,7 @@ jobs:
           sleep 3
           export DISPLAY=:99 XDG_SESSION_TYPE=x11
           # red window over the middle (xsetroot does not paint root on xvfb, so a window it is)
-          xterm -bg red -geometry 400x200+0+0 &
+          xterm -fn fixed -bg red -geometry 400x200+0+0 &
           sleep 3
           cargo run --release -p libremp-core --example portal_probe /tmp/out.png | tee probe.txt
           grep -q 'center rgb 255 0 0' probe.txt
