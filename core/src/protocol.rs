@@ -267,7 +267,7 @@ impl ProjectorCaps {
                 3 if n >= 4 => caps.frame = Some((le(0), le(2))),
                 // 22-byte entries: enc, sub, align, unit, min, max (u16 le pairs), throughput
                 5 => {
-                    caps.max_tile = data.chunks_exact(22).find(|e| e[..2] == [0x07, 0x0b]).map(|e| {
+                    caps.max_tile = data.as_chunks::<22>().0.iter().find(|e| e[..2] == [0x07, 0x0b]).map(|e| {
                         (u16::from_le_bytes([e[14], e[15]]), u16::from_le_bytes([e[16], e[17]]))
                     })
                 }
