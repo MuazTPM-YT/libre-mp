@@ -75,3 +75,59 @@ fn response_0x0108_matches_windows_and_rewrites_local_ip() {
     assert!(!r.windows(4).any(|w| w == [192, 168, 88, 2]), "stale baked IP remains");
     assert!(r.windows(4).any(|w| w == [10, 0, 0, 5]), "new IP not written");
 }
+
+// capability record of real reply: 1024x768 frame, 624x416 jpeg tile max, flags as decoded in docs/IPROJECTION_RE.md
+#[test]
+fn registration_response_yields_capabilities() {
+    let c = parse_registration_response(&unhex(WIN_REGISTRATION_RESP)).caps;
+    assert_eq!(c.frame, Some((1024, 768)));
+    assert_eq!(c.max_tile, Some((624, 416)));
+    assert_eq!(c.flags, [0x9f, 0x03, 0xf0, 0xd5, 0, 0, 0, 0]);
+    assert!(!c.two_way_keepalive(), "8-byte flag record has no keep-alive byte");
+    assert_eq!(c.encryption(), (true, true, false));
+    assert!(c.display_keyword());
+}
+
+// short or junk 0x0015 payloads give empty caps, never panic
+#[test]
+fn capabilities_survive_bad_input() {
+    use libremp_core::protocol::ProjectorCaps;
+    assert_eq!(ProjectorCaps::parse(&[]), ProjectorCaps::default());
+    let mut p = vec![0u8; 26];
+    p.extend_from_slice(&[0xff, 0xff, 0, 0, 3, 200, 1]); // length past end, record past end
+    assert_eq!(ProjectorCaps::parse(&p), ProjectorCaps::default());
+}
+
+// tcp splits and joins messages: buffer gives each whole message once, skips junk
+#[test]
+fn eemp_buffer_reassembles_split_messages() {
+    use libremp_core::protocol::EempBuf;
+    let a = unhex(WIN_0108);
+    let b = unhex(WIN_REGISTRATION);
+    let mut wire = b"junk".to_vec();
+    wire.extend_from_slice(&a);
+    wire.extend_from_slice(&b);
+    let mut buf = EempBuf::default();
+    let mut got = Vec::new();
+    for piece in wire.chunks(7) {
+        buf.push(piece);
+        got.extend(buf.take());
+    }
+    assert_eq!(got.len(), 2);
+    assert_eq!((got[0].0, got[0].1.len()), (0x0108, a.len() - 20));
+    assert_eq!((got[1].0, &got[1].1[..]), (0x0002, &b[20..]));
+    assert!(buf.take().is_empty());
+}
+
+// absurd length is junk: buffer resyncs on next real message
+#[test]
+fn eemp_buffer_skips_bogus_length() {
+    use libremp_core::protocol::EempBuf;
+    let mut wire = b"EEMP0100\0\0\0\0\x0e\x01\0\0\xff\xff\xff\x7f".to_vec();
+    wire.extend_from_slice(&unhex(WIN_REGISTRATION));
+    let mut buf = EempBuf::default();
+    buf.push(&wire);
+    let got = buf.take();
+    assert_eq!(got.len(), 1);
+    assert_eq!(got[0].0, 0x0002);
+}

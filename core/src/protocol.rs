@@ -31,6 +31,11 @@ const CMD_DISCONNECT: u32 = 0x0104;
 const CMD_DISCONNECT_OK: u32 = 0x0105;
 const CMD_STATUS_QUERY: u32 = 0x010E;
 const CMD_READY: u32 = 0x0110;
+const CMD_STREAM_GO: u32 = 0x0016;
+// bare-header keep-alive, seen in iProjection 4.10 CKeepAlive::Exec
+const CMD_KEEPALIVE: u32 = 0x000A;
+// iProjection sends it every 5 s when projector has two-way keep-alive
+const KEEPALIVE_EVERY: Duration = Duration::from_secs(5);
 
 // every ipv4 default gateway, route-table order. projector often is one
 fn default_gateways() -> Vec<Ipv4Addr> {
@@ -111,18 +116,82 @@ fn recv_one(stream: &mut TcpStream, timeout: Duration) -> Vec<u8> {
     }
 }
 
-// split buffer into (cmd, payload) eemp messages; stop at junk
-fn eemp_messages(data: &[u8]) -> Vec<(u32, &[u8])> {
-    let mut out = Vec::new();
-    let mut off = 0;
-    while off + 20 <= data.len() && &data[off..off + 8] == b"EEMP0100" {
-        let cmd = u32::from_le_bytes(data[off + 12..off + 16].try_into().unwrap());
-        let len = u32::from_le_bytes(data[off + 16..off + 20].try_into().unwrap()) as usize;
-        let end = (off + 20).saturating_add(len);
-        out.push((cmd, &data[off + 20..end.min(data.len())]));
-        off = end;
+// biggest eemp payload we hold; real ones are < 1 KB, so bigger = junk length
+const MAX_EEMP_PAYLOAD: usize = 64 * 1024;
+
+// control bytes cut into whole eemp messages. tcp splits and joins messages, so partial tail waits for next read
+#[derive(Debug, Default)]
+pub struct EempBuf {
+    buf: Vec<u8>,
+}
+
+impl EempBuf {
+    // add bytes as they came off the socket
+    pub fn push(&mut self, data: &[u8]) {
+        self.buf.extend_from_slice(data);
     }
-    out
+
+    // every whole (cmd, payload) so far. junk before a magic is skipped
+    pub fn take(&mut self) -> Vec<(u32, Vec<u8>)> {
+        let mut out = Vec::new();
+        let mut off = 0;
+        loop {
+            let Some(at) = self.buf[off..].windows(8).position(|w| w == b"EEMP0100") else {
+                // keep last 7 bytes: a magic may be cut in half
+                off = self.buf.len().saturating_sub(7).max(off);
+                break;
+            };
+            off += at;
+            if off + 20 > self.buf.len() {
+                break;
+            }
+            let cmd = u32::from_le_bytes(self.buf[off + 12..off + 16].try_into().unwrap());
+            let len = u32::from_le_bytes(self.buf[off + 16..off + 20].try_into().unwrap()) as usize;
+            if len > MAX_EEMP_PAYLOAD {
+                off += 1; // bogus length: resync on next magic
+                continue;
+            }
+            if off + 20 + len > self.buf.len() {
+                break;
+            }
+            out.push((cmd, self.buf[off + 20..off + 20 + len].to_vec()));
+            off += 20 + len;
+        }
+        self.buf.drain(..off);
+        out
+    }
+}
+
+// whole eemp messages in one complete buffer
+fn eemp_messages(data: &[u8]) -> Vec<(u32, Vec<u8>)> {
+    let mut b = EempBuf::default();
+    b.push(data);
+    b.take()
+}
+
+// one blocking read into buffer; false = timeout, closed or error
+fn fill(stream: &mut TcpStream, ctl: &mut EempBuf, timeout: Duration) -> bool {
+    stream.set_read_timeout(Some(timeout)).ok();
+    let mut chunk = [0u8; 4096];
+    match stream.read(&mut chunk) {
+        Ok(n) if n > 0 => {
+            ctl.push(&chunk[..n]);
+            true
+        }
+        _ => false,
+    }
+}
+
+// answer every heartbeat query (0x010E) in msgs, give back their cmds
+fn answer_queries(s_auth: &mut TcpStream, my_ip: Ipv4Addr, msgs: Vec<(u32, Vec<u8>)>) -> io::Result<Vec<u32>> {
+    let mut cmds = Vec::with_capacity(msgs.len());
+    for (cmd, _) in msgs {
+        if cmd == CMD_STATUS_QUERY {
+            s_auth.write_all(&response_0x0108(my_ip))?;
+        }
+        cmds.push(cmd);
+    }
+    Ok(cmds)
 }
 
 // 20-byte eemp header: magic, sender ip, cmd, len (le)
@@ -165,6 +234,70 @@ pub struct ProjectorIdentity {
     pub name: Option<Vec<u8>>,
     // mac (0x0015, else 0x0003) = easymp auth key
     pub mac: Option<[u8; 6]>,
+    // what it can do (0x0015)
+    pub caps: ProjectorCaps,
+}
+
+// projector abilities from 0x0015. layout read from iProjection 4.10, see docs/IPROJECTION_RE.md
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ProjectorCaps {
+    // frame size it reports (record 3)
+    pub frame: Option<(u16, u16)>,
+    // biggest jpeg tile (record 5, encoding 07/0b; windows tiles match it)
+    pub max_tile: Option<(u16, u16)>,
+    // function flag bytes (record 8)
+    pub flags: Vec<u8>,
+}
+
+impl ProjectorCaps {
+    // 0x0015 payload: 26-byte head, u16 be length, 2 bytes, then u8 type + u8 len records
+    pub fn parse(p: &[u8]) -> Self {
+        let mut caps = Self::default();
+        let Some(len) = p.get(26..28).map(|b| u16::from_be_bytes([b[0], b[1]]) as usize) else { return caps };
+        let mut rec = p.get(30..p.len().min(30 + len)).unwrap_or_default();
+        // ponytail: stop at type 0; tail after record 10 not understood yet
+        while let [kind, n, rest @ ..] = rec {
+            let n = *n as usize;
+            if *kind == 0 || n > rest.len() {
+                break;
+            }
+            let (data, next) = rest.split_at(n);
+            let le = |i: usize| u16::from_le_bytes([data[i], data[i + 1]]);
+            match kind {
+                3 if n >= 4 => caps.frame = Some((le(0), le(2))),
+                // 22-byte entries: enc, sub, align, unit, min, max (u16 le pairs), throughput
+                5 => {
+                    caps.max_tile = data.chunks_exact(22).find(|e| e[..2] == [0x07, 0x0b]).map(|e| {
+                        (u16::from_le_bytes([e[14], e[15]]), u16::from_le_bytes([e[16], e[17]]))
+                    })
+                }
+                8 => caps.flags = data.to_vec(),
+                _ => {}
+            }
+            rec = next;
+        }
+        caps
+    }
+
+    // one flag bit; missing byte = no
+    fn flag(&self, byte: usize, bit: u8) -> bool {
+        self.flags.get(byte).is_some_and(|b| b >> bit & 1 == 1)
+    }
+
+    // projector wants eemp keep-alive both ways
+    pub fn two_way_keepalive(&self) -> bool {
+        self.flag(8, 0)
+    }
+
+    // projector can encrypt (des, aes, aes-ep-ctr); libremp sends plain, like iprojection default
+    pub fn encryption(&self) -> (bool, bool, bool) {
+        (self.flag(1, 0), self.flag(1, 1), self.flag(1, 2))
+    }
+
+    // projector can show a keyword on screen
+    pub fn display_keyword(&self) -> bool {
+        self.flag(2, 6)
+    }
 }
 
 // name + mac from registration reply, like windows client
@@ -176,6 +309,9 @@ pub fn parse_registration_response(data: &[u8]) -> ProjectorIdentity {
     let mut id = ProjectorIdentity::default();
     let mut info_mac = None;
     for (cmd, p) in eemp_messages(data) {
+        if cmd == CMD_REGISTER_MAC {
+            id.caps = ProjectorCaps::parse(&p);
+        }
         match cmd {
             CMD_REGISTER_INFO if p.len() >= 36 => {
                 let name: Vec<u8> = p[4..36].iter().copied().take_while(|&b| b != 0).collect();
@@ -299,9 +435,13 @@ pub struct EpsonClient {
     pub my_ip: Ipv4Addr,
     pub proj_ip: Ipv4Addr,
     pub name: String,
+    pub caps: ProjectorCaps,
     pub s_auth: TcpStream,
     pub s_video: TcpStream,
     pub s_aux: TcpStream,
+    // control bytes not yet a whole message
+    ctl: EempBuf,
+    last_keepalive: Instant,
 }
 
 impl EpsonClient {
@@ -369,56 +509,49 @@ impl EpsonClient {
             String::from_utf8_lossy(&name),
             mac.iter().map(|b| format!("{b:02x}")).collect::<String>()
         );
+        log_caps(&id.caps);
         std::thread::sleep(Duration::from_millis(100));
 
         // ── 2. Authentication ────────────────────────────────────────────
         eprintln!("[*]    Authenticating...");
         let mut s_auth = open(proj_ip, PORT_CONTROL)?;
+        let mut ctl = EempBuf::default();
         s_auth.write_all(&auth_payload(my_ip, proj_ip, &mac, &name, keyword))?;
-        let auth_resp = recv_one(&mut s_auth, Duration::from_secs(5));
+        if !fill(&mut s_auth, &mut ctl, Duration::from_secs(5)) {
+            eprintln!("[*]    No auth reply (projector may be busy)");
+        }
+        let mut msgs = ctl.take();
         // 0x0102 byte 51 (payload 30) = 0 means ok
-        for (cmd, p) in eemp_messages(&auth_resp) {
+        for (cmd, p) in &msgs {
             eprintln!("[+]    Auth reply cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
-            if cmd == CMD_AUTH_OK && p.len() > 30 && p[30] != 0 {
+            if *cmd == CMD_AUTH_OK && p.len() > 30 && p[30] != 0 {
                 return Err(io::Error::new(
                     io::ErrorKind::PermissionDenied,
                     "projector refused the connection (wrong or missing Projector Keyword, or another device is presenting)",
                 ));
             }
         }
-        if auth_resp.is_empty() {
-            eprintln!("[*]    No auth reply (projector may be busy)");
-        }
 
-        // ── 3. Post-auth handshake ───────────────────────────────────────
+        // ── 3. Post-auth handshake: answer queries till 0x0110 ──────────
         eprintln!("[*]    Post-auth handshake...");
-        s_auth.set_read_timeout(Some(Duration::from_secs(3))).ok();
-        let mut responded = false;
-        let mut ready = false;
+        let (mut ready, mut stream_go) = (false, false);
         for _ in 0..10 {
-            let mut buf = vec![0u8; 4096];
-            let n = match s_auth.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => n,
-            };
-            for (cmd, p) in eemp_messages(&buf[..n]) {
-                eprintln!("[+]    Post-auth cmd=0x{cmd:04x}, {} bytes", p.len() + 20);
-                if cmd == CMD_STATUS_QUERY && !responded {
-                    s_auth.write_all(&response_0x0108(my_ip))?;
-                    responded = true;
-                    eprintln!("[+]    Sent 0x0108 response");
-                } else if cmd == CMD_READY {
-                    eprintln!("[+]    Received 0x0110 'Ready to Stream'!");
-                    ready = true;
-                    break;
+            for cmd in answer_queries(&mut s_auth, my_ip, std::mem::take(&mut msgs))? {
+                match cmd {
+                    CMD_STATUS_QUERY => eprintln!("[+]    Sent 0x0108 response"),
+                    CMD_READY => ready = true,
+                    CMD_STREAM_GO => stream_go = true,
+                    _ => {}
                 }
             }
-            if ready {
+            if ready || !fill(&mut s_auth, &mut ctl, Duration::from_secs(3)) {
                 break;
             }
+            msgs = ctl.take();
         }
-        s_auth.set_read_timeout(Some(Duration::from_secs(5))).ok();
-        if !ready {
+        if ready {
+            eprintln!("[+]    Received 0x0110 'Ready to Stream'!");
+        } else {
             eprintln!("[*]    No explicit ready signal, continuing...");
         }
 
@@ -434,10 +567,17 @@ impl EpsonClient {
 
         // ── 5. Wait for 0x0016 ───────────────────────────────────────────
         eprintln!("[*] 3. Waiting for 0x0016 streaming signal...");
-        let data = recv_one(&mut s_auth, Duration::from_secs(10));
-        match eemp_messages(&data).first() {
-            Some((cmd, _)) => eprintln!("[+]    Received cmd=0x{cmd:04x} ({} bytes)", data.len()),
-            None => eprintln!("[*]    No 0x0016 received, continuing..."),
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !stream_go {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() || !fill(&mut s_auth, &mut ctl, left) {
+                eprintln!("[*]    No 0x0016 received, continuing...");
+                break;
+            }
+            for cmd in answer_queries(&mut s_auth, my_ip, ctl.take())? {
+                eprintln!("[+]    Received cmd=0x{cmd:04x}");
+                stream_go |= cmd == CMD_STREAM_GO;
+            }
         }
 
         // ── 6. Warmup buffers ────────────────────────────────────────────
@@ -451,7 +591,17 @@ impl EpsonClient {
 
         eprintln!("\n[+] BINGO! Ready for video stream!");
         let name = String::from_utf8_lossy(&name).into_owned();
-        Ok(EpsonClient { my_ip, proj_ip, name, s_auth, s_video, s_aux })
+        Ok(EpsonClient {
+            my_ip,
+            proj_ip,
+            name,
+            caps: id.caps,
+            s_auth,
+            s_video,
+            s_aux,
+            ctl,
+            last_keepalive: Instant::now(),
+        })
     }
 
     // goodbye (0x0104) like windows. wait for 0x0105 before close: projector answers in ~1.2 s, and closing
@@ -462,16 +612,58 @@ impl EpsonClient {
             return;
         }
         let deadline = Instant::now() + Duration::from_secs(3);
-        let mut seen = Vec::new();
+        let mut seen: Vec<u32> = Vec::new();
         while !seen.contains(&CMD_DISCONNECT_OK) {
             let left = deadline.saturating_duration_since(Instant::now());
-            let reply = recv_one(&mut self.s_auth, left.max(Duration::from_millis(1)));
-            if reply.is_empty() {
+            if !fill(&mut self.s_auth, &mut self.ctl, left.max(Duration::from_millis(1))) {
                 break; // timeout or closed
             }
-            seen.extend(eemp_messages(&reply).iter().map(|(c, _)| *c));
+            seen.extend(self.ctl.take().into_iter().map(|(c, _)| c));
         }
         eprintln!("[*] Goodbye reply: {:?}", seen.iter().map(|c| format!("0x{c:04x}")).collect::<Vec<_>>());
+    }
+
+    // control upkeep, call often: answer heartbeat queries or projector resets after ~50 s, and send
+    // 0x000A keep-alive when projector wants it. nonblocking read: on windows a timed-out read breaks socket
+    pub fn service_control(&mut self) -> io::Result<()> {
+        let mut chunk = [0u8; 4096];
+        self.s_auth.set_nonblocking(true)?;
+        let read = loop {
+            match self.s_auth.read(&mut chunk) {
+                Ok(0) => break Err(io::Error::new(io::ErrorKind::ConnectionAborted, "projector closed the control channel")),
+                Ok(n) => self.ctl.push(&chunk[..n]),
+                Err(e) if e.kind() == io::ErrorKind::WouldBlock => break Ok(()),
+                Err(e) if e.kind() == io::ErrorKind::Interrupted => {}
+                Err(e) => break Err(e),
+            }
+        };
+        self.s_auth.set_nonblocking(false)?;
+        read?;
+        answer_queries(&mut self.s_auth, self.my_ip, self.ctl.take())?;
+        if self.caps.two_way_keepalive() && self.last_keepalive.elapsed() >= KEEPALIVE_EVERY {
+            self.s_auth.write_all(&eemp_header(self.my_ip, CMD_KEEPALIVE, 0))?;
+            self.last_keepalive = Instant::now();
+        }
+        Ok(())
+    }
+}
+
+// say what projector reported, so field logs show why tiles or size differ
+fn log_caps(c: &ProjectorCaps) {
+    let (des, aes, ctr) = c.encryption();
+    eprintln!(
+        "[+]    Capabilities: frame {:?}, max tile {:?}, two-way keep-alive {}, encryption des={des} aes={aes} aes-ctr={ctr} (LibreMP sends plain), shows keyword {}",
+        c.frame,
+        c.max_tile,
+        c.two_way_keepalive(),
+        c.display_keyword(),
+    );
+    if c.frame.is_some_and(|f| f != (crate::STREAM_W as u16, crate::STREAM_H as u16)) {
+        eprintln!(
+            "[!]    Projector reports another frame size; LibreMP still sends {}x{}, the only size tested on hardware.",
+            crate::STREAM_W,
+            crate::STREAM_H
+        );
     }
 }
 
@@ -481,26 +673,6 @@ pub fn send_keepalive(s_aux: &mut TcpStream) -> io::Result<()> {
     s_aux.write_all(&[0u8; 2646])?;
     s_aux.write_all(&aux_header(1764))?;
     s_aux.write_all(&[0u8; 1764])?;
-    Ok(())
-}
-
-// answer heartbeat queries or projector resets after ~50s. nonblocking read, windows timeout breaks socket
-pub fn drain_auth(s_auth: &mut TcpStream, my_ip: Ipv4Addr) -> io::Result<()> {
-    let mut buf = [0u8; 4096];
-    s_auth.set_nonblocking(true)?;
-    let r = s_auth.read(&mut buf);
-    s_auth.set_nonblocking(false)?;
-    let n = match r {
-        Ok(0) => return Err(io::Error::new(io::ErrorKind::ConnectionAborted, "projector closed the control channel")),
-        Ok(n) => n,
-        Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Ok(()),
-        Err(e) => return Err(e),
-    };
-    for (cmd, _) in eemp_messages(&buf[..n]) {
-        if cmd == CMD_STATUS_QUERY {
-            s_auth.write_all(&response_0x0108(my_ip))?;
-        }
-    }
     Ok(())
 }
 
@@ -521,9 +693,6 @@ const META_DISPLAY_CONFIG: [u8; 46] = [
     0x04, 0x00, 0x02, 0x40, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
-
-// windows 1024x768 whole-frame tiles: (x, y, w, h)
-pub const KEYFRAME_TILES: [(u16, u16, u16, u16); 4] = [(0, 0, 624, 416), (624, 0, 400, 416), (0, 416, 624, 352), (624, 416, 400, 352)];
 
 // one jpeg tile + place (16-byte descriptor on wire)
 pub struct VideoTile<'a> {

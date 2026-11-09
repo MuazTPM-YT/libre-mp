@@ -100,3 +100,22 @@ fn keychain_roundtrip() {
     forget_password(key);
     assert_eq!(load_password(key), None);
 }
+
+// old world-readable file comes back user-only after save, and no temp file stays behind
+#[cfg(unix)]
+#[test]
+fn save_replaces_loose_perms_atomically() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = temp("perm-swap");
+    let path = dir.join("projectors.json");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(&path, "{}").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let mut store = SavedProjectors::default();
+    store.upsert(sample("A-1"));
+    store.save_to(&path).unwrap();
+    assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    assert!(!dir.join("projectors.json.tmp").exists());
+    assert_eq!(SavedProjectors::load_from(&path).unwrap().projectors.len(), 1);
+    let _ = std::fs::remove_dir_all(&dir);
+}

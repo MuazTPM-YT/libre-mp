@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use serde::Serialize;
 
 use crate::capture::{self, FrameGrabber};
-use crate::protocol::{self, VideoTile, KEYFRAME_TILES};
+use crate::protocol::{self, VideoTile};
 use crate::{STREAM_H, STREAM_W};
 
 const TARGET_FPS: u64 = 24;
@@ -18,9 +18,8 @@ const AUDIO_SLICE: Duration = Duration::from_millis(100);
 const FULL_REFRESH: Duration = Duration::from_secs(1);
 // change detection grid, 16-aligned for 4:2:0 jpeg
 const CELL: usize = 32;
-// biggest tile windows client ever sends
-const MAX_TILE_W: u16 = 624;
-const MAX_TILE_H: u16 = 416;
+// biggest tile windows client sends = RESEARCHLAB's reported jpeg rect max
+pub const MAX_TILE: (u16, u16) = (624, 416);
 // parts merged down to this many; past NOISE parts or this much area, whole picture is cheaper
 const MAX_RECTS: usize = 8;
 const NOISE_RECTS: usize = 64;
@@ -154,9 +153,31 @@ enum Plan {
     Partial(Vec<Rect>),
 }
 
+// tile cap: windows size, smaller if projector says so. never bigger: only windows size is proven
+pub fn tile_limit(reported: Option<(u16, u16)>) -> (u16, u16) {
+    let (w, h) = reported.unwrap_or(MAX_TILE);
+    // 16-aligned for 4:2:0 jpeg
+    ((w.min(MAX_TILE.0) & !15).max(16), (h.min(MAX_TILE.1) & !15).max(16))
+}
+
+// jpeg each tile on its own thread; whole frame encodes ~4x faster
+fn encode_all(screen: &[u8], rects: &[Rect]) -> Vec<Vec<u8>> {
+    let one = |r: &Rect| capture::encode_tile(screen, r.x, r.y, r.w, r.h);
+    if rects.len() < 2 {
+        return rects.iter().map(one).collect();
+    }
+    // ponytail: one thread per tile, fine at <= ~32 tiles; pool if tile count ever grows
+    std::thread::scope(|s| {
+        let jobs: Vec<_> = rects.iter().map(|r| s.spawn(move || one(r))).collect();
+        jobs.into_iter().map(|j| j.join().unwrap_or_default()).collect()
+    })
+}
+
 // keep session alive, grab, send whole or changed parts, hold fps
 fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, running: &AtomicBool, full_only: bool) -> String {
     let my_ip = client.my_ip;
+    let tile = tile_limit(client.caps.max_tile);
+    let whole = split_tile(&Rect { x: 0, y: 0, w: STREAM_W as u16, h: STREAM_H as u16 }, tile);
     let frame_budget = Duration::from_micros(1_000_000 / TARGET_FPS);
     let mut last_audio = Instant::now();
     let mut last_heartbeat = Instant::now();
@@ -168,7 +189,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
         let t0 = Instant::now();
 
         // upkeep first, so session lives even while capture waits
-        if let Err(e) = protocol::drain_auth(&mut client.s_auth, my_ip) {
+        if let Err(e) = client.service_control() {
             return format!("Control channel: {e}");
         }
         if last_heartbeat.elapsed() > Duration::from_secs(30) {
@@ -192,7 +213,7 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
         let t_capture = t0.elapsed();
 
         let plan = match &prev {
-            Some(p) if !full_only && last_full.elapsed() < FULL_REFRESH => match dirty_rects(p, &screen) {
+            Some(p) if !full_only && last_full.elapsed() < FULL_REFRESH => match dirty_rects(p, &screen, tile) {
                 Some(r) if r.is_empty() => Plan::Skip,
                 Some(r) => Plan::Partial(r),
                 None => Plan::Full,
@@ -200,34 +221,20 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
             _ => Plan::Full,
         };
 
-        let frame = match &plan {
+        let parts = match &plan {
             Plan::Skip => None,
             Plan::Full => {
                 last_full = Instant::now();
-                let jpegs: Vec<Vec<u8>> = KEYFRAME_TILES
-                    .iter()
-                    .map(|&(x, y, w, h)| capture::encode_tile(&screen, x, y, w, h))
-                    .collect();
-                let tiles: Vec<VideoTile> = KEYFRAME_TILES
-                    .iter()
-                    .zip(&jpegs)
-                    .map(|(&(x, y, w, h), jpeg)| VideoTile { jpeg, x, y, w, h })
-                    .collect();
-                Some(protocol::build_video_frame(my_ip, &tiles, true))
+                Some((whole.as_slice(), true))
             }
-            Plan::Partial(rects) => {
-                let jpegs: Vec<Vec<u8>> = rects
-                    .iter()
-                    .map(|r| capture::encode_tile(&screen, r.x, r.y, r.w, r.h))
-                    .collect();
-                let tiles: Vec<VideoTile> = rects
-                    .iter()
-                    .zip(&jpegs)
-                    .map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h })
-                    .collect();
-                Some(protocol::build_video_frame(my_ip, &tiles, false))
-            }
+            Plan::Partial(rects) => Some((rects.as_slice(), false)),
         };
+        let frame = parts.map(|(rects, with_meta)| {
+            let jpegs = encode_all(&screen, rects);
+            let tiles: Vec<VideoTile> =
+                rects.iter().zip(&jpegs).map(|(r, jpeg)| VideoTile { jpeg, x: r.x, y: r.y, w: r.w, h: r.h }).collect();
+            protocol::build_video_frame(my_ip, &tiles, with_meta)
+        });
         let t_encode = t0.elapsed();
 
         if let Some(frame) = &frame {
@@ -263,8 +270,8 @@ fn stream(client: &mut protocol::EpsonClient, grabber: &mut dyn FrameGrabber, ru
     "Stopped".to_string()
 }
 
-// changed areas between two rgb frames. empty = no change, none = send whole frame
-pub fn dirty_rects(prev: &[u8], cur: &[u8]) -> Option<Vec<Rect>> {
+// changed areas between two rgb frames, cut to tile size. empty = no change, none = send whole frame
+pub fn dirty_rects(prev: &[u8], cur: &[u8], tile: (u16, u16)) -> Option<Vec<Rect>> {
     let (w, h) = (STREAM_W as usize, STREAM_H as usize);
     if prev.len() != cur.len() || cur.len() != w * h * 3 {
         return None;
@@ -335,7 +342,7 @@ pub fn dirty_rects(prev: &[u8], cur: &[u8]) -> Option<Vec<Rect>> {
     if rects.iter().map(rect_area).sum::<u32>() as f32 > MAX_PARTIAL_AREA * (w * h) as f32 {
         return None;
     }
-    Some(rects.iter().flat_map(split_tile).collect())
+    Some(rects.iter().flat_map(|r| split_tile(r, tile)).collect())
 }
 
 // pixel count of rect
@@ -349,15 +356,15 @@ fn union(a: &Rect, b: &Rect) -> Rect {
     Rect { x, y, w: (a.x + a.w).max(b.x + b.w) - x, h: (a.y + a.h).max(b.y + b.h) - y }
 }
 
-// cut rect into tiles no bigger than windows client sends
-fn split_tile(r: &Rect) -> Vec<Rect> {
+// cut rect into tiles no bigger than tile limit, from its origin like windows
+fn split_tile(r: &Rect, (max_w, max_h): (u16, u16)) -> Vec<Rect> {
     let mut out = Vec::new();
     let mut y = r.y;
     while y < r.y + r.h {
-        let h = MAX_TILE_H.min(r.y + r.h - y);
+        let h = max_h.min(r.y + r.h - y);
         let mut x = r.x;
         while x < r.x + r.w {
-            let w = MAX_TILE_W.min(r.x + r.w - x);
+            let w = max_w.min(r.x + r.w - x);
             out.push(Rect { x, y, w, h });
             x += w;
         }
@@ -385,7 +392,7 @@ mod tests {
     // same frame, nothing to send
     #[test]
     fn no_change_is_empty() {
-        assert_eq!(dirty_rects(&blank(), &blank()), Some(vec![]));
+        assert_eq!(dirty_rects(&blank(), &blank(), MAX_TILE), Some(vec![]));
     }
 
     // small change snaps out to 32px cells
@@ -393,7 +400,7 @@ mod tests {
     fn small_change_snaps_to_cells() {
         let mut cur = blank();
         paint(&mut cur, 40, 70, 10, 3);
-        assert_eq!(dirty_rects(&blank(), &cur), Some(vec![Rect { x: 32, y: 64, w: 32, h: 32 }]));
+        assert_eq!(dirty_rects(&blank(), &cur, MAX_TILE), Some(vec![Rect { x: 32, y: 64, w: 32, h: 32 }]));
     }
 
     // two far spots stay two parts
@@ -402,7 +409,7 @@ mod tests {
         let mut cur = blank();
         paint(&mut cur, 0, 0, 5, 5);
         paint(&mut cur, 1000, 680, 5, 5);
-        let r = dirty_rects(&blank(), &cur).unwrap();
+        let r = dirty_rects(&blank(), &cur, MAX_TILE).unwrap();
         assert_eq!(r.len(), 2);
         assert!(r.contains(&Rect { x: 992, y: 672, w: 32, h: 32 }));
     }
@@ -412,7 +419,7 @@ mod tests {
     fn column_merges() {
         let mut cur = blank();
         paint(&mut cur, 100, 100, 50, 200);
-        assert_eq!(dirty_rects(&blank(), &cur), Some(vec![Rect { x: 96, y: 96, w: 64, h: 224 }]));
+        assert_eq!(dirty_rects(&blank(), &cur, MAX_TILE), Some(vec![Rect { x: 96, y: 96, w: 64, h: 224 }]));
     }
 
     // big change means whole frame
@@ -420,7 +427,7 @@ mod tests {
     fn big_change_is_full() {
         let mut cur = blank();
         paint(&mut cur, 0, 0, 1024, 600);
-        assert_eq!(dirty_rects(&blank(), &cur), None);
+        assert_eq!(dirty_rects(&blank(), &cur, MAX_TILE), None);
     }
 
     // many spots merge down to few parts that still cover every spot
@@ -430,7 +437,7 @@ mod tests {
         for i in 0..10 {
             paint(&mut cur, i * 64, 300, 4, 4);
         }
-        let r = dirty_rects(&blank(), &cur).unwrap();
+        let r = dirty_rects(&blank(), &cur, MAX_TILE).unwrap();
         assert_eq!(r.len(), MAX_RECTS);
         assert!((0..10).all(|i| r.iter().any(|p| p.x as usize <= i * 64 && i * 64 < (p.x + p.w) as usize && p.y == 288)));
         assert_eq!(r.iter().map(rect_area).sum::<u32>(), 12 * 32 * 32);
@@ -444,7 +451,7 @@ mod tests {
             paint(&mut cur, 10 + i * 64, 10, 4, 4);
             paint(&mut cur, 1000 - i * 64, 740, 4, 4);
         }
-        let r = dirty_rects(&blank(), &cur).unwrap();
+        let r = dirty_rects(&blank(), &cur, MAX_TILE).unwrap();
         assert!(r.iter().map(rect_area).sum::<u32>() < 20 * 32 * 32, "{r:?}");
     }
 
@@ -457,13 +464,13 @@ mod tests {
                 paint(&mut cur, c * 32, r * 32, 2, 2);
             }
         }
-        assert_eq!(dirty_rects(&blank(), &cur), None);
+        assert_eq!(dirty_rects(&blank(), &cur, MAX_TILE), None);
     }
 
     // wide part cut at windows tile limits, all 16-aligned
     #[test]
     fn split_at_limits() {
-        let parts = split_tile(&Rect { x: 0, y: 0, w: 1024, h: 480 });
+        let parts = split_tile(&Rect { x: 0, y: 0, w: 1024, h: 480 }, MAX_TILE);
         assert_eq!(parts.len(), 4);
         assert!(parts.iter().all(|p| p.w <= 624 && p.h <= 416 && p.x % 16 == 0 && p.w % 16 == 0));
         assert_eq!(parts.iter().map(|p| p.w as u32 * p.h as u32).sum::<u32>(), 1024 * 480);
@@ -472,6 +479,28 @@ mod tests {
     // wrong size input never panics
     #[test]
     fn bad_size_is_full() {
-        assert_eq!(dirty_rects(&[0; 10], &[0; 10]), None);
+        assert_eq!(dirty_rects(&[0; 10], &[0; 10], MAX_TILE), None);
+    }
+
+    // whole frame cut at default limit = windows' four keyframe tiles, byte for byte layout
+    #[test]
+    fn whole_frame_matches_windows_tiles() {
+        let t = |x, y, w, h| Rect { x, y, w, h };
+        assert_eq!(
+            split_tile(&t(0, 0, 1024, 768), MAX_TILE),
+            vec![t(0, 0, 624, 416), t(624, 0, 400, 416), t(0, 416, 624, 352), t(624, 416, 400, 352)]
+        );
+    }
+
+    // projector limit only shrinks tiles, stays 16-aligned; unknown = windows size
+    #[test]
+    fn tile_limit_obeys_projector() {
+        assert_eq!(tile_limit(None), MAX_TILE);
+        assert_eq!(tile_limit(Some((656, 416))), MAX_TILE);
+        assert_eq!(tile_limit(Some((500, 300))), (496, 288));
+        assert_eq!(tile_limit(Some((0, 0))), (16, 16));
+        let parts = split_tile(&Rect { x: 0, y: 0, w: 1024, h: 768 }, tile_limit(Some((500, 300))));
+        assert!(parts.iter().all(|p| p.w <= 496 && p.h <= 288));
+        assert_eq!(parts.iter().map(|p| p.w as u32 * p.h as u32).sum::<u32>(), 1024 * 768);
     }
 }

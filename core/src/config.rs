@@ -62,17 +62,8 @@ impl SavedProjectors {
 
     // save to path, make dirs, user-only perms on unix
     pub fn save_to(&self, path: &Path) -> io::Result<()> {
-        if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir)?;
-        }
         let json = serde_json::to_string_pretty(self).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        std::fs::write(path, json)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
-        }
-        Ok(())
+        write_private(path, json.as_bytes())
     }
 
     // add or replace by key, put it first (most recent)
@@ -129,6 +120,34 @@ pub fn forget_password(key: &str) {
     if let Ok(e) = entry(key) {
         let _ = e.delete_credential();
     }
+}
+
+// write user-only file (0600 from birth on unix) via temp + rename: never world-readable, never half-written
+pub fn write_private(path: &Path, data: &[u8]) -> io::Result<()> {
+    use std::io::Write;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    let tmp = PathBuf::from(tmp);
+    // stale temp from a crash may carry wrong perms; mode applies only on create
+    let _ = std::fs::remove_file(&tmp);
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    let mut f = opts.open(&tmp)?;
+    let written = f.write_all(data).and_then(|_| f.sync_all());
+    drop(f);
+    if let Err(e) = written.and_then(|_| std::fs::rename(&tmp, path)) {
+        let _ = std::fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
 }
 
 // <config dir>/libremp/projectors.json

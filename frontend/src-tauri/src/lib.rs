@@ -75,9 +75,19 @@ impl From<libremp_core::qr::EpsonQr> for QrProjector {
     }
 }
 
-// read epson qr from uploaded photo bytes
+// biggest photo we decode; phone photos are < 20 MB
+const MAX_PHOTO_BYTES: usize = 40 * 1024 * 1024;
+
+// read epson qr from uploaded photo, sent as raw ipc body (json number array was ~4x bigger and slow)
 #[tauri::command]
-async fn decode_projector_qr(image_bytes: Vec<u8>) -> Result<QrProjector, String> {
+async fn decode_projector_qr(request: tauri::ipc::Request<'_>) -> Result<QrProjector, String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("The photo did not arrive. Try again.".into());
+    };
+    if bytes.len() > MAX_PHOTO_BYTES {
+        return Err("This photo is too big. Use a photo smaller than 40 MB.".into());
+    }
+    let image_bytes = bytes.clone();
     blocking(move || libremp_core::qr::parse_from_image_bytes(&image_bytes))
         .await?
         .map(QrProjector::from)

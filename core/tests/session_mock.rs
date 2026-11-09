@@ -46,10 +46,23 @@ fn wait_cmd(s: &mut TcpStream, cmd: u32) -> bool {
 struct Seen {
     video: Vec<u8>,
     goodbye: bool,
+    keepalives: usize,
 }
 
-// serve one session. status 0 = accept login, else refuse
-fn fake_projector(status: u8) -> Arc<Mutex<Seen>> {
+// 0x0015 payload: mac, zero head to 26, u16 be length, 2 bytes, one record: type 8, 9 flag bytes
+// (byte 8 bit 0 = two-way keep-alive)
+fn caps_payload(keepalive: bool) -> Vec<u8> {
+    let rec = [8u8, 9, 0, 0, 0, 0, 0, 0, 0, 0, keepalive as u8];
+    let mut p = MAC.to_vec();
+    p.resize(26, 0);
+    p.extend_from_slice(&(rec.len() as u16).to_be_bytes());
+    p.extend_from_slice(&[0, 0]);
+    p.extend_from_slice(&rec);
+    p
+}
+
+// serve one session. status 0 = accept login, else refuse. caps = also send 0x0015 with keep-alive flag
+fn fake_projector(status: u8, keepalive: bool) -> Arc<Mutex<Seen>> {
     let seen = Arc::new(Mutex::new(Seen::default()));
     let control = TcpListener::bind((LOCAL, 3620)).expect("port 3620 free");
     let video = TcpListener::bind((LOCAL, 3621)).expect("port 3621 free");
@@ -68,6 +81,9 @@ fn fake_projector(status: u8) -> Arc<Mutex<Seen>> {
         info.extend_from_slice(&[0u8; 12]);
         info.extend_from_slice(&MAC);
         reg.write_all(&eemp(0x0003, &info)).unwrap();
+        if keepalive {
+            reg.write_all(&eemp(0x0015, &caps_payload(true))).unwrap();
+        }
         drop(reg);
 
         // auth: status byte 30, then status query, ready, stream go
@@ -86,9 +102,23 @@ fn fake_projector(status: u8) -> Arc<Mutex<Seen>> {
         auth.write_all(&eemp(0x0110, &[])).unwrap();
         thread::sleep(Duration::from_millis(800));
         auth.write_all(&eemp(0x0016, &[])).unwrap();
-        if wait_cmd(&mut auth, 0x0104) {
-            s.lock().unwrap().goodbye = true;
-            let _ = auth.write_all(&eemp(0x0105, &[]));
+        // count 0x000A till goodbye 0x0104
+        let mut seen = Vec::new();
+        let mut buf = [0u8; 4096];
+        auth.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
+        while let Ok(n @ 1..) = auth.read(&mut buf) {
+            seen.extend_from_slice(&buf[..n]);
+            let cmds: Vec<u32> = seen
+                .windows(20)
+                .filter(|w| &w[..8] == b"EEMP0100")
+                .map(|w| u32::from_le_bytes(w[12..16].try_into().unwrap()))
+                .collect();
+            s.lock().unwrap().keepalives = cmds.iter().filter(|&&c| c == 0x000A).count();
+            if cmds.contains(&0x0104) {
+                s.lock().unwrap().goodbye = true;
+                let _ = auth.write_all(&eemp(0x0105, &[]));
+                break;
+            }
         }
     });
 
@@ -183,7 +213,7 @@ fn blocks(stream: &[u8]) -> Vec<(bool, u32, u32)> {
 #[test]
 fn fake_projector_session() {
     // accept: stream starts whole, then small parts, then goodbye
-    let seen = fake_projector(0);
+    let seen = fake_projector(0, false);
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     let caster = thread::spawn(move || {
@@ -205,6 +235,7 @@ fn fake_projector_session() {
 
     let seen = seen.lock().unwrap();
     assert!(seen.goodbye, "client sends 0x0104 on stop");
+    assert_eq!(seen.keepalives, 0, "no 0x000A unless projector asks");
     let b = blocks(&seen.video);
     assert_eq!(b[0], (true, 4, 1024 * 768), "first frame whole, with meta");
     let partial: Vec<_> = b[1..].iter().filter(|x| x.2 < 1024 * 768).collect();
@@ -212,8 +243,26 @@ fn fake_projector_session() {
     assert!(partial.iter().all(|x| !x.0 && x.2 <= 2 * 64 * 32), "parts small, no meta: {b:?}");
     drop(seen);
 
+    // projector asks for two-way keep-alive: 0x000A every 5 s while casting
+    let seen = fake_projector(0, true);
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+    let caster = thread::spawn(move || {
+        let opts = CastOptions { projector_ip: Some(LOCAL), give_up_after: Some(1), ..Default::default() };
+        run_with(&opts, &mut MovingSquare(0), &r, &mut |_| {})
+    });
+    let start = Instant::now();
+    while seen.lock().unwrap().keepalives < 1 {
+        assert!(start.elapsed() < Duration::from_secs(30), "no 0x000A keep-alive arrived");
+        thread::sleep(Duration::from_millis(100));
+    }
+    running.store(false, Ordering::Relaxed);
+    assert_eq!(caster.join().unwrap(), Ok(()));
+    assert!(seen.lock().unwrap().goodbye);
+    thread::sleep(Duration::from_millis(300));
+
     // refuse: stops at once with rejected kind
-    let _seen = fake_projector(1);
+    let _seen = fake_projector(1, false);
     let running = AtomicBool::new(true);
     let opts = CastOptions { projector_ip: Some(LOCAL), give_up_after: Some(3), ..Default::default() };
     let err = run_with(&opts, &mut MovingSquare(0), &running, &mut |_| {}).unwrap_err();

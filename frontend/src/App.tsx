@@ -348,8 +348,9 @@ function App() {
 
   const upload = async (file: File) => {
     try {
-      const bytes = Array.from(new Uint8Array(await file.arrayBuffer()));
-      fromQr(await invoke<QrResult>('decode_projector_qr', { imageBytes: bytes }));
+      // raw bytes over ipc, not a json number array
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      fromQr(await invoke<QrResult>('decode_projector_qr', bytes));
     } catch (e) {
       setStatus({ kind: 'error', message: errText(e) });
     }
