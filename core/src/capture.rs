@@ -398,17 +398,12 @@ fn extract_tile(screen: &[u8], x: u16, y: u16, w: u16, h: u16) -> Vec<u8> {
     let cw = (w as u32).min(sw - cx);
     let ch = (h as u32).min(sh - cy);
 
-    let mut rgb_buf = vec![0u8; (cw * ch * 3) as usize];
-    let mut idx = 0;
-    for row in cy..cy + ch {
-        let src_row = (row as usize) * (sw as usize) * 3;
-        for col in cx..cx + cw {
-            let si = src_row + (col as usize) * 3;
-            rgb_buf[idx] = screen[si];
-            rgb_buf[idx + 1] = screen[si + 1];
-            rgb_buf[idx + 2] = screen[si + 2];
-            idx += 3;
-        }
+    // whole rows at once, not pixel by pixel
+    let (sw, cx, cw) = (sw as usize, cx as usize, cw as usize * 3);
+    let mut rgb_buf = Vec::with_capacity(cw * ch as usize);
+    for row in cy as usize..(cy + ch) as usize {
+        let at = (row * sw + cx) * 3;
+        rgb_buf.extend_from_slice(&screen[at..at + cw]);
     }
     rgb_buf
 }

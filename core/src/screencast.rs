@@ -292,12 +292,12 @@ fn load_restore_token() -> Option<String> {
     (!t.is_empty()).then_some(t)
 }
 
+// token lets a program skip the share prompt, so user-only file
 fn save_restore_token(token: &str) {
     if let Some(p) = restore_token_path() {
-        if let Some(dir) = p.parent() {
-            let _ = std::fs::create_dir_all(dir);
+        if let Err(e) = crate::config::write_private(&p, token.as_bytes()) {
+            eprintln!("[*] Could not save the screen-share choice: {e}");
         }
-        let _ = std::fs::write(p, token);
     }
 }
 
